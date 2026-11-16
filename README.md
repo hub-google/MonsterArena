@@ -2,8 +2,9 @@
 
 怪獸養成／競技場。沿用原始的 **Supabase Game 專案**，不再將既有帳號改接 Firebase。
 
-- 正式網站：https://hub-google.github.io/monster-arena-web/
-- 修復預覽：https://hub-google.github.io/monster-arena-web/preview/
+- 測試網站（`main`）：https://hub-google.github.io/monster-arena-web/
+- 正式網站（`release`）：https://pets.monsterport.com/
+- 舊版修復預覽（封存）：https://hub-google.github.io/monster-arena-web/preview/
 - 專案：https://github.com/hub-google/monster-arena-web
 - GitHub Actions：https://github.com/hub-google/monster-arena-web/actions
 - 後端：Supabase project `fanffwnhkxpfhttylntw` (Game)
@@ -39,7 +40,7 @@ npm run build
 npm run dev
 ```
 
-`master` 更新時經 GitHub Actions 執行 lint、Supabase Auth 健康檢查、Vite build、Playwright Chromium smoke test，通過才部署 `gh-pages`。修復分支 `supabase-stable-fixes` 只部署至 `/preview/`，不覆蓋正式登入頁。
+`main` 更新時經 GitHub Actions 執行 lint、Supabase Auth 健康檢查、Vite build、Playwright Chromium smoke test，通過才部署 GitHub Pages。`release` 只由 Cloudflare Pages 建置，並部署在 `pets.monsterport.com`。Cloudflare 已關閉其他分支的預覽建置。`master` 和 `supabase-stable-fixes` 是歷史分支，不再觸發部署。
 
 SQL 操作已用 `BEGIN ... ROLLBACK` 的交易測試驗證：孵化、購物、餵食、繁衍、每日任務、戰績去重、公會與好友收禮；測試沒有留下怪獸、戰績或公會。
 
@@ -50,3 +51,11 @@ SQL 操作已用 `BEGIN ... ROLLBACK` 的交易測試驗證：孵化、購物、
 原本 Game 專案的 `guilds`、`guild_members`、`guild_applications`、`friends`、`challenges`、`daily_quests` 六個資料表 **沒有啟用 RLS**；不能直接啟用而不先建立正確的政策，否則可能阻斷現有功能。請參考 `docs/SECURITY.md`，目前不將此項宣稱為完成。
 
 另一個限制：原有瀏覽器直接修改自己金幣／怪獸數值的 RLS 權限，以及客戶端決定勝負的模式，尚不足以防止惡意作弊。這次已將 UI 主要經濟操作改為資料庫原子交易，但正式競技或交易上線前，仍須收緊原有直接寫入政策、補足可信任伺服器端戰鬥判定及授權測試。
+
+## Monsterport 主／正式分支規範（2026-11-16）
+
+- `main`：日常修改、測試，僅更新 GitHub Pages `https://hub-google.github.io/monster-arena-web/`，不更新 Monsterport。
+- `release`：正式發布分支。確認 `main` 測試通過後，才將核准的 Commit 合併／提升到 `release`。Cloudflare Pages 專案 `monsterport-pets` 僅追蹤 `release`，關閉 preview builds。
+- Vite：GitHub Pages 使用 `/monster-arena-web/`；Cloudflare 用 `VITE_DEPLOY_TARGET=cloudflare npm run build` 產生根路徑 `/` 資源。
+- **資料庫不搬遷**。沿用原本 Supabase Game 專案 `fanffwnhkxpfhttylntw` 的 Auth、玩家紀錄、遊戲資料與 API；不建立新 Firebase 專案，也不修改 Queue 的 Cloudflare Worker、DNS 或資料表。
+- 舊 `main` 已安全備份到 `legacy-main-20261116`，`master` 與 `supabase-stable-fixes` 保留作歷史參考。日後只改 `main`，發布才更新 `release`。

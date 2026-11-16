@@ -1,22 +1,20 @@
-name: Build, check and deploy GitHub Pages
+name: Build, check and deploy GitHub Pages test site
 
 on:
   push:
-    branches: [master, supabase-stable-fixes]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: monster-arena-pages-${{ github.ref_name }}
+  group: monster-arena-pages-main
   cancel-in-progress: true
 
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
-    env:
-      VITE_PREVIEW: ${{ github.ref_name != 'master' && 'true' || 'false' }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -26,18 +24,18 @@ jobs:
           node-version: '22'
           cache: npm
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Static checks
         run: npm run lint
       - name: Verify original Supabase Authentication
         run: node scripts/check-supabase-game.mjs
-      - name: Build site
+      - name: Build test site
         run: npm run build
       - name: Install Chromium for smoke test
         run: npx playwright install --with-deps chromium
       - name: Run browser smoke test against build
         env:
-          PLAYWRIGHT_BASE_URL: ${{ github.ref_name == 'master' && 'http://127.0.0.1:4173/monster-arena-web/' || 'http://127.0.0.1:4173/monster-arena-web/preview/' }}
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173/monster-arena-web/
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/monster-arena-vite.log 2>&1 &
           for i in $(seq 1 20); do
@@ -45,12 +43,10 @@ jobs:
             sleep 1
           done
           npx playwright test tests/smoke.spec.js --project=chromium
-      - name: Publish to gh-pages branch
+      - name: Publish test to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           publish_branch: gh-pages
-          destination_dir: ${{ github.ref_name == 'master' && '.' || 'preview' }}
-          keep_files: ${{ github.ref_name != 'master' }}
-          force_orphan: ${{ github.ref_name == 'master' }}
+          keep_files: true
