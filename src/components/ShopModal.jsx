@@ -79,6 +79,24 @@ export default function ShopModal({ user, onClose, refreshData }) {
             <button onClick={() => handleBuy('vitamin')} disabled={loading || user.gold < 50} className="neon-button bg-cyan-600 text-white px-4 py-2 text-sm shadow-cyan-500/20">50G 購買</button>
           </div>
           
+          {[
+            { id:'chip_atk', title:'攻擊晶片', stat:'攻擊力' },
+            { id:'chip_def', title:'防禦晶片', stat:'防禦力' },
+            { id:'chip_hp', title:'生命晶片', stat:'生命值' },
+            { id:'chip_spd', title:'速度晶片', stat:'速度' }
+          ].map(chip => (
+            <div key={chip.id} className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center gap-2">
+              <div className="flex flex-col">
+                <span className="font-bold text-white text-sm">晶片：{chip.title}</span>
+                <span className="text-xs text-slate-400">鑲嵌後 {chip.stat} +5；舊晶片可用提取器回收</span>
+              </div>
+              <button onClick={() => handleBuy(chip.id)} disabled={loading || user.gold < 300}
+                className="neon-button bg-cyan-600 text-white px-4 py-2 text-sm shrink-0 disabled:opacity-40">
+                300G 購買
+              </button>
+            </div>
+          ))}
+
           <div className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center hover:border-amber-500/30 transition-colors">
             <div className="flex flex-col">
               <span className="font-bold text-white text-sm">🧪 繁衍催化劑</span>

@@ -31,4 +31,10 @@ assert.match(privacy,/game_plaza_monsters/);
 assert.match(api,/game_plaza_monsters/);
 assert.match(api,/legacyUsernameEmail/);
 assert.match(api,/actualName.toLowerCase/);
+const chips=read('supabase/migrations/20261117_game_chip_inventory.sql');
+for (const item of ['chip_atk','chip_def','chip_hp','chip_spd']) {
+  assert.ok(chips.includes(item),'missing chip type: '+item);
+  assert.ok(api.includes('getInventory'),'game client must still load inventory');
+}
+assert.ok(chips.includes("item_type 1 or 6"),'legacy inventory support missing');
 console.log('Arena security and game contract checks passed.');
