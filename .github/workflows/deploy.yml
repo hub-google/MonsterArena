@@ -27,6 +27,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Static checks
         run: npm run lint
+      - name: Verify authoritative game contract
+        run: npm run check:contract
       - name: Verify original Supabase Authentication
         run: node scripts/check-supabase-game.mjs
       - name: Build test site

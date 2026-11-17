@@ -74,7 +74,7 @@ export default function ShopModal({ user, onClose, refreshData }) {
           <div className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center hover:border-amber-500/30 transition-colors">
             <div className="flex flex-col">
               <span className="font-bold text-white text-sm">🧪 維他命</span>
-              <span className="text-xs text-slate-400">+10% 訓練成功率</span>
+              <span className="text-xs text-slate-400">訓練時自動使用 1 顆，屬性提升量 +10%</span>
             </div>
             <button onClick={() => handleBuy('vitamin')} disabled={loading || user.gold < 50} className="neon-button bg-cyan-600 text-white px-4 py-2 text-sm shadow-cyan-500/20">50G 購買</button>
           </div>

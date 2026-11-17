@@ -27,34 +27,8 @@ export default function Arena({
 
   const logsEndRef = useRef(null);
   const refreshChatRef = useRef(null);
-  const recordedBattles = useRef(new Set());
-  const savingBattles = useRef(new Set());
-  const refreshDataRef = useRef(refreshData);
-  const [battleSaveError, setBattleSaveError] = useState('');
-  refreshDataRef.current = refreshData;
+  const challengePending = useRef(false);
   const battleRunning = Boolean(battleState && !battleState.isOver);
-
-  const saveBattleResult = async (battle) => {
-    if (!battle?.isOver || !battle.battleId || recordedBattles.current.has(battle.battleId) ||
-        savingBattles.current.has(battle.battleId)) return;
-    const { battleId, mA, winner } = battle;
-    savingBattles.current.add(battleId);
-    setBattleSaveError('');
-    try {
-      await api.recordBattleResult(mA.monster_id, battleId, winner === 'A');
-      recordedBattles.current.add(battleId);
-      await refreshDataRef.current();
-    } catch (err) {
-      setBattleSaveError(`戰鬥紀錄儲存失敗：${err.message || '請重新嘗試'}`);
-    } finally {
-      savingBattles.current.delete(battleId);
-    }
-  };
-
-  useEffect(() => {
-    if (battleState?.isOver) void saveBattleResult(battleState);
-    // Do not retry after unrelated re-renders (including save errors).
-  }, [battleState?.isOver, battleState?.battleId]);
 
 
   useEffect(() => {
@@ -76,75 +50,26 @@ export default function Arena({
     };
   }, []);
 
-  // Battle ATB Engine
+  // Battle transcript playback is cosmetic; the database already determined the winner.
   useEffect(() => {
     if (!battleRunning) return;
-    
-    const interval = setInterval(() => {
-      setBattleState(prev => {
-        if (!prev || prev.isOver) return prev;
-        let next = { ...prev, logs: [...prev.logs] };
-        
-        // RNG & Base Speed Multiplier
-        const speedMultiplier = 0.5;
-        const tickRngA = 0.9 + Math.random() * 0.2;
-        const tickRngB = 0.9 + Math.random() * 0.2;
-
-        next.mA_ATB = Math.min(100, (next.mA_ATB || 0) + (next.mA.combat_spd * speedMultiplier * tickRngA));
-        next.mB_ATB = Math.min(100, (next.mB_ATB || 0) + (next.mB.combat_spd * speedMultiplier * tickRngB));
-
-        let attacker = null;
-        let defender = null;
-        let attackerStr = '';
-        
-        if (next.mA_ATB >= 100) { attacker = next.mA; defender = next.mB; attackerStr = 'A'; }
-        else if (next.mB_ATB >= 100) { attacker = next.mB; defender = next.mA; attackerStr = 'B'; }
-
-        if (attacker) {
-          if (attackerStr === 'A') next.mA_ATB = 0; else next.mB_ATB = 0;
-          
-          let advantage = 1.0;
-          // 1: Vaccine, 2: Data, 3: Virus
-          if (attacker.type === 1 && defender.type === 3) advantage = 1.3;
-          if (attacker.type === 3 && defender.type === 2) advantage = 1.3;
-          if (attacker.type === 2 && defender.type === 1) advantage = 1.3;
-          if (attacker.type === 3 && defender.type === 1) advantage = 0.7;
-          if (attacker.type === 2 && defender.type === 3) advantage = 0.7;
-          if (attacker.type === 1 && defender.type === 2) advantage = 0.7;
-
-          const rng = 0.9 + Math.random() * 0.2;
-          const apKey = attackerStr === 'A' ? 'mA_AP' : 'mB_AP';
-          next[apKey] = Math.min(30, (next[apKey] || 0) + 10);
-          
-          let isSkill = false;
-          let skillMult = 1.0;
-          if (next[apKey] >= 30) {
-            isSkill = true;
-            skillMult = 1.6;
-            next[apKey] = 0;
-          }
-
-          let dmg = Math.floor(attacker.combat_atk * advantage * skillMult * rng - (defender.combat_def * 0.5));
-          if (dmg < 1) dmg = 1;
-
-          if (attackerStr === 'A') next.mB_HP = Math.max(0, next.mB_HP - dmg);
-          else next.mA_HP = Math.max(0, next.mA_HP - dmg);
-
-          const actionStr = isSkill ? `💥 施展必殺技` : `攻擊`;
-          const advStr = advantage > 1 ? ` (效果拔群)` : (advantage < 1 ? ` (效果微弱)` : '');
-          next.logs.push(`${attacker.name} ${actionStr}${advStr}，造成 ${dmg} 傷害！`);
-
-          if (next.mA_HP === 0 || next.mB_HP === 0) {
-            next.isOver = true;
-            const winner = next.mA_HP > 0 ? next.mA : next.mB;
-            next.winner = next.mA_HP > 0 ? 'A' : 'B';
-            next.logs.push(`🏆 戰鬥結束！${winner.name} 獲勝！`);
-          }
-        }
-        return next;
-      });
-    }, 200);
-
+    const interval = setInterval(() => setBattleState(prev => {
+      if (!prev || prev.isOver) return prev;
+      const index = prev.eventIndex || 0;
+      const step = prev.events?.[index];
+      const winner = prev.serverWon ? 'A' : 'B';
+      const victoryText = `🏆 戰鬥結束！${prev.serverWon ? prev.mA.name : prev.mB.name} 獲勝！`;
+      if (!step) return {...prev, isOver:true, winner,
+        logs:[...prev.logs,victoryText]};
+      const finished = index + 1 >= prev.events.length;
+      const attackerName=step.attacker==='A' ? prev.mA.name : prev.mB.name;
+      return {...prev, eventIndex:index+1,
+        mA_HP:step.ownHp, mB_HP:step.enemyHp,
+        mA_ATB:step.attacker==='A'?100:0, mB_ATB:step.attacker==='B'?100:0,
+        logs:[...prev.logs,`${attackerName} 攻擊，造成 ${step.damage} 傷害！`,
+          ...(finished?[victoryText]:[])].slice(-80),
+        isOver:finished, winner:finished?winner:null};
+    }), 160);
     return () => clearInterval(interval);
   }, [battleRunning, setBattleState]);
 
@@ -157,37 +82,34 @@ export default function Arena({
       .finally(() => setLoading(false));
   };
 
-  const handleChallenge = (targetPlayerId) => {
+  const handleChallenge = async (targetPlayerId) => {
+    if (challengePending.current) return;
     const monster = monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead)
       || monsters.find(m => !m.is_dead);
-    if (!monster) return setMessage('❌ 請先選擇一隻存活的怪獸出戰！');
-    const isBoss = targetPlayerId === 'mock_boss';
+    if (!monster) return setMessage('請先選擇一隻存活的怪獸出戰！');
+    const isBoss=targetPlayerId==='mock_boss';
+    challengePending.current=true;
+    setLoading(true);
     setMessage('');
-    setBattleSaveError('');
-    // Wild and boss encounters are distinct local simulations.
-    handleAcceptChallenge(monster, {
-      ...monster,
-      name: isBoss ? '究極體王怪' : '野生病毒怪獸',
-      combat_hp: Math.max(1, Math.round(monster.combat_hp * (isBoss ? 2.2 : 0.9))),
-      combat_atk: Math.max(1, Math.round(monster.combat_atk * (isBoss ? 1.6 : 0.8))),
-      combat_def: Math.max(1, Math.round(monster.combat_def * (isBoss ? 1.5 : 0.8))),
-      combat_spd: Math.max(1, Math.round(monster.combat_spd * (isBoss ? 1.3 : 0.9))),
-      type: isBoss ? 1 : 3
-    });
-  };
-
-  const handleAcceptChallenge = (mA, mB) => {
-    setReceivedChallenge(null);
-    setBattleState({
-      battleId: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random(),
-      mA, mB,
-      mA_HP: mA.combat_hp, mB_HP: mB.combat_hp,
-      mA_MaxHP: mA.combat_hp, mB_MaxHP: mB.combat_hp,
-      mA_ATB: 0, mB_ATB: 0,
-      mA_AP: 0, mB_AP: 0,
-      logs: [`⚔️ 戰鬥開始！ ${mA.name} vs ${mB.name}！`],
-      isOver: false, winner: null
-    });
+    try {
+      const result=await api.startBattle(monster.monster_id,isBoss?'boss':'wild');
+      const enemy={...monster, name:result.enemyName,
+        combat_hp:result.enemyMaxHp, combat_atk:result.enemyAtk,
+        combat_def:result.enemyDef, combat_spd:result.enemySpd,
+        type:result.enemyType};
+      setBattleState({
+        battleId:result.battleId, serverWon:result.won, events:result.events||[], eventIndex:0,
+        mA:monster, mB:enemy,
+        mA_HP:result.ownMaxHp,mB_HP:result.enemyMaxHp,
+        mA_MaxHP:result.ownMaxHp,mB_MaxHP:result.enemyMaxHp,
+        mA_ATB:0,mB_ATB:0,mA_AP:0,mB_AP:0,
+        logs:[`⚔️ 戰鬥開始！ ${monster.name} vs ${enemy.name}！`],
+        isOver:false,winner:null,finalOwnHp:result.ownHp,finalEnemyHp:result.enemyHp
+      });
+      await refreshData();
+    } catch (err) {
+      setMessage(`對戰失敗：${err.message || '請稍後重試'}`);
+    } finally { challengePending.current=false; setLoading(false); }
   };
 
   const handleSendFriendRequest = async () => {
@@ -288,19 +210,16 @@ export default function Arena({
           </div>
         </div>
 
-        {battleSaveError && (
-          <div role="alert" className="glass-card p-3 text-rose-300 text-sm flex flex-col gap-2">
-            <span>{battleSaveError}</span>
-            <button type="button" onClick={() => saveBattleResult(battleState)} className="neon-button neon-button-primary px-3 py-2">
-              重試儲存戰績
-            </button>
-          </div>
-        )}
         <div className="mt-auto">
           {isBattleOver ? (
             <button onClick={() => { setBattleState(null); refreshData(); }} className="w-full neon-button neon-button-primary py-4 font-bold text-lg">離開戰場</button>
           ) : (
-            <button onClick={() => { setBattleState(null); refreshData(); }} className="w-full neon-button neon-button-danger py-4 font-bold">強制脫離戰鬥 (投降)</button>
+            <button onClick={() => setBattleState(prev => prev && ({
+              ...prev,isOver:true,winner:prev.serverWon?'A':'B',
+              mA_HP:prev.finalOwnHp,mB_HP:prev.finalEnemyHp,
+              eventIndex:prev.events?.length||0,
+              logs:[...prev.logs,`🏆 戰鬥結束！${prev.serverWon ? prev.mA.name : prev.mB.name} 獲勝！`]
+            }))} className="w-full neon-button neon-button-primary py-4 font-bold">跳過戰鬥動畫</button>
           )}
         </div>
       </div>
@@ -349,7 +268,7 @@ export default function Arena({
                    <span className="text-xs text-slate-400">等級不定的野怪，練功好對象。</span>
                  </div>
                </div>
-               <button onClick={() => handleChallenge('mock')} className="neon-button neon-button-danger px-6 py-2 shadow-rose-500/20">挑戰</button>
+               <button onClick={() => handleChallenge('mock')} disabled={loading} className="neon-button neon-button-danger px-6 py-2 shadow-rose-500/20">挑戰</button>
              </div>
 
              <div className="glass-card p-4 border-fuchsia-500/30 flex justify-between items-center hover:border-fuchsia-500/60 transition-colors">
@@ -360,7 +279,7 @@ export default function Arena({
                    <span className="text-xs text-slate-400">極度危險！請確保有充分準備。</span>
                  </div>
                </div>
-               <button onClick={() => handleChallenge('mock_boss')} className="neon-button neon-button-danger px-6 py-2 shadow-fuchsia-500/20 bg-fuchsia-700 hover:bg-fuchsia-600">挑戰</button>
+               <button onClick={() => handleChallenge('mock_boss')} disabled={loading} className="neon-button neon-button-danger px-6 py-2 shadow-fuchsia-500/20 bg-fuchsia-700 hover:bg-fuchsia-600">挑戰</button>
              </div>
           </div>
         )}

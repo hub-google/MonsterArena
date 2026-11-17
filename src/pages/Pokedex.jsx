@@ -88,9 +88,9 @@ export default function Pokedex({ setPage }) {
               
               {/* Evolution Hint */}
               <div className="text-[9px] text-slate-400 mt-1 text-center leading-tight bg-slate-900/50 p-1.5 rounded w-full">
-                {monster.stage === 2 && '12小時後隨機進化'}
-                {monster.stage === 3 && '訓練次數與照顧度影響分歧'}
-                {monster.stage === 4 && '需15~30場戰鬥與勝率要求'}
+                {monster.stage === 2 && '累積養成約 1 天進入成長期'}
+                {monster.stage === 3 && '累積養成約 3 天進入成熟期'}
+                {monster.stage === 4 && '累積養成約 7 天進入完全體'}
                 {monster.stage === 5 && '需50戰+70%勝率+進化核心'}
                 {monster.stage === 6 && '數碼世界的巔峰存在'}
               </div>

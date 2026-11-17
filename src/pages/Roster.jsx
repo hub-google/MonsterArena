@@ -186,7 +186,11 @@ export default function Roster({
                     {selectedMonster.is_locked ? '解除鎖定' : '鎖定保護'}
                   </button>
                   <button
-                    onClick={() => handleAction(api.release, selectedMonster.monster_id)}
+                    onClick={() => {
+                      if (window.confirm(`確定永久放生「${selectedMonster.name}」？放生後無法恢復。`)) {
+                        handleAction(api.release, selectedMonster.monster_id);
+                      }
+                    }}
                     disabled={loading || selectedMonster.is_locked}
                     className="flex-1 neon-button neon-button-danger py-3"
                   >

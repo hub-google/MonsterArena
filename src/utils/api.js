@@ -19,42 +19,6 @@ const dateInTaiwan = () => new Intl.DateTimeFormat('en-CA', {
 }).format(new Date());
 const getQuestId = uid => `${uid}_${dateInTaiwan()}`;
 
-const updateAging = async (monster, uid) => {
-  if (monster.is_dead || monster.is_frozen) return monster;
-  const elapsed = (Date.now() - new Date(monster.last_updated_at || Date.now()).getTime()) / 3600000;
-  if (!Number.isFinite(elapsed) || elapsed < 1 / 12) return monster;
-  const hours = Math.min(720, Math.max(0, elapsed));
-  const prevAge = Number(monster.age_days) || 0;
-  const age = prevAge + hours / 24;
-  const fullness = Math.max(0, (Number(monster.fullness) || 0) - hours * (monster.life_stage >= 4 ? 4 : 2));
-  const cleanliness = Math.max(0, Math.round((Number(monster.cleanliness) || 0) - hours * 4));
-  let stage = Number(monster.life_stage) || 1;
-  if (stage === 0) stage = 1;
-  if (stage === 1 && age >= 0.05) stage = 2;
-  if (stage === 2 && age >= 1) stage = 3;
-  if (stage === 3 && age >= 3) stage = 4;
-  if (stage === 4 && age >= 7) stage = 5;
-  let type = monster.type;
-  if (stage >= 3 && !type) type = 1 + Math.floor(Math.random() * 3);
-  const isSick = Boolean(monster.is_sick) || (cleanliness < 30 && Math.random() < 0.04);
-  // Avoid constantly compounding age-related stat decay on every refresh.
-  const daysOfDecay = Math.max(0, Math.floor(age - 30)) - Math.max(0, Math.floor(prevAge - 30));
-  const decay = Math.pow(0.99, daysOfDecay);
-  const patch = {
-    age_days: age, fullness, cleanliness, life_stage: stage, type, is_sick: isSick,
-    last_updated_at: new Date().toISOString()
-  };
-  if (daysOfDecay > 0) {
-    patch.combat_atk = (monster.combat_atk || 1) * decay;
-    patch.combat_def = (monster.combat_def || 1) * decay;
-    patch.combat_spd = (monster.combat_spd || 1) * decay;
-  }
-  const { error } = await supabase.from('monsters').update(patch)
-    .eq('monster_id', monster.monster_id).eq('user_id', uid);
-  throwIfError(error);
-  return { ...monster, ...patch };
-};
-
 export const api = {
   register: async (username, email, password) => {
     const trimmed = username.trim();
@@ -95,10 +59,11 @@ export const api = {
   },
   getMonsters: async () => {
     const uid = await getUid();
+    const aged=await supabase.rpc('game_age_monsters');
+    throwIfError(aged.error);
     const { data, error } = await supabase.from('monsters').select('*').eq('user_id', uid);
     throwIfError(error);
-    const result = await Promise.all((data ?? []).map(m => updateAging(m, uid)));
-    return result.sort((a,b) => Number(a.is_dead)-Number(b.is_dead) || b.life_stage-a.life_stage);
+    return (data ?? []).sort((a,b) => Number(a.is_dead)-Number(b.is_dead) || b.life_stage-a.life_stage);
   },
   hatchEgg: () => action('hatch'),
   feed: (monster_id, item_id) => action('feed', { monster_id, item_id }),
@@ -119,15 +84,9 @@ export const api = {
   },
   buyItem: (item_id, quantity=1) => action('buy', { item_id, quantity }),
   rename: async (monster_id, name) => {
-    const uid = await getUid();
-    const trimmed = name.trim().slice(0, 30);
-    if (!trimmed) throw new Error('請輸入怪獸名稱');
-    const { data, error } = await supabase.from('monsters')
-      .update({ name: trimmed }).eq('monster_id', monster_id).eq('user_id', uid)
-      .select('monster_id').maybeSingle();
+    const {data,error}=await supabase.rpc('game_rename_monster',{p_monster_id:monster_id,p_name:name});
     throwIfError(error);
-    if (!data) throw new Error('無法修改其他玩家的怪獸');
-    return { message: '怪獸名稱已更新' };
+    return data;
   },
   trackQuestProgress: async () => {
     // Counts are updated atomically together with the corresponding game action.
@@ -140,7 +99,7 @@ export const api = {
     return data ?? { feed_count:0, clean_count:0, train_count:0, battle_count:0, claimed:[] };
   },
   claimQuest: quest_id => action('claim', { quest_id }),
-  recordBattleResult: (monster_id, battleId, won) => action('battle', { monster_id, battleId, won }),
+  startBattle: (monster_id, encounter='wild') => action('battle', { monster_id, encounter }),
   getGuilds: async () => {
     const uid = await getUid();
     const [guildResult, memberResult] = await Promise.all([
@@ -152,7 +111,7 @@ export const api = {
     const leaderIds = [...new Set(guilds.map(g => g.leader_id).filter(Boolean))];
     let usernames = {};
     if (leaderIds.length) {
-      const { data, error } = await supabase.from('users').select('user_id,username').in('user_id', leaderIds);
+      const { data, error } = await supabase.rpc('game_public_profiles',{p_user_ids:leaderIds});
       throwIfError(error);
       usernames = Object.fromEntries((data ?? []).map(u => [u.user_id,u.username]));
     }
@@ -188,8 +147,7 @@ export const api = {
       if(group.monsters.length<3) group.monsters.push(m);
     });
     if (grouped.size) {
-      const {data:users,error:ue} = await supabase.from('users').select('user_id,username')
-        .in('user_id',[...grouped.keys()]);
+      const {data:users,error:ue} = await supabase.rpc('game_public_profiles',{p_user_ids:[...grouped.keys()]});
       throwIfError(ue);
       (users??[]).forEach(u=>{const p=grouped.get(u.user_id);if(p)p.username=u.username;});
     }
@@ -209,8 +167,7 @@ export const api = {
     throwIfError(error);
     const incoming=data??[];
     if(!incoming.length)return [];
-    const {data:people,error:peopleError}=await supabase.from('users').select('user_id,username')
-      .in('user_id',incoming.map(x=>x.user_id));
+    const {data:people,error:peopleError}=await supabase.rpc('game_public_profiles',{p_user_ids:incoming.map(x=>x.user_id)});
     throwIfError(peopleError);
     const names=Object.fromEntries((people??[]).map(p=>[p.user_id,p.username]));
     return incoming.map(f=>({...f,friend_name:names[f.user_id]||'玩家'}));
@@ -219,18 +176,18 @@ export const api = {
     const uid=await getUid();
     const name=target.trim();
     if(!name)throw new Error('請輸入好友 UUID 或使用者名稱');
-    let lookup=supabase.from('users').select('user_id,username');
-    lookup=/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(name)?
-      lookup.eq('user_id',name):lookup.eq('username',name);
-    const {data:peer,error}=await lookup.maybeSingle();
+    const isUuid=/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(name);
+    const {data:profiles,error}=await supabase.rpc('game_public_profiles',
+      isUuid?{p_user_ids:[name]}:{p_username:name});
     throwIfError(error);
+    const peer=profiles?.find(p=>p.username===name)||profiles?.[0];
     if(!peer)throw new Error('找不到該玩家');
     if(peer.user_id===uid)throw new Error('不能加自己');
-    const {data,result,error:requestError}=await supabase.rpc('game_friend_action',{
+    const {data,error:requestError}=await supabase.rpc('game_friend_action',{
       p_mode:'request',p_peer:peer.user_id
     });
     throwIfError(requestError);
-    return data??result??{message:'好友邀請已送出'};
+    return data??{message:'好友邀請已送出'};
   },
   acceptFriend: async friend_id => {
     const {data,error}=await supabase.rpc('game_friend_action',{p_mode:'accept',p_peer:friend_id});

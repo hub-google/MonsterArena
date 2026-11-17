@@ -19,9 +19,12 @@ export default function Guild({
     try {
       const data = await actionFn(...args);
       setMessage(data.message || '操作成功！');
-      await refreshData();
+      try { await refreshData(); }
+      catch { setMessage('操作成功，但重新整理失敗，請手動更新畫面。'); }
+      return true;
     } catch (err) {
       setMessage(`❌ ${err.message}`);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -29,14 +32,12 @@ export default function Guild({
 
   const handleCreate = async () => {
     if (!guildName) return;
-    await handleAction(api.createGuild, guildName);
-    setGuildName('');
+    if (await handleAction(api.createGuild, guildName)) setGuildName('');
   };
 
   const handleDonate = async () => {
     if (!/^[1-9]\d*$/.test(donationAmount)) { setMessage('❌ 請輸入正整數捐獻金額'); return; }
-    await handleAction(api.donateGuild, Number(donationAmount));
-    setDonationAmount('');
+    if (await handleAction(api.donateGuild, Number(donationAmount))) setDonationAmount('');
   };
 
   const handleBuyShop = async (itemId) => {
@@ -75,7 +76,12 @@ export default function Guild({
               
               <div className="flex justify-end border-t border-slate-700/50 pt-3 relative z-10">
                 <button
-                  onClick={() => handleAction(api.leaveGuild)}
+                  onClick={() => {
+                    const destructive=myGuild.role===2;
+                    if (!destructive || window.confirm(`確定解散「${myGuild.guild_name}」？所有公會成員會被移除，無法恢復。`)) {
+                      handleAction(api.leaveGuild);
+                    }
+                  }}
                   disabled={loading}
                   className="text-sm text-rose-400 hover:text-rose-300 font-bold px-3 py-1 bg-rose-500/10 rounded-lg transition-colors"
                 >
