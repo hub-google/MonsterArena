@@ -197,6 +197,7 @@ export default function Dashboard({
               ✏️
             </button>
           </div>
+          {monster.is_rescue && <div className="text-xs text-cyan-300">免費救援怪獸・放生不提供金幣</div>}
           {!isDefaultEggName && monster.life_stage >= 3 && (
             <div className="text-xs text-slate-500">
               種族：{speciesName}

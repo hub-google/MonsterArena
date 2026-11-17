@@ -164,6 +164,7 @@ export default function Roster({
                 
                 <div className="flex gap-2 text-sm text-slate-400 mb-6">
                   <span>階段: {STAGE_NAMES[selectedMonster.life_stage]}</span>
+                  {selectedMonster.is_rescue && <span className="text-cyan-400">免費救援怪獸（放生無金幣獎勵）</span>}
                   <span>•</span>
                   <span>屬性: {selectedMonster.type === 1 ? '疫苗' : selectedMonster.type === 2 ? '資料' : selectedMonster.type === 3 ? '病毒' : '無'}</span>
                 </div>
@@ -197,7 +198,7 @@ export default function Roster({
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm(`確定永久放生「${selectedMonster.name}」？放生後無法恢復。`)) {
+                      if (window.confirm(`確定永久放生「${selectedMonster.name}」？${selectedMonster.is_rescue ? '這隻免費救援怪獸放生不會獲得金幣。' : ''}放生後無法恢復。`)) {
                         handleAction(api.release, selectedMonster.monster_id);
                       }
                     }}
