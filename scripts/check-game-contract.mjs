@@ -47,4 +47,6 @@ const rescue=read('supabase/migrations/20261117_game_last_pet_recovery.sql');
 assert.match(rescue,/放生後將無法孵蛋/);
 assert.match(rescue,/coalesce\(is_dead,false\)=false/);
 assert.match(dashboardSource,/免費領取救援數位蛋/);
+assert.match(dashboardSource,/此怪獸已死亡/);
+assert.match(dashboardSource,/monster\.is_dead \|\| getItemQty\('ultimate_core'\)/);
 console.log('Arena security and game contract checks passed.');

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api } from '../utils/api';
 import { MONSTER_SPRITES } from '../utils/monsterSprites';
@@ -26,6 +26,12 @@ export default function Dashboard({
   const [showQuests, setShowQuests] = useState(false);
 
   const monster = activeMonster || monsters[0];
+
+  // Changing selected pet must close action menus from the previous pet.
+  useEffect(() => {
+    setShowFeedMenu(false);
+    setShowHealMenu(false);
+  }, [monster?.monster_id]);
 
   const handleAction = async (actionFn, ...args) => {
     setLoading(true);
@@ -268,13 +274,20 @@ export default function Dashboard({
         </div>
       </div>
 
+      {/* Disabled state for a dead pet: backend already rejects its actions. */}
+      {monster.is_dead && (
+        <div role="status" className="glass-card p-3 text-center text-sm border-rose-500/40 text-rose-300">
+          此怪獸已死亡，無法餵食、打掃、治療、訓練或進化。請到倉庫切換其他怪獸。
+        </div>
+      )}
+
       {/* Dynamic Actions Menu */}
       <div className="glass-card p-4">
         {showFeedMenu ? (
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => { handleAction(api.feed, monster.monster_id, 'feed_basic'); setShowFeedMenu(false); }}
-              disabled={loading}
+              disabled={loading || monster.is_dead}
               className="neon-button bg-slate-600 text-white hover:bg-slate-500 py-3 text-sm flex flex-col"
             >
               <span>基礎飼料 (免費)</span>
@@ -282,7 +295,7 @@ export default function Dashboard({
             </button>
             <button
               onClick={() => { handleAction(api.feed, monster.monster_id, 'meat_basic'); setShowFeedMenu(false); }}
-              disabled={getItemQty('meat_basic') === 0 || loading}
+              disabled={getItemQty('meat_basic') === 0 || loading || monster.is_dead}
               className="neon-button neon-button-primary py-3 text-sm flex flex-col"
             >
               <span>基本肉</span>
@@ -290,7 +303,7 @@ export default function Dashboard({
             </button>
             <button
               onClick={() => { handleAction(api.feed, monster.monster_id, 'meat_premium'); setShowFeedMenu(false); }}
-              disabled={getItemQty('meat_premium') === 0 || loading}
+              disabled={getItemQty('meat_premium') === 0 || loading || monster.is_dead}
               className="neon-button neon-button-primary py-3 text-sm flex flex-col"
             >
               <span>頂級肉</span>
@@ -298,7 +311,7 @@ export default function Dashboard({
             </button>
             <button
               onClick={() => { handleAction(api.feed, monster.monster_id, 'energy_drink'); setShowFeedMenu(false); }}
-              disabled={getItemQty('energy_drink') === 0 || loading}
+              disabled={getItemQty('energy_drink') === 0 || loading || monster.is_dead}
               className="neon-button neon-button-success py-3 text-sm flex flex-col"
             >
               <span>能量飲</span>
@@ -315,7 +328,7 @@ export default function Dashboard({
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => { handleAction(api.heal, monster.monster_id, 'heal_basic'); setShowHealMenu(false); }}
-              disabled={loading || !monster.is_sick}
+              disabled={loading || !monster.is_sick || monster.is_dead}
               className="neon-button bg-slate-600 text-white hover:bg-slate-500 py-3 text-sm flex flex-col"
             >
               <span>急救草藥 (免費)</span>
@@ -323,7 +336,7 @@ export default function Dashboard({
             </button>
             <button
               onClick={() => { handleAction(api.heal, monster.monster_id, 'medicine_standard'); setShowHealMenu(false); }}
-              disabled={getItemQty('medicine_standard') === 0 || loading || !monster.is_sick}
+              disabled={getItemQty('medicine_standard') === 0 || loading || !monster.is_sick || monster.is_dead}
               className="neon-button neon-button-success py-3 text-sm flex flex-col"
             >
               <span>基礎特效藥</span>
@@ -340,14 +353,14 @@ export default function Dashboard({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button
               onClick={() => setShowFeedMenu(true)}
-              disabled={loading || monster.life_stage === 1}
+              disabled={loading || monster.life_stage === 1 || monster.is_dead}
               className="neon-button neon-button-primary py-3 text-sm"
             >
               🍽️ 餵食
             </button>
             <button
               onClick={() => handleAction(api.clean, monster.monster_id)}
-              disabled={loading || monster.life_stage === 1}
+              disabled={loading || monster.life_stage === 1 || monster.is_dead}
               className="neon-button bg-cyan-700 text-white hover:bg-cyan-600 shadow-lg shadow-cyan-900/50 py-3 text-sm"
             >
               🧹 打掃
@@ -361,7 +374,7 @@ export default function Dashboard({
             </button>
             <button
               onClick={() => handleAction(api.train, monster.monster_id)}
-              disabled={loading || monster.life_stage === 1}
+              disabled={loading || monster.life_stage === 1 || monster.is_dead}
               className="neon-button neon-button-danger py-3 text-sm"
             >
               ⚔️ 訓練
@@ -374,7 +387,7 @@ export default function Dashboard({
           <div className="mt-4">
             <button
               onClick={() => handleAction(api.evolve, monster.monster_id)}
-              disabled={loading || getItemQty('ultimate_core') === 0 || monster.battles < 50}
+              disabled={loading || monster.is_dead || getItemQty('ultimate_core') === 0 || monster.battles < 50}
               className="neon-button bg-gradient-to-r from-yellow-500 to-amber-600 text-white shadow-[0_0_20px_rgba(245,158,11,0.5)] w-full py-4 text-sm pulse-glow"
             >
               🧬 究極進化 (需核心+50戰+70%勝率)
