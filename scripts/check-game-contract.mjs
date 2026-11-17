@@ -49,4 +49,6 @@ assert.match(rescue,/coalesce\(is_dead,false\)=false/);
 assert.match(dashboardSource,/免費領取救援數位蛋/);
 assert.match(dashboardSource,/此怪獸已死亡/);
 assert.match(dashboardSource,/monster\.is_dead \|\| getItemQty\('ultimate_core'\)/);
+const slotValidation=read('supabase/migrations/20261117_game_reject_missing_chip_slot.sql');
+assert.equal(slotValidation.split("if v_slot is null or v_slot not in (1,2)").length-1,2);
 console.log('Arena security and game contract checks passed.');
