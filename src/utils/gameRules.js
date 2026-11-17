@@ -14,3 +14,8 @@ export function getHatchState(user, monsters = []) {
     label: isRescue ? '免費領取救援數位蛋' : '孵化新怪獸蛋 (-100G)',
   };
 }
+
+// Client guards mirror the server-side rejection of deceased pets.
+export const canCareForMonster = monster => Boolean(monster && !monster.is_dead && monster.life_stage > 1);
+export const canHealMonster = monster => Boolean(monster && !monster.is_dead && monster.is_sick);
+export const canManageMonsterChips = monster => Boolean(monster && !monster.is_dead);

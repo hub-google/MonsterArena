@@ -53,3 +53,7 @@ npm run dev
 `main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。完整的多帳號登入後 E2E 尚未由 CI 覆蓋；不以靜態測試替代資安驗證。
 
 **部署隔離：**`main` 只更新 GitHub Pages；`release` 才是 Cloudflare Pages 正式版。任何程式碼清理都不修改 `release`、Cloudflare DNS/Worker，或共用 Supabase 的其他專案資料。詳細安全說明見 `docs/SECURITY.md`。
+
+## 原始碼優先的修復規範
+
+往後修 BUG 應直接修唯一現行來源、移除重複實作、保留已套用的資料庫遷移歷史，並以回歸測試驗收。詳細規範見 `AGENTS.md`。

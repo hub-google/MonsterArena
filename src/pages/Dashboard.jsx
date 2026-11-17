@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api } from '../utils/api';
-import { getHatchState } from '../utils/gameRules';
+import { getHatchState, canCareForMonster, canHealMonster } from '../utils/gameRules';
 import { MONSTER_SPRITES } from '../utils/monsterSprites';
 import ShopModal from '../components/ShopModal';
 import QuestModal from '../components/QuestModal';
@@ -331,7 +331,7 @@ export default function Dashboard({
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => { handleAction(api.heal, monster.monster_id, 'heal_basic'); setShowHealMenu(false); }}
-              disabled={loading || !monster.is_sick || monster.is_dead}
+              disabled={loading || !canHealMonster(monster)}
               className="neon-button bg-slate-600 text-white hover:bg-slate-500 py-3 text-sm flex flex-col"
             >
               <span>急救草藥 (免費)</span>
@@ -339,7 +339,7 @@ export default function Dashboard({
             </button>
             <button
               onClick={() => { handleAction(api.heal, monster.monster_id, 'medicine_standard'); setShowHealMenu(false); }}
-              disabled={getItemQty('medicine_standard') === 0 || loading || !monster.is_sick || monster.is_dead}
+              disabled={getItemQty('medicine_standard') === 0 || loading || !canHealMonster(monster)}
               className="neon-button neon-button-success py-3 text-sm flex flex-col"
             >
               <span>基礎特效藥</span>
@@ -356,28 +356,28 @@ export default function Dashboard({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button
               onClick={() => setShowFeedMenu(true)}
-              disabled={loading || monster.life_stage === 1 || monster.is_dead}
+              disabled={loading || !canCareForMonster(monster)}
               className="neon-button neon-button-primary py-3 text-sm"
             >
               🍽️ 餵食
             </button>
             <button
               onClick={() => handleAction(api.clean, monster.monster_id)}
-              disabled={loading || monster.life_stage === 1 || monster.is_dead}
+              disabled={loading || !canCareForMonster(monster)}
               className="neon-button bg-cyan-700 text-white hover:bg-cyan-600 shadow-lg shadow-cyan-900/50 py-3 text-sm"
             >
               🧹 打掃
             </button>
             <button
               onClick={() => setShowHealMenu(true)}
-              disabled={loading || !monster.is_sick}
+              disabled={loading || !canHealMonster(monster)}
               className="neon-button neon-button-success py-3 text-sm"
             >
               💊 治療
             </button>
             <button
               onClick={() => handleAction(api.train, monster.monster_id)}
-              disabled={loading || monster.life_stage === 1 || monster.is_dead}
+              disabled={loading || !canCareForMonster(monster)}
               className="neon-button neon-button-danger py-3 text-sm"
             >
               ⚔️ 訓練

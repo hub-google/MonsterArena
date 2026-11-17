@@ -16,6 +16,8 @@ export default function Social({ user }) {
 
   // Chat State
   const [chatMessage, setChatMessage] = useState('');
+  const [sendingChat, setSendingChat] = useState(false);
+  const [pendingGiftFriendId, setPendingGiftFriendId] = useState(null);
   const [chatLogs, setChatLogs] = useState([]);
   const logsEndRef = useRef(null);
   const refreshChatRef = useRef(null);
@@ -89,13 +91,30 @@ export default function Social({ user }) {
 
   const handleSendChat = async (e) => {
     e.preventDefault();
-    if (!chatMessage.trim()) return;
+    if (sendingChat || !chatMessage.trim()) return;
+    const sentText = chatMessage.trim();
+    setSendingChat(true);
     try {
-      await api.sendMessage('world', chatMessage.trim());
-      setChatMessage('');
+      await api.sendMessage('world', sentText);
+      setChatMessage(previous => previous.trim() === sentText ? '' : previous);
       refreshChatRef.current?.();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setSendingChat(false);
+    }
+  };
+
+  const handleGiftStamina = async friend => {
+    if (pendingGiftFriendId !== null) return;
+    setPendingGiftFriendId(friend.friend_id);
+    try {
+      await api.giftStamina(friend.friend_id);
+      setMessage('已發送體力給 ' + friend.friend_name);
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setPendingGiftFriendId(null);
     }
   };
 
@@ -242,7 +261,8 @@ export default function Social({ user }) {
                   <div key={f.friend_id} className="glass-card p-3 flex justify-between items-center">
                     <span className="font-bold text-cyan-300">{f.friend_name}</span>
                     <button 
-                      onClick={() => api.giftStamina(f.friend_id).then(() => setMessage('已發送體力給 ' + f.friend_name)).catch(e => setMessage(e.message))} 
+                      onClick={() => handleGiftStamina(f)}
+                      disabled={pendingGiftFriendId !== null} 
                       className="text-[10px] bg-slate-700 px-3 py-1.5 rounded hover:bg-slate-600 transition"
                     >
                       贈送體力
@@ -291,7 +311,7 @@ export default function Social({ user }) {
               />
               <button 
                 type="submit" 
-                disabled={!chatMessage.trim()}
+                disabled={sendingChat || !chatMessage.trim()}
                 className="bg-cyan-600 hover:bg-cyan-500 text-white rounded-full w-10 h-10 flex items-center justify-center transition-colors disabled:opacity-50"
               >
                 ➤

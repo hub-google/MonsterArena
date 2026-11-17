@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../utils/api';
-import { getHatchState } from '../utils/gameRules';
+import { getHatchState, canManageMonsterChips } from '../utils/gameRules';
 
 const STAGE_NAMES = ['蛋', '蛋', '幼年期', '成長期', '成熟期', '完全體', '究極體'];
 
@@ -64,7 +64,7 @@ export default function Roster({
   };
 
   const handleEquip = async () => {
-    if (!selectedMonster || !selectedChipId) return;
+    if (!canManageMonsterChips(selectedMonster) || !selectedChipId) return;
     const previous = equipSlot === 1 ? selectedMonster.chip_slot_1 : selectedMonster.chip_slot_2;
     if (previous && !window.confirm('覆蓋晶片會永久損毀原晶片，確定繼續嗎？')) return;
     if (await handleAction(api.equipChip, selectedMonster.monster_id, selectedChipId, equipSlot))
@@ -72,6 +72,7 @@ export default function Roster({
   };
 
   const handleUnequip = async (slot) => {
+    if (!canManageMonsterChips(selectedMonster)) return;
     await handleAction(api.unequipChip, selectedMonster.monster_id, slot);
   };
 
@@ -221,6 +222,9 @@ export default function Roster({
                 <span className="text-2xl">🔧</span> 晶片鑲嵌面板
               </h3>
               
+              {!canManageMonsterChips(selectedMonster) && (
+                <p role="status" className="mb-4 text-sm text-rose-300">此怪獸已死亡，無法鑲嵌或拆除晶片。請切換其他怪獸。</p>
+              )}
               <p className="text-xs text-slate-400 mb-4">
                 新晶片基本加成 +5。舊版強化晶片拆除後會保留原本的 +50／+200 等加成，
                 同種類下次鑲嵌時優先恢復強化晶片，不會降為 +5。
@@ -234,7 +238,7 @@ export default function Roster({
                   {selectedMonster.chip_slot_1 && (
                     <button
                       onClick={() => handleUnequip(1)}
-                      disabled={loading || getItemQty('chip_extractor') === 0}
+                      disabled={loading || !canManageMonsterChips(selectedMonster) || getItemQty('chip_extractor') === 0}
                       className="text-xs text-rose-400 hover:text-rose-300 underline disabled:opacity-30 disabled:no-underline"
                     >
                       拆除 (需提取器)
@@ -249,7 +253,7 @@ export default function Roster({
                   {selectedMonster.chip_slot_2 && (
                     <button
                       onClick={() => handleUnequip(2)}
-                      disabled={loading || getItemQty('chip_extractor') === 0}
+                      disabled={loading || !canManageMonsterChips(selectedMonster) || getItemQty('chip_extractor') === 0}
                       className="text-xs text-rose-400 hover:text-rose-300 underline disabled:opacity-30 disabled:no-underline"
                     >
                       拆除 (需提取器)
@@ -281,7 +285,7 @@ export default function Roster({
 
                 <button
                   onClick={handleEquip}
-                  disabled={loading || !selectedChipId || selectedMonster.life_stage < (equipSlot===1 ? 4 : 5)}
+                  disabled={loading || !canManageMonsterChips(selectedMonster) || !selectedChipId || selectedMonster.life_stage < (equipSlot===1 ? 4 : 5)}
                   className="w-full neon-button neon-button-primary py-3 mt-2"
                 >
                   確認鑲嵌 (覆蓋將損毀舊晶片)

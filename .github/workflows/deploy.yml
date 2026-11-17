@@ -48,7 +48,7 @@ jobs:
             if curl -fsS "$PLAYWRIGHT_BASE_URL" >/dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/smoke.spec.js --project=chromium
+          npx playwright test tests/smoke.spec.js tests/authenticated-ui.spec.js --project=chromium
       - name: Publish test to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:

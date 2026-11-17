@@ -252,7 +252,7 @@ export default function Arena({
             </div>
             <div className="flex gap-2">
               <input type="text" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.isComposing && sendWorldChat()} placeholder="輸入訊息..." maxLength={100} className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-colors" />
-              <button onClick={sendWorldChat} className="neon-button neon-button-primary px-6 py-3 font-bold">發送</button>
+              <button onClick={sendWorldChat} disabled={loading || !chatMessage.trim()} className="neon-button neon-button-primary px-6 py-3 font-bold disabled:opacity-50">發送</button>
             </div>
           </div>
         )}
