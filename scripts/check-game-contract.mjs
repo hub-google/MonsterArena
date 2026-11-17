@@ -25,4 +25,8 @@ const fairness=read('supabase/migrations/20261117_game_battle_fairness.sql');
 assert.match(fairness,/if p_action in \('raid','battle'\)/);
 assert.match(fairness,/created_at>clock_timestamp\(\)-interval '5 seconds'/);
 assert.match(fairness,/arena_battle_recent_user_time_idx/);
+const privacy=read('supabase/migrations/20261117_game_private_monsters.sql');
+assert.match(privacy,/drop policy if exists "Anyone can view monsters"/);
+assert.match(privacy,/game_plaza_monsters/);
+assert.match(api,/rpc\\('game_plaza_monsters'/);
 console.log('Arena security and game contract checks passed.');

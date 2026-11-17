@@ -133,11 +133,10 @@ export const api = {
   },
   attackRaidBoss: monster_id => action('raid', { monster_id }),
   searchPlayers: async typeFilter => {
-    let q = supabase.from('monsters')
-      .select('user_id,monster_id,name,family,type,life_stage,is_dead')
-      .eq('is_dead',false).limit(100);
-    if (typeFilter) q = q.eq('type',Number(typeFilter));
-    const { data, error } = await q;
+    // Public plaza exposes only a safe projection, never other players' private genes/stats.
+    const { data, error } = await supabase.rpc('game_plaza_monsters', {
+      p_type: typeFilter ? Number(typeFilter) : null
+    });
     throwIfError(error);
     const grouped = new Map();
     (data ?? []).forEach(m => {
