@@ -29,6 +29,10 @@ jobs:
         run: npm run lint
       - name: Verify authoritative game contract
         run: npm run check:contract
+      - name: Unit tests for shared game rules
+        run: npm run test:unit
+      - name: Validate canonical SQL composition
+        run: npm run db:sql > /dev/null
       - name: Verify original Supabase Authentication
         run: node scripts/check-supabase-game.mjs
       - name: Build test site

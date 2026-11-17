@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api } from '../utils/api';
+import { getHatchState } from '../utils/gameRules';
 import { MONSTER_SPRITES } from '../utils/monsterSprites';
 import ShopModal from '../components/ShopModal';
 import QuestModal from '../components/QuestModal';
@@ -26,6 +27,7 @@ export default function Dashboard({
   const [showQuests, setShowQuests] = useState(false);
 
   const monster = activeMonster || monsters[0];
+  const hatchState = getHatchState(user, monsters);
 
   // Changing selected pet must close action menus from the previous pet.
   useEffect(() => {
@@ -87,10 +89,10 @@ export default function Dashboard({
           <button
             type="button"
             onClick={handleHatch}
-            disabled={loading}
+            disabled={loading || !hatchState.available}
             className="neon-button neon-button-primary w-full py-4 text-lg mt-4"
           >
-            {user.gold < 100 ? '免費領取救援數位蛋' : 'HATCH EGG (-100G)'}
+            {hatchState.label}
           </button>
           
           {message && <div className="text-rose-400 text-sm mt-2">{message}</div>}

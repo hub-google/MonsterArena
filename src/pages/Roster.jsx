@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../utils/api';
+import { getHatchState } from '../utils/gameRules';
 
 const STAGE_NAMES = ['蛋', '蛋', '幼年期', '成長期', '成熟期', '完全體', '究極體'];
 
@@ -29,6 +30,7 @@ export default function Roster({
   const [selectedChipId, setSelectedChipId] = useState('');
 
   const selectedMonster = monsters.find(m => m.monster_id === selectedMonsterId) || monsters[0];
+  const hatchState = getHatchState(user, monsters);
 
   const handleAction = async (actionFn, ...args) => {
     setLoading(true);
@@ -127,11 +129,10 @@ export default function Roster({
               {monsters.length < 50 && (
                 <button
                   onClick={handleHatch}
-                  disabled={loading || (user.gold < 100 && monsters.some(m => !m.is_dead))}
+                  disabled={loading || !hatchState.available}
                   className="w-full neon-button py-3 text-sm flex items-center justify-center gap-2"
                 >
-                  <span>🥚</span> {user.gold < 100 && monsters.every(m => m.is_dead)
-                    ? '免費領取救援數位蛋' : '孵化新怪獸蛋 (-100G)'}
+                  <span>🥚</span> {hatchState.label}
                 </button>
               )}
 

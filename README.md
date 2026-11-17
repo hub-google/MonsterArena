@@ -1,64 +1,55 @@
 # Monster Arena Web
 
-怪獸養成／競技場。沿用原始的 **Supabase Game 專案**，不再將既有帳號改接 Firebase。
+怪獸養成、競技場、好友、公會與世界王。正式資料沿用 **Supabase Game**（專案 `fanffwnhkxpfhttylntw`），不使用 Firebase 或 Cloudflare Worker 作為遊戲後端。
 
-- 測試網站（`main`）：https://hub-google.github.io/monster-arena-web/
-- 正式網站（`release`）：https://pets.monsterport.com/
-- 舊版修復預覽（封存）：https://hub-google.github.io/monster-arena-web/preview/
-- 專案：https://github.com/hub-google/monster-arena-web
-- GitHub Actions：https://github.com/hub-google/monster-arena-web/actions
-- 後端：Supabase project `fanffwnhkxpfhttylntw` (Game)
+- **測試版 `main`**：https://hub-google.github.io/monster-arena-web/
+- **正式版 `release`**：https://pets.monsterport.com/
+- **原始碼**：https://github.com/hub-google/monster-arena-web
 
-## 修復的功能
+## 唯一現行 SQL 程式碼
 
-- **登入、註冊**：保持既有 Supabase Auth 帳號／session，修復錯誤轉 Firebase 的問題。未完成 Email 驗證時提供提示。
-- **怪獸養成**：時間累計飽食／清潔／年齡（小數值）；避免重新整理讓衰減無效、避免年老衰減重複計算。
-- **金幣與物品**：孵化、餵食、治療、訓練、購物等走資料庫交易（`game_action`）；可拒絕負數、無效物品、餘額不足及非本人怪獸。
-- **繁衍／晶片／究極進化**：檢查雙親有效、道具及金幣原子扣除、固定插槽需求、避免屬性重複疊加；究極進化檢查 50 戰、70% 勝率。
-- **戰鬥與任務**：戰績透過 `battle_records` 去重；任務進度與主操作一起更新、獎勵不可重領。
-- **世界王**：伺服器端依本人怪獸數值計算傷害；15 體力及王血量交易式扣除，避免競爭更新遺失。
-- **好友、聊天與贈送體力**：支援好友邀請與接受、聊天保留紀錄且節流、體力由收禮者領取。
-- **公會**：建立、加入、退出、捐獻、貢獻商店走正確 Supabase 欄位與交易。
+**所有 8 個有效的 `game_*` RPC，以 `supabase/schema/functions/<函式名稱>.sql` 為唯一維護入口。**
+這些檔案在 2026-11-17 根據目前 Game 資料庫真正執行的定義整理，包含：
 
-## 資料庫遷移
+- `game_action.sql`：孵蛋、訓練、晶片、戰鬥、公會、任務、世界王等交易邏輯（保留救援蛋防套利與舊晶片數值）
+- `game_age_monsters.sql`、`game_rename_monster.sql`
+- `game_friend_action.sql`、`game_claim_gifts.sql`
+- `game_plaza_monsters.sql`、`game_public_profiles.sql`、`game_ensure_profile.sql`
 
-遷移檔案已放在 `supabase/migrations/`：
-
-- `20261022_game_atomic_actions.sql` — 原子交易、每日任務及戰鬥紀錄。
-- `20261022_profile_friends_gifts.sql` — 舊帳號暱稱、好友邀請、體力禮物。
-- `20261117_game_rls_six_public_tables.sql` — 六張公會、好友、任務與挑戰表的 RLS、最低讀取權限。
-- `20261117_game_restrict_direct_economy_writes.sql` — 禁止瀏覽器直接改寫金幣、道具、世界王、聊天與戰績等資料。
-
-對原本 **Game** 專案已套用以上遷移，未更換資料庫專案，也沒有刪除舊玩家帳號。不要對同一個遷移執行手動刪表或清空資料庫。
-
-## 開發與測試
-
-需要 Node.js 22。直接執行：
+SQL 清單集中管理在 `supabase/schema/manifest.mjs`。產生可供審閱的 SQL：
 
 ```bash
-npm install
+npm run db:sql > /tmp/arena-functions.sql
+```
+
+此命令**僅輸出 SQL，不會更新資料庫**；檢視並經測試後，方可透過正式遷移程序套用到 Game，且只部署到核准環境。**禁止直接複製舊的 `game_action()` 遷移定義當作最新版本。**
+
+### 為什麼還保留 `supabase/migrations/`？
+
+原本近 9 份對 `game_action()` 的定義是「**已執行過的歷史遷移紀錄**」，不是現行程式碼，也不應直接刪除或重新執行。既有遠端 Supabase migration history 必須保留，不改寫舊檔，不會為了清理程式碼刪除現有玩家資料。
+
+**注意：**現有 repo 歷史 SQL 使用日期加名稱，與 Supabase 線上歷史版本戳並非同一套標準命名。不可直接對現有 Game 資料庫執行 `supabase db reset` 或批次重播這些舊 SQL。新遷移需使用標準時間戳、從上述現行函式檔產生，且先經隔離測試後再套用。
+
+## 前端程式碼
+
+- `src/utils/api.js`：唯一 Supabase RPC／讀取介面。
+- `src/utils/gameRules.js`：共享前端孵化／免費救援蛋規則，Dashboard、Roster 使用同一份。
+- 既有的 Firebase client、Firebase rules、emulator 測試與 firebase-tools 相依性已從 `main` 移除；舊版可從 Git 歷史查詢。
+
+## 開發與驗收
+
+Node.js 22：
+
+```bash
+npm ci
 npm run lint
 npm run check:contract
+npm run test:unit
+npm run db:sql > /dev/null
 npm run build
 npm run dev
 ```
 
-`main` 更新時經 GitHub Actions 執行 lint、Supabase Auth 健康檢查、Vite build、Playwright Chromium smoke test，通過才部署 GitHub Pages。`release` 只由 Cloudflare Pages 建置，並部署在 `pets.monsterport.com`。Cloudflare 已關閉其他分支的預覽建置。`master` 和 `supabase-stable-fixes` 是歷史分支，不再觸發部署。
+`main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。完整的多帳號登入後 E2E 尚未由 CI 覆蓋；不以靜態測試替代資安驗證。
 
-SQL 操作已用 `BEGIN ... ROLLBACK` 的交易測試驗證：孵化、購物、餵食、繁衍、每日任務、戰績去重、公會與好友收禮；測試沒有留下怪獸、戰績或公會。
-
-> `tests/run_tests.spec.js` 和 `tests/run_all_scenarios.spec.js` 是**舊 Firebase 測試**，不得對正式 Supabase 專案執行。它們已被環境變數保護且不在部署 CI 中執行。
-
-## 尚待處理的安全事項
-
-2026/11/17 已在原本 Game 專案的六張公會／好友／任務／挑戰表建立 RLS 讀取政策，並撤銷匿名和登入者對交易表的直接寫入權限；SQL 驗證通過。詳細資料請參考 `docs/SECURITY.md`。
-
-2026/11/17 的新安全遷移 `20261117_game_secure_core.sql` 將玩家資料讀取限制為本人、取消怪獸直接寫入、改成伺服器計算戰績，並撤銷舊版高風險 RPC 的瀏覽器執行權限。仍需完成實際多帳號端到端驗收，不能只靠靜態檢查宣稱全面安全。
-
-## Monsterport 主／正式分支規範（2026-11-16）
-
-- `main`：日常修改、測試，僅更新 GitHub Pages `https://hub-google.github.io/monster-arena-web/`，不更新 Monsterport。
-- `release`：正式發布分支。確認 `main` 測試通過後，才將核准的 Commit 合併／提升到 `release`。Cloudflare Pages 專案 `monsterport-pets` 僅追蹤 `release`，關閉 preview builds。
-- Vite：GitHub Pages 使用 `/monster-arena-web/`；Cloudflare 用 `VITE_DEPLOY_TARGET=cloudflare npm run build` 產生根路徑 `/` 資源。
-- **資料庫不搬遷**。沿用原本 Supabase Game 專案 `fanffwnhkxpfhttylntw` 的 Auth、玩家紀錄、遊戲資料與 API；不建立新 Firebase 專案，也不修改 Queue 的 Cloudflare Worker、DNS 或資料表。
-- 舊 `main` 已安全備份到 `legacy-main-20261116`，`master` 與 `supabase-stable-fixes` 保留作歷史參考。日後只改 `main`，發布才更新 `release`。
+**部署隔離：**`main` 只更新 GitHub Pages；`release` 才是 Cloudflare Pages 正式版。任何程式碼清理都不修改 `release`、Cloudflare DNS/Worker，或共用 Supabase 的其他專案資料。詳細安全說明見 `docs/SECURITY.md`。
