@@ -127,10 +127,11 @@ export default function Roster({
               {monsters.length < 50 && (
                 <button
                   onClick={handleHatch}
-                  disabled={loading || user.gold < 100}
+                  disabled={loading || (user.gold < 100 && monsters.some(m => !m.is_dead))}
                   className="w-full neon-button py-3 text-sm flex items-center justify-center gap-2"
                 >
-                  <span>🥚</span> 孵化新怪獸蛋 (-100G)
+                  <span>🥚</span> {user.gold < 100 && monsters.every(m => m.is_dead)
+                    ? '免費領取救援數位蛋' : '孵化新怪獸蛋 (-100G)'}
                 </button>
               )}
 

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const read=(path)=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
+const dashboardSource=read('src/pages/Dashboard.jsx');
 const sql=read('supabase/migrations/20261117_game_secure_core.sql');
 const api=read('src/utils/api.js');
 const arena=read('src/pages/Arena.jsx');
@@ -42,4 +43,8 @@ assert.match(bonusMigration,/game_chip_reserves/);
 assert.match(bonusMigration,/if v_old>5 then/);
 assert.match(bonusMigration,/chip_slot_1_val=v_bonus/);
 assert.match(bonusMigration,/chip_slot_2_val=v_bonus/);
+const rescue=read('supabase/migrations/20261117_game_last_pet_recovery.sql');
+assert.match(rescue,/放生後將無法孵蛋/);
+assert.match(rescue,/coalesce\(is_dead,false\)=false/);
+assert.match(dashboardSource,/免費領取救援數位蛋/);
 console.log('Arena security and game contract checks passed.');

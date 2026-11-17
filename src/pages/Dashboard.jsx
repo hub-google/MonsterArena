@@ -84,7 +84,7 @@ export default function Dashboard({
             disabled={loading}
             className="neon-button neon-button-primary w-full py-4 text-lg mt-4"
           >
-            HATCH EGG (-100G)
+            {user.gold < 100 ? '免費領取救援數位蛋' : 'HATCH EGG (-100G)'}
           </button>
           
           {message && <div className="text-rose-400 text-sm mt-2">{message}</div>}
