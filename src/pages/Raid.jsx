@@ -75,7 +75,7 @@ export default function Raid({
       {/* Header bar */}
       <div className="glass-card p-4 flex justify-between items-center text-sm font-bold border-red-900/30">
         <span className="text-rose-400">世界王共鬥討伐</span>
-        <span className="text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]">🔋 {user.stamina} / 100</span>
+        <span className="text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]">🔋 {user.stamina} / {user.max_stamina ?? 100}</span>
       </div>
 
       {/* Main Content */}

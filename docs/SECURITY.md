@@ -15,3 +15,7 @@ Only `main` is under maintenance. Supabase Game (`fanffwnhkxpfhttylntw`) remains
 ## Verification
 
 `npm run check:contract` checks frontend/API and migration invariants, and is required for the `main` deployment. Runtime cross-account tests are still required for full security assurance. The remote SQL migration must be applied to Game and verified independently; GitHub CI alone cannot prove live database policies.
+
+## Follow-up guardrails
+
+The `20261117_game_guardrails_perf.sql` migration blocks egg feeding/cleaning/training at the server, creates scoped indexes for Arena lookups, and fixes the retired RPCs' mutable search paths. It does not grant any legacy RPC back to browser roles.

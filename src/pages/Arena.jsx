@@ -129,7 +129,7 @@ export default function Arena({
         <div className="absolute inset-0 bg-red-900/10 pointer-events-none animate-pulse rounded-2xl"></div>
         
         <div className="glass-card p-4 text-center border-red-500/30">
-          <h2 className="text-xl font-bold text-red-500 animate-pulse tracking-widest">ATB 即時戰鬥中</h2>
+          <h2 className="text-xl font-bold text-red-500 animate-pulse tracking-widest">對戰過程播放中（結果由伺服器判定）</h2>
         </div>
 
         <div className="glass-card p-6 flex flex-col gap-6">

@@ -88,7 +88,7 @@ export default function Roster({
       </div>
 
       {/* Sub tabs navigation */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button 
           onClick={() => { setSubTab('list'); setMessage(''); }}
           className={`py-3 rounded-xl font-bold transition-all ${subTab === 'list' ? 'bg-cyan-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.6)]' : 'glass-panel text-slate-400'}`}
