@@ -7,7 +7,8 @@ const getUid = async () => {
   if (error || !user) throw new Error('User not authenticated');
   return user.id;
 };
-const usernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@monsterarena.app`;
+const usernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9_]/g, '')}@monsterarena.app`;
+const legacyUsernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@monsterarena.app`;
 const throwIfError = error => { if (error) throw new Error(error.message); };
 const action = async (p_action, p_data = {}) => {
   const { data, error } = await supabase.rpc('game_action', { p_action, p_data });
@@ -36,8 +37,25 @@ export const api = {
   },
   login: async (usernameOrEmail, password) => {
     const input = usernameOrEmail.trim();
-    const email = input.includes('@') ? input : usernameEmail(input);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const isEmail = input.includes('@');
+    const email = isEmail ? input : usernameEmail(input);
+    let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Older username-only accounts stripped underscores from synthetic addresses.
+    // A fallback must verify the account name to avoid logging into a collision.
+    if (error && !isEmail && input.includes('_')) {
+      const legacy = await supabase.auth.signInWithPassword({
+        email: legacyUsernameEmail(input), password
+      });
+      if (!legacy.error) {
+        const actualName = legacy.data.user?.user_metadata?.username;
+        if (!actualName || actualName.toLowerCase() !== input.toLowerCase()) {
+          await supabase.auth.signOut();
+          throw new Error('帳號名稱不符，請使用註冊 Email 登入');
+        }
+        data = legacy.data;
+        error = null;
+      }
+    }
     throwIfError(error);
     return { user: data.user };
   },

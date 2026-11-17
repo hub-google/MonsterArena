@@ -29,4 +29,6 @@ const privacy=read('supabase/migrations/20261117_game_private_monsters.sql');
 assert.match(privacy,/drop policy if exists "Anyone can view monsters"/);
 assert.match(privacy,/game_plaza_monsters/);
 assert.match(api,/game_plaza_monsters/);
+assert.match(api,/legacyUsernameEmail/);
+assert.match(api,/actualName.toLowerCase/);
 console.log('Arena security and game contract checks passed.');
