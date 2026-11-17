@@ -10,7 +10,7 @@ export default function Raid({
 }) {
   const [boss, setBoss] = useState(null);
   const [bossError, setBossError] = useState('');
-  const aliveMonsters = monsters.filter(m => !m.is_dead);
+  const aliveMonsters = monsters.filter(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen);
   const [selectedMonsterId, setSelectedMonsterId] = useState(
     () => aliveMonsters.find(m => m.monster_id === activeMonster?.monster_id)?.monster_id || aliveMonsters[0]?.monster_id || ''
   );
@@ -46,7 +46,7 @@ export default function Raid({
 
   const handleAttack = async () => {
     if (!selectedMonster || selectedMonster.is_dead) {
-      setMessage('❌ 請選擇一隻存活的怪獸！');
+      setMessage('❌ 請選擇已孵化且未凍結的怪獸！');
       return;
     }
     if (user.stamina < 15) {

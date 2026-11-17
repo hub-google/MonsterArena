@@ -84,9 +84,9 @@ export default function Arena({
 
   const handleChallenge = async (targetPlayerId) => {
     if (challengePending.current) return;
-    const monster = monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead)
-      || monsters.find(m => !m.is_dead);
-    if (!monster) return setMessage('請先選擇一隻存活的怪獸出戰！');
+    const monster = monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen)
+      || monsters.find(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen);
+    if (!monster) return setMessage('請先選擇一隻非凍結、已孵化的怪獸出戰！');
     const isBoss=targetPlayerId==='mock_boss';
     challengePending.current=true;
     setLoading(true);
@@ -230,7 +230,7 @@ export default function Arena({
     <div className="h-full flex flex-col gap-4 animate-fade-in">
       <div className="glass-card p-4 flex justify-between items-center text-sm font-bold">
         <span className="text-cyan-400">野生模擬對戰</span>
-        <span className="text-emerald-400">出戰: {monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead)?.name || monsters.find(m => !m.is_dead)?.name || '無'}</span>
+        <span className="text-emerald-400">出戰: {monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen)?.name || monsters.find(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen)?.name || '無'}</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
