@@ -26,6 +26,7 @@ export default function Arena({
   const [loading, setLoading] = useState(false);
 
   const logsEndRef = useRef(null);
+  const refreshChatRef = useRef(null);
   const recordedBattles = useRef(new Set());
   const battleRunning = Boolean(battleState && !battleState.isOver);
 
@@ -54,7 +55,11 @@ export default function Arena({
         message: m.text
       })));
     });
-    return () => unsubscribe();
+    refreshChatRef.current = unsubscribe.refresh;
+    return () => {
+      refreshChatRef.current = null;
+      unsubscribe();
+    };
   }, []);
 
   // Battle ATB Engine
@@ -133,7 +138,7 @@ export default function Arena({
     if (!chatMessage.trim() || loading) return;
     setLoading(true);
     api.sendMessage('world', chatMessage.trim())
-      .then(() => setChatMessage(''))
+      .then(() => { setChatMessage(''); refreshChatRef.current?.(); })
       .catch(err => setMessage(err.message))
       .finally(() => setLoading(false));
   };
@@ -274,7 +279,7 @@ export default function Arena({
   return (
     <div className="h-full flex flex-col gap-4 animate-fade-in">
       <div className="glass-card p-4 flex justify-between items-center text-sm font-bold">
-        <span className="text-cyan-400">大廳玩家: {activePlayers.length}人</span>
+        <span className="text-cyan-400">野生模擬對戰</span>
         <span className="text-emerald-400">出戰: {monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead)?.name || monsters.find(m => !m.is_dead)?.name || '無'}</span>
       </div>
 
@@ -297,7 +302,7 @@ export default function Arena({
               <div ref={logsEndRef} />
             </div>
             <div className="flex gap-2">
-              <input type="text" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.isComposing && sendWorldChat()} placeholder="輸入訊息..." className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-colors" />
+              <input type="text" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.isComposing && sendWorldChat()} placeholder="輸入訊息..." maxLength={100} className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-colors" />
               <button onClick={sendWorldChat} className="neon-button neon-button-primary px-6 py-3 font-bold">發送</button>
             </div>
           </div>

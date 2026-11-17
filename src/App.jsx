@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MobileLayout from './components/MobileLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -25,6 +25,8 @@ export default function App() {
   const [receivedChallenge,setReceivedChallenge]=useState(null);
   const [battleState,setBattleState]=useState(null);
   const [isOnline,setIsOnline]=useState(typeof navigator==='undefined' || navigator.onLine);
+  const authUidRef=useRef(null);
+  const loadVersionRef=useRef(0);
 
   const clearUser=()=>{
     setUser(null);setMonsters([]);setInventory([]);setFriends([]);
@@ -33,12 +35,19 @@ export default function App() {
   };
 
   const loadUserData=async()=>{
+    const expectedUid=authUidRef.current;
+    if(!expectedUid)return;
+    const version=++loadVersionRef.current;
+    const isCurrent=()=>authUidRef.current===expectedUid && loadVersionRef.current===version;
     setLoadError('');
     try {
       const profile=await api.getMe();
+      // The user may have signed out or switched accounts during the request.
+      if(!isCurrent() || profile.user_id!==expectedUid)return;
       const [ownedMonsters,ownedInventory,friendsList,guildInfo] = await Promise.all([
         api.getMonsters(),api.getInventory(),api.getFriends(),api.getGuilds()
       ]);
+      if(!isCurrent())return;
       setUser(profile);
       setMonsters(ownedMonsters);
       setInventory(ownedInventory);
@@ -47,12 +56,14 @@ export default function App() {
       setMyGuild(guildInfo.myGuild);
       setActiveMonster(previous=>{
         const live=ownedMonsters.find(m=>!m.is_dead);
-        return ownedMonsters.find(m=>m.monster_id===previous?.monster_id)||live||null;
+        return ownedMonsters.find(m=>!m.is_dead && m.monster_id===previous?.monster_id)||live||null;
       });
     } catch(err) {
-      console.error('Game data load failed:',err);
-      setLoadError(err.message||'資料載入失敗');
-    } finally {setLoading(false);}
+      if(isCurrent()){
+        console.error('Game data load failed:',err);
+        setLoadError(err.message||'資料載入失敗');
+      }
+    } finally {if(isCurrent())setLoading(false);}
   };
 
   useEffect(()=>{
@@ -61,14 +72,24 @@ export default function App() {
     const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
       if(!ready)return;
       const nextUid=session?.user?.id??null;
-      if(!nextUid){previousAuthId=null;clearUser();setLoading(false);return;}
+      if(!nextUid){
+        previousAuthId=null;
+        authUidRef.current=null;
+        loadVersionRef.current++;
+        clearUser();
+        setLoading(false);
+        return;
+      }
       if(previousAuthId===nextUid)return;
       previousAuthId=nextUid;
+      authUidRef.current=nextUid;
+      loadVersionRef.current++;
+      clearUser();
       setLoading(true);
       // Auth callbacks must not synchronously await Supabase database operations.
-      setTimeout(()=>{if(ready)loadUserData();},0);
+      setTimeout(()=>{if(ready && authUidRef.current===nextUid)loadUserData();},0);
     });
-    return ()=>{ready=false;subscription.unsubscribe();};
+    return ()=>{ready=false;loadVersionRef.current++;subscription.unsubscribe();};
   },[]);
 
   useEffect(()=>{
@@ -86,8 +107,16 @@ export default function App() {
   },[user?.user_id]);
 
   const handleLogout=async()=>{
-    try {await api.logout();}catch(err){console.warn('Logout failed:',err);}
-    clearUser();setLoading(false);
+    try {
+      await api.logout();
+      authUidRef.current=null;
+      loadVersionRef.current++;
+      clearUser();
+      setLoading(false);
+    } catch(err) {
+      // Do not pretend logout succeeded while the Supabase session is still valid.
+      setLoadError(`登出失敗：${err.message || '請重試'}`);
+    }
   };
 
   if(loading)return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-cyan-400">

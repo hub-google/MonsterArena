@@ -18,6 +18,7 @@ export default function Social({ user }) {
   const [chatMessage, setChatMessage] = useState('');
   const [chatLogs, setChatLogs] = useState([]);
   const logsEndRef = useRef(null);
+  const refreshChatRef = useRef(null);
 
   // Friends State
   const [friendUUID, setFriendUUID] = useState('');
@@ -35,7 +36,11 @@ export default function Social({ user }) {
       const unsubscribe = api.subscribeMessages('world', (msgs) => {
         setChatLogs(msgs);
       });
-      return () => unsubscribe();
+      refreshChatRef.current = unsubscribe.refresh;
+      return () => {
+        refreshChatRef.current = null;
+        unsubscribe();
+      };
     } else if (subTab === 'friends') {
       loadFriends();
     }
@@ -82,8 +87,9 @@ export default function Social({ user }) {
     e.preventDefault();
     if (!chatMessage.trim()) return;
     try {
-      await api.sendMessage('world', chatMessage);
+      await api.sendMessage('world', chatMessage.trim());
       setChatMessage('');
+      refreshChatRef.current?.();
     } catch (err) {
       setMessage(err.message);
     }
@@ -173,9 +179,13 @@ export default function Social({ user }) {
             <h3 className="text-cyan-300 font-bold text-sm">我的 UUID (點擊複製)</h3>
             <div 
               className="bg-slate-900 border border-slate-700 p-2 rounded text-[10px] text-slate-400 cursor-pointer hover:bg-slate-800 break-all select-all"
-              onClick={() => {
-                navigator.clipboard.writeText(user.user_id);
-                setMessage('已複製 UUID 到剪貼簿！');
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(user.user_id);
+                  setMessage('已複製 UUID 到剪貼簿！');
+                } catch {
+                  setMessage('無法自動複製，請手動選取上方 UUID。');
+                }
               }}
             >
               {user.user_id}

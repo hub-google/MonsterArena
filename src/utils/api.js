@@ -253,10 +253,11 @@ export const api = {
       } catch(e){if(!disposed)console.warn('Chat read error:',e.message);}
     };
     load();
-    const realtime=supabase.channel(`game-messages-${channel}-${Math.random()}`)
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},load).subscribe();
-    // Polling fallback in case Realtime publication doesn't include this table.
-    const interval=setInterval(load,12000);
-    return ()=>{disposed=true;clearInterval(interval);supabase.removeChannel(realtime);};
+    // The Game database does not publish "messages" via postgres_changes.
+    // Avoid opening a nonfunctional Realtime connection for every chat viewer.
+    const interval=setInterval(load,30000);
+    const unsubscribe=()=>{disposed=true;clearInterval(interval);};
+    unsubscribe.refresh=load;
+    return unsubscribe;
   }
 };

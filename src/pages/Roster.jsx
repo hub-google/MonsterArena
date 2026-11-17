@@ -128,7 +128,7 @@ export default function Roster({
               <div>
                 <label className="text-xs text-slate-400 mb-2 block">選擇怪獸</label>
                 <select 
-                  value={selectedMonsterId}
+                  value={selectedMonster?.monster_id || ''}
                   onChange={(e) => handleSetSelection(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-cyan-500 transition-colors"
                 >

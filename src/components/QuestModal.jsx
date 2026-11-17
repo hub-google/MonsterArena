@@ -15,7 +15,7 @@ export default function QuestModal({ user, onClose, refreshData }) {
       const q = await api.getDailyQuests();
       setQuests(q);
     } catch (e) {
-      console.warn(e);
+      setMessage(`❌ 任務資料載入失敗：${e.message || '請稍後重試'}`);
     }
   };
 
@@ -34,7 +34,18 @@ export default function QuestModal({ user, onClose, refreshData }) {
     }
   };
 
-  if (!quests) return null;
+  if (!quests) return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <div className="glass-card w-full max-w-lg p-6 flex flex-col gap-4">
+        <h3 className="text-xl font-bold text-cyan-400">每日任務</h3>
+        <p role="status" className="text-sm text-slate-200">{message || '正在載入任務資料...'}</p>
+        <div className="flex gap-3">
+          <button type="button" onClick={loadQuests} className="neon-button neon-button-primary px-4 py-2">重新載入</button>
+          <button type="button" onClick={onClose} className="neon-button px-4 py-2">關閉</button>
+        </div>
+      </div>
+    </div>
+  );
 
   const QUEST_CONFIG = [
     { id: 'feed_3', title: '飽餐一頓', desc: '餵食怪獸 3 次', target: 3, key: 'feed_count', reward: 100 },
