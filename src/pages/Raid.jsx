@@ -9,6 +9,7 @@ export default function Raid({
   setPage 
 }) {
   const [boss, setBoss] = useState(null);
+  const [bossError, setBossError] = useState('');
   const aliveMonsters = monsters.filter(m => !m.is_dead);
   const [selectedMonsterId, setSelectedMonsterId] = useState(
     () => aliveMonsters.find(m => m.monster_id === activeMonster?.monster_id)?.monster_id || aliveMonsters[0]?.monster_id || ''
@@ -21,16 +22,24 @@ export default function Raid({
     try {
       const data = await api.getRaidStatus();
       setBoss(data);
+      setBossError('');
     } catch (err) {
-      console.error('Failed to load raid boss status:', err);
+      setBossError(err.message || '世界王資料讀取失敗');
     }
   };
 
   useEffect(() => {
     fetchBossStatus();
-    // Poll boss stats every 5 seconds to show co-op changes
-    const interval = setInterval(fetchBossStatus, 5000);
-    return () => clearInterval(interval);
+    // Avoid wasting backend requests while the game is in a background tab.
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') fetchBossStatus();
+    };
+    const interval = setInterval(refreshWhenVisible, 10000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, []);
 
   const selectedMonster = aliveMonsters.find(m => m.monster_id === selectedMonsterId) || aliveMonsters[0] || null;
@@ -106,9 +115,24 @@ export default function Raid({
             </div>
           </div>
         ) : (
-          <div className="glass-card p-10 flex flex-col items-center justify-center h-64 border-slate-700/50">
-            <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <span className="text-slate-400">正在加載世界王數據...</span>
+          <div className="glass-card p-10 flex flex-col items-center justify-center h-64 border-slate-700/50 gap-4">
+            {bossError ? (
+              <>
+                <span role="alert" className="text-rose-400 text-center text-sm">世界王資料讀取失敗：{bossError}</span>
+                <button type="button" onClick={fetchBossStatus} className="neon-button neon-button-primary px-4 py-2">重新載入</button>
+              </>
+            ) : (
+              <>
+                <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <span className="text-slate-400">正在載入世界王數據...</span>
+              </>
+            )}
+          </div>
+        )}
+        {boss && bossError && (
+          <div role="alert" className="glass-card p-3 text-amber-300 text-sm">
+            世界王狀態更新失敗：{bossError}
+            <button type="button" onClick={fetchBossStatus} className="ml-3 underline">重試</button>
           </div>
         )}
 

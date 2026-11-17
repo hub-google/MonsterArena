@@ -19,6 +19,7 @@ export default function Social({ user }) {
   const [chatLogs, setChatLogs] = useState([]);
   const logsEndRef = useRef(null);
   const refreshChatRef = useRef(null);
+  const plazaRequestRef = useRef(0);
 
   // Friends State
   const [friendUUID, setFriendUUID] = useState('');
@@ -32,6 +33,7 @@ export default function Social({ user }) {
   useEffect(() => {
     if (subTab === 'plaza') {
       loadPlayers();
+      return () => { plazaRequestRef.current++; };
     } else if (subTab === 'chat') {
       const unsubscribe = api.subscribeMessages('world', (msgs) => {
         setChatLogs(msgs);
@@ -73,14 +75,16 @@ export default function Social({ user }) {
   };
 
   const loadPlayers = async () => {
+    const requestId = ++plazaRequestRef.current;
     setLoading(true);
     try {
       const results = await api.searchPlayers(typeFilter);
-      setPlayers(results);
+      if (plazaRequestRef.current === requestId) setPlayers(results);
     } catch (err) {
-      setMessage(err.message);
+      if (plazaRequestRef.current === requestId) setMessage(err.message);
+    } finally {
+      if (plazaRequestRef.current === requestId) setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSendChat = async (e) => {

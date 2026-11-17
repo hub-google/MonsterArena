@@ -28,26 +28,40 @@ export default function Arena({
   const logsEndRef = useRef(null);
   const refreshChatRef = useRef(null);
   const recordedBattles = useRef(new Set());
+  const savingBattles = useRef(new Set());
+  const refreshDataRef = useRef(refreshData);
+  const [battleSaveError, setBattleSaveError] = useState('');
+  refreshDataRef.current = refreshData;
   const battleRunning = Boolean(battleState && !battleState.isOver);
 
+  const saveBattleResult = async (battle) => {
+    if (!battle?.isOver || !battle.battleId || recordedBattles.current.has(battle.battleId) ||
+        savingBattles.current.has(battle.battleId)) return;
+    const { battleId, mA, winner } = battle;
+    savingBattles.current.add(battleId);
+    setBattleSaveError('');
+    try {
+      await api.recordBattleResult(mA.monster_id, battleId, winner === 'A');
+      recordedBattles.current.add(battleId);
+      await refreshDataRef.current();
+    } catch (err) {
+      setBattleSaveError(`戰鬥紀錄儲存失敗：${err.message || '請重新嘗試'}`);
+    } finally {
+      savingBattles.current.delete(battleId);
+    }
+  };
+
   useEffect(() => {
-    if (!battleState?.isOver || !battleState.battleId || recordedBattles.current.has(battleState.battleId)) return;
-    const { battleId, mA, winner } = battleState;
-    recordedBattles.current.add(battleId);
-    api.recordBattleResult(mA.monster_id, battleId, winner === 'A')
-      .then(refreshData)
-      .catch(err => {
-        recordedBattles.current.delete(battleId);
-        setMessage(`戰鬥紀錄儲存失敗：${err.message}`);
-      });
-  }, [battleState?.isOver, battleState?.battleId, battleState?.winner, refreshData]);
+    if (battleState?.isOver) void saveBattleResult(battleState);
+    // Do not retry after unrelated re-renders (including save errors).
+  }, [battleState?.isOver, battleState?.battleId]);
 
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatLogs, battleState?.logs]);
 
-  // Realtime Chat via Firebase messages collection
+  // Shared game chat (authenticated Supabase read-only polling)
   useEffect(() => {
     const unsubscribe = api.subscribeMessages('world', (msgs) => {
       setChatLogs(msgs.map(m => ({
@@ -146,11 +160,20 @@ export default function Arena({
   const handleChallenge = (targetPlayerId) => {
     const monster = monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead)
       || monsters.find(m => !m.is_dead);
-    if (!monster || monster.is_dead) return setMessage('❌ 請先選擇一隻存活的怪獸出戰！');
-    setMessage(`向對手發出挑戰！`);
-    
-    // Auto-accept local mock for demo purposes if no channel
-    handleAcceptChallenge(monster, Object.assign({}, monster, {name: targetPlayerId === 'mock' ? '野生病毒怪獸' : '究極體王怪', combat_hp: monster.combat_hp * 1.2, type: Math.floor(Math.random()*3)+1}));
+    if (!monster) return setMessage('❌ 請先選擇一隻存活的怪獸出戰！');
+    const isBoss = targetPlayerId === 'mock_boss';
+    setMessage('');
+    setBattleSaveError('');
+    // Wild and boss encounters are distinct local simulations.
+    handleAcceptChallenge(monster, {
+      ...monster,
+      name: isBoss ? '究極體王怪' : '野生病毒怪獸',
+      combat_hp: Math.max(1, Math.round(monster.combat_hp * (isBoss ? 2.2 : 0.9))),
+      combat_atk: Math.max(1, Math.round(monster.combat_atk * (isBoss ? 1.6 : 0.8))),
+      combat_def: Math.max(1, Math.round(monster.combat_def * (isBoss ? 1.5 : 0.8))),
+      combat_spd: Math.max(1, Math.round(monster.combat_spd * (isBoss ? 1.3 : 0.9))),
+      type: isBoss ? 1 : 3
+    });
   };
 
   const handleAcceptChallenge = (mA, mB) => {
@@ -265,6 +288,14 @@ export default function Arena({
           </div>
         </div>
 
+        {battleSaveError && (
+          <div role="alert" className="glass-card p-3 text-rose-300 text-sm flex flex-col gap-2">
+            <span>{battleSaveError}</span>
+            <button type="button" onClick={() => saveBattleResult(battleState)} className="neon-button neon-button-primary px-3 py-2">
+              重試儲存戰績
+            </button>
+          </div>
+        )}
         <div className="mt-auto">
           {isBattleOver ? (
             <button onClick={() => { setBattleState(null); refreshData(); }} className="w-full neon-button neon-button-primary py-4 font-bold text-lg">離開戰場</button>

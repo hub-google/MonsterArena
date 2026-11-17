@@ -27,6 +27,7 @@ export default function App() {
   const [isOnline,setIsOnline]=useState(typeof navigator==='undefined' || navigator.onLine);
   const authUidRef=useRef(null);
   const loadVersionRef=useRef(0);
+  const hasLoadedProfileRef=useRef(false);
 
   const clearUser=()=>{
     setUser(null);setMonsters([]);setInventory([]);setFriends([]);
@@ -48,6 +49,7 @@ export default function App() {
         api.getMonsters(),api.getInventory(),api.getFriends(),api.getGuilds()
       ]);
       if(!isCurrent())return;
+      hasLoadedProfileRef.current=true;
       setUser(profile);
       setMonsters(ownedMonsters);
       setInventory(ownedInventory);
@@ -61,7 +63,8 @@ export default function App() {
     } catch(err) {
       if(isCurrent()){
         console.error('Game data load failed:',err);
-        setLoadError(err.message||'資料載入失敗');
+        // A transient background refresh failure should not erase the game UI.
+        if(!hasLoadedProfileRef.current)setLoadError(err.message||'資料載入失敗');
       }
     } finally {if(isCurrent())setLoading(false);}
   };
@@ -76,6 +79,7 @@ export default function App() {
         previousAuthId=null;
         authUidRef.current=null;
         loadVersionRef.current++;
+        hasLoadedProfileRef.current=false;
         clearUser();
         setLoading(false);
         return;
@@ -84,6 +88,7 @@ export default function App() {
       previousAuthId=nextUid;
       authUidRef.current=nextUid;
       loadVersionRef.current++;
+      hasLoadedProfileRef.current=false;
       clearUser();
       setLoading(true);
       // Auth callbacks must not synchronously await Supabase database operations.
@@ -111,6 +116,7 @@ export default function App() {
       await api.logout();
       authUidRef.current=null;
       loadVersionRef.current++;
+      hasLoadedProfileRef.current=false;
       clearUser();
       setLoading(false);
     } catch(err) {
