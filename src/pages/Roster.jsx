@@ -218,6 +218,10 @@ export default function Roster({
                 <span className="text-2xl">🔧</span> 晶片鑲嵌面板
               </h3>
               
+              <p className="text-xs text-slate-400 mb-4">
+                新晶片基本加成 +5。舊版強化晶片拆除後會保留原本的 +50／+200 等加成，
+                同種類下次鑲嵌時優先恢復強化晶片，不會降為 +5。
+              </p>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-between min-h-[120px]">
                   <span className="text-xs text-slate-400">插槽 1 (成熟期)</span>

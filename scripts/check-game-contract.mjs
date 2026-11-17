@@ -37,4 +37,9 @@ for (const item of ['chip_atk','chip_def','chip_hp','chip_spd']) {
   assert.ok(api.includes('getInventory'),'game client must still load inventory');
 }
 assert.ok(chips.includes("item_type 1 or 6"),'legacy inventory support missing');
+const bonusMigration=read('supabase/migrations/20261117_game_legacy_chip_preservation.sql');
+assert.match(bonusMigration,/game_chip_reserves/);
+assert.match(bonusMigration,/if v_old>5 then/);
+assert.match(bonusMigration,/chip_slot_1_val=v_bonus/);
+assert.match(bonusMigration,/chip_slot_2_val=v_bonus/);
 console.log('Arena security and game contract checks passed.');
