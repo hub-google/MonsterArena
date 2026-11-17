@@ -481,7 +481,7 @@ begin
     end if;
   end if;
   return coalesce(v_result,jsonb_build_object('message','操作成功！'));
-end; $;
+end; $$;
 
 -- Fix cross-player email leakage. Leave the self-only RLS policy in place.
 drop policy if exists "Anyone can view profiles" on public.users;
