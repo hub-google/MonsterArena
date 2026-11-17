@@ -36,9 +36,12 @@ export default function Roster({
     try {
       const data = await actionFn(...args);
       setMessage(data.message || '操作成功！');
-      await refreshData();
+      try { await refreshData(); }
+      catch { setMessage('操作成功，但重新載入失敗，請手動更新。'); }
+      return true;
     } catch (err) {
       setMessage(`❌ ${err.message}`);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -59,8 +62,11 @@ export default function Roster({
   };
 
   const handleEquip = async () => {
-    if (!selectedChipId) return;
-    await handleAction(api.equipChip, selectedMonster.monster_id, selectedChipId, equipSlot);
+    if (!selectedMonster || !selectedChipId) return;
+    const previous = equipSlot === 1 ? selectedMonster.chip_slot_1 : selectedMonster.chip_slot_2;
+    if (previous && !window.confirm('覆蓋晶片會永久損毀原晶片，確定繼續嗎？')) return;
+    if (await handleAction(api.equipChip, selectedMonster.monster_id, selectedChipId, equipSlot))
+      setSelectedChipId('');
   };
 
   const handleUnequip = async (slot) => {
@@ -268,7 +274,7 @@ export default function Roster({
 
                 <button
                   onClick={handleEquip}
-                  disabled={loading || !selectedChipId}
+                  disabled={loading || !selectedChipId || selectedMonster.life_stage < (equipSlot===1 ? 4 : 5)}
                   className="w-full neon-button neon-button-primary py-3 mt-2"
                 >
                   確認鑲嵌 (覆蓋將損毀舊晶片)

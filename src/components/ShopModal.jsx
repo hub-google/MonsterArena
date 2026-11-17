@@ -88,7 +88,7 @@ export default function ShopModal({ user, onClose, refreshData }) {
             <div key={chip.id} className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center gap-2">
               <div className="flex flex-col">
                 <span className="font-bold text-white text-sm">晶片：{chip.title}</span>
-                <span className="text-xs text-slate-400">鑲嵌後 {chip.stat} +5；舊晶片可用提取器回收</span>
+                <span className="text-xs text-slate-400">鑲嵌後 {chip.stat} +5；拆除需提取器，覆蓋會損毀舊晶片</span>
               </div>
               <button onClick={() => handleBuy(chip.id)} disabled={loading || user.gold < 300}
                 className="neon-button bg-cyan-600 text-white px-4 py-2 text-sm shrink-0 disabled:opacity-40">
