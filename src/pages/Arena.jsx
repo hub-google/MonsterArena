@@ -93,16 +93,21 @@ export default function Arena({
     setMessage('');
     try {
       const result=await api.startBattle(monster.monster_id,isBoss?'boss':'wild');
-      const enemy={...monster, name:result.enemyName,
+      const enemy={
+        name:result.enemyName,
+        // Opponent artwork must not reuse the player's own species or stage.
+        family:isBoss?7:3,
+        life_stage:isBoss?6:Math.max(3,Math.min(5,Number(monster.life_stage)||3)),
         combat_hp:result.enemyMaxHp, combat_atk:result.enemyAtk,
         combat_def:result.enemyDef, combat_spd:result.enemySpd,
-        type:result.enemyType};
+        type:result.enemyType
+      };
       setBattleState({
         battleId:result.battleId, serverWon:result.won, events:result.events||[], eventIndex:0,
         mA:monster, mB:enemy,
         mA_HP:result.ownMaxHp,mB_HP:result.enemyMaxHp,
         mA_MaxHP:result.ownMaxHp,mB_MaxHP:result.enemyMaxHp,
-        mA_ATB:0,mB_ATB:0,mA_AP:0,mB_AP:0,
+        mA_ATB:0,mB_ATB:0,
         logs:[`⚔️ 戰鬥開始！ ${monster.name} vs ${enemy.name}！`],
         isOver:false,winner:null,finalOwnHp:result.ownHp,finalEnemyHp:result.enemyHp
       });
@@ -129,7 +134,7 @@ export default function Arena({
         <div className="absolute inset-0 bg-red-900/10 pointer-events-none animate-pulse rounded-2xl"></div>
         
         <div className="glass-card p-4 text-center border-red-500/30">
-          <h2 className="text-xl font-bold text-red-500 animate-pulse tracking-widest">對戰過程播放中（結果由伺服器判定）</h2>
+          <h2 className="text-xl font-bold text-red-500 tracking-widest">{isBattleOver ? '對戰已結算' : '對戰播放中（伺服器已結算）'}</h2>
         </div>
 
         <div className="glass-card p-6 flex flex-col gap-6">
@@ -139,7 +144,7 @@ export default function Arena({
             <div className="flex flex-col items-center gap-2 w-1/3">
               <span className="truncate w-full text-center text-sm font-bold text-cyan-400">{battleState.mA?.name}</span>
               <div className="scale-125 my-4">
-                <MonsterPixelArt stage={battleState.mA?.life_stage || 4} type={battleState.mA?.type} isDead={battleState.mA_HP <= 0} />
+                <MonsterPixelArt family={battleState.mA?.family || 1} stage={battleState.mA?.life_stage || 4} type={battleState.mA?.type} isDead={battleState.mA_HP <= 0} />
               </div>
               
               <div className="w-full space-y-2">
@@ -158,10 +163,7 @@ export default function Arena({
                     <div className="text-[8px] text-slate-400 mb-0.5">ATB</div>
                     <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden"><div className="h-full bg-cyan-500 transition-all" style={{width:`${battleState.mA_ATB}%`}}></div></div>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-[8px] text-slate-400 mb-0.5">AP</div>
-                    <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all" style={{width:`${(battleState.mA_AP/30)*100}%`}}></div></div>
-                  </div>
+
                 </div>
               </div>
             </div>
@@ -172,7 +174,7 @@ export default function Arena({
             <div className="flex flex-col items-center gap-2 w-1/3">
               <span className="truncate w-full text-center text-sm font-bold text-rose-400">{battleState.mB?.name}</span>
               <div className="scale-125 my-4">
-                <MonsterPixelArt stage={battleState.mB?.life_stage || 4} type={battleState.mB?.type} isDead={battleState.mB_HP <= 0} />
+                <MonsterPixelArt family={battleState.mB?.family || 1} stage={battleState.mB?.life_stage || 4} type={battleState.mB?.type} isDead={battleState.mB_HP <= 0} />
               </div>
               
               <div className="w-full space-y-2">
@@ -191,10 +193,7 @@ export default function Arena({
                     <div className="text-[8px] text-slate-400 mb-0.5">ATB</div>
                     <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden"><div className="h-full bg-cyan-500 transition-all" style={{width:`${battleState.mB_ATB}%`}}></div></div>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-[8px] text-slate-400 mb-0.5">AP</div>
-                    <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all" style={{width:`${(battleState.mB_AP/30)*100}%`}}></div></div>
-                  </div>
+
                 </div>
               </div>
             </div>

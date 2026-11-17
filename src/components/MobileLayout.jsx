@@ -27,14 +27,14 @@ export default function MobileLayout({ children, page, setPage, isConnected }) {
         </div>
         <div className="flex items-center gap-2">
           {isConnected ? (
-            <span className="flex items-center gap-1 text-xs text-emerald-400 font-medium">
+            <span title="僅反映瀏覽器網路狀態，並非遊戲伺服器連線驗證" className="flex items-center gap-1 text-xs text-emerald-400 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              連線中
+              瀏覽器在線
             </span>
           ) : (
-            <span className="flex items-center gap-1 text-xs text-rose-400 font-medium">
+            <span title="瀏覽器目前回報沒有網路連線" className="flex items-center gap-1 text-xs text-rose-400 font-medium">
               <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-              斷線
+              瀏覽器離線
             </span>
           )}
         </div>
