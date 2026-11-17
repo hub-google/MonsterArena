@@ -218,7 +218,7 @@ export default function Guild({
                         disabled={loading}
                         className="neon-button bg-slate-700 hover:bg-cyan-600 text-white px-4 py-2 text-sm transition-colors"
                       >
-                        申請加入
+                        加入公會
                       </button>
                     </div>
                   ))}

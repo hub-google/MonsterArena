@@ -100,14 +100,13 @@ export default function Dashboard({
     return item ? item.quantity : 0;
   };
 
+  // The database has a "name" column, but no "custom_name" column.
+  // Preserve names chosen by players instead of replacing them with a species name.
+  const isDefaultEggName = monster.name === '數位蛋' || monster.name === '新生基因蛋';
   let displayName = monster.name;
-  if (monster.custom_name) {
-    displayName = monster.custom_name;
-  } else if (monster.life_stage >= 3) {
+  if (isDefaultEggName && monster.life_stage >= 3) {
     const spriteKey = `${monster.family || 1}_${monster.life_stage}_${monster.type || 0}`;
-    if (MONSTER_SPRITES[spriteKey]) {
-      displayName = MONSTER_SPRITES[spriteKey].name;
-    }
+    if (MONSTER_SPRITES[spriteKey]) displayName = MONSTER_SPRITES[spriteKey].name;
   }
 
   let speciesName = '數位蛋';
@@ -123,16 +122,14 @@ export default function Dashboard({
   }
 
   const handleRename = async () => {
-    const newName = prompt('請輸入新的怪獸名稱（最多20字）：', displayName);
+    const newName = prompt('請輸入新的怪獸名稱（最多30字）：', displayName);
     if (newName !== null && newName.trim() !== '') {
       setLoading(true);
       setMessage('');
       try {
         const data = await api.rename(monster.monster_id, newName.trim());
         setMessage(data.message || '改名成功！');
-        const updated = await api.getMonsters();
-        const updatedMonster = updated.find(m => m.monster_id === monster.monster_id);
-        if (updatedMonster) setActiveMonster(updatedMonster);
+        await refreshData();
       } catch (err) {
         setMessage(`❌ ${err.message}`);
       } finally {
@@ -194,7 +191,7 @@ export default function Dashboard({
               ✏️
             </button>
           </div>
-          {monster.custom_name && (
+          {!isDefaultEggName && monster.life_stage >= 3 && (
             <div className="text-xs text-slate-500">
               種族：{speciesName}
             </div>

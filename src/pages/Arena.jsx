@@ -139,7 +139,8 @@ export default function Arena({
   };
 
   const handleChallenge = (targetPlayerId) => {
-    const monster = activeMonster || monsters[0];
+    const monster = monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead)
+      || monsters.find(m => !m.is_dead);
     if (!monster || monster.is_dead) return setMessage('❌ 請先選擇一隻存活的怪獸出戰！');
     setMessage(`向對手發出挑戰！`);
     
@@ -274,7 +275,7 @@ export default function Arena({
     <div className="h-full flex flex-col gap-4 animate-fade-in">
       <div className="glass-card p-4 flex justify-between items-center text-sm font-bold">
         <span className="text-cyan-400">大廳玩家: {activePlayers.length}人</span>
-        <span className="text-emerald-400">出戰: {activeMonster?.name || monsters[0]?.name || '無'}</span>
+        <span className="text-emerald-400">出戰: {monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead)?.name || monsters.find(m => !m.is_dead)?.name || '無'}</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2">

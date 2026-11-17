@@ -9,7 +9,10 @@ export default function Raid({
   setPage 
 }) {
   const [boss, setBoss] = useState(null);
-  const [selectedMonsterId, setSelectedMonsterId] = useState(activeMonster?.monster_id || monsters[0]?.monster_id);
+  const aliveMonsters = monsters.filter(m => !m.is_dead);
+  const [selectedMonsterId, setSelectedMonsterId] = useState(
+    () => aliveMonsters.find(m => m.monster_id === activeMonster?.monster_id)?.monster_id || aliveMonsters[0]?.monster_id || ''
+  );
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -30,7 +33,7 @@ export default function Raid({
     return () => clearInterval(interval);
   }, []);
 
-  const selectedMonster = monsters.find(m => m.monster_id === selectedMonsterId) || monsters[0];
+  const selectedMonster = aliveMonsters.find(m => m.monster_id === selectedMonsterId) || aliveMonsters[0] || null;
 
   const handleAttack = async () => {
     if (!selectedMonster || selectedMonster.is_dead) {
@@ -119,11 +122,11 @@ export default function Raid({
               <div>
                 <label className="text-xs text-slate-400 mb-1 block">選擇出戰怪獸</label>
                 <select 
-                  value={selectedMonsterId}
+                  value={selectedMonster?.monster_id || ''}
                   onChange={(e) => setSelectedMonsterId(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-rose-500 transition-colors"
                 >
-                  {monsters.filter(m => !m.is_dead).map(m => (
+                  {aliveMonsters.map(m => (
                     <option key={m.monster_id} value={m.monster_id}>
                       {m.name} (攻擊力: {Math.round(m.combat_atk)})
                     </option>
@@ -133,7 +136,7 @@ export default function Raid({
 
               <button
                 onClick={handleAttack}
-                disabled={loading || user.stamina < 15 || monsters.filter(m => !m.is_dead).length === 0}
+                disabled={loading || user.stamina < 15 || !selectedMonster}
                 className="w-full neon-button neon-button-danger py-4 text-lg font-bold flex items-center justify-center gap-2"
               >
                 <span>💥 發動討伐突襲</span>
