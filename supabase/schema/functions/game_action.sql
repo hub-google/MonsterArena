@@ -1,4 +1,4 @@
--- Canonical source: current Game database definition, captured 2026-11-17.
+-- Canonical source for next main Game rules; not yet applied to the shared database.
 -- Historical migrations are immutable records; edit this file for future changes.
 CREATE OR REPLACE FUNCTION public.game_action(p_action text, p_data jsonb DEFAULT '{}'::jsonb)
  RETURNS jsonb
@@ -57,12 +57,59 @@ declare
   v_events jsonb := '[]'::jsonb;
   v_result jsonb;
   v_text text;
+  v_request uuid;
+  v_cached record;
+  v_enc record;
+  v_defender arena_internal.pvp_defenders%rowtype;
+  v_enemy_family int;
+  v_enemy_stage int;
+  v_target uuid;
+  v_season text:=left(v_date,7);
+  v_boss_id text;
+  v_contribution bigint;
+  v_pvp boolean:=false;
 begin
   if v_uid is null then raise exception '請先登入'; end if;
   select * into v_u from public.users where user_id=v_uid for update;
   if not found then raise exception '找不到使用者資料，請重新登入'; end if;
+  p_data:=coalesce(p_data,'{}'::jsonb);
+  if jsonb_typeof(p_data)<>'object' then raise exception '操作參數錯誤'; end if;
+  if p_action='capabilities' then
+    return jsonb_build_object('version',2,'fixedEncounters',true,'asyncPvp',true,'dailyRaid',true,'idempotency',true);
+  end if;
+  if p_action='raid_status' then
+    v_boss_id:=arena_internal.ensure_raid(v_date);
+    select * into v_boss from public.raid_boss where id=v_boss_id;
+    select damage into v_contribution from arena_internal.raid_contributions where boss_id=v_boss_id and user_id=v_uid;
+    return to_jsonb(v_boss)||jsonb_build_object('my_damage',coalesce(v_contribution,0),'claims',
+      coalesce((select jsonb_agg(jsonb_build_object('boss_id',r.boss_id,'damage',r.damage,'reward',floor(5000::numeric*r.damage/b.max_hp)) order by b.created_at desc)
+        from arena_internal.raid_contributions r join public.raid_boss b on b.id=r.boss_id
+        where r.user_id=v_uid and r.claimed_at is null and b.current_hp=0),'[]'::jsonb));
+  end if;
+  if p_action='pvp_list' then
+    return jsonb_build_object('season',v_season,'registered',exists(select 1 from arena_internal.pvp_defenders where user_id=v_uid),
+      'opponents',coalesce((select jsonb_agg(to_jsonb(q) order by q.points desc,q.user_id) from
+        (select d.user_id,u.username,d.monster_name,d.family,d.stage,d.type,d.hp,d.atk,d.def,d.spd,coalesce(s.points,0) points
+         from arena_internal.pvp_defenders d join public.users u using(user_id)
+         left join arena_internal.pvp_scores s on s.user_id=d.user_id and s.season=v_season
+         where d.user_id<>v_uid order by coalesce(s.points,0) desc,d.user_id limit 30) q),'[]'::jsonb),
+      'leaderboard',coalesce((select jsonb_agg(to_jsonb(q) order by q.points desc,q.user_id) from
+        (select s.user_id,u.username,s.points,s.wins,s.losses from arena_internal.pvp_scores s join public.users u using(user_id)
+         where s.season=v_season order by s.points desc,s.user_id limit 30) q),'[]'::jsonb));
+  end if;
+  v_request:=nullif(p_data->>'request_id','')::uuid;
+  if v_request is not null then
+    select action,payload_hash,result into v_cached from arena_internal.action_requests
+      where user_id=v_uid and request_id=v_request;
+    if found then
+      if v_cached.action<>p_action or v_cached.payload_hash<>md5((p_data-'request_id')::text) then
+        raise exception '交易識別碼已用於其他操作';
+      end if;
+      return v_cached.result;
+    end if;
+  end if;
 
-  if p_action in ('hatch','feed','clean','heal','train','evolve','release','lock','equip','unequip','breed','buy','raid','battle','claim','guild_create','guild_join','guild_leave','guild_donate','guild_buy','chat','gift') then
+  if p_action in ('hatch','feed','clean','heal','train','evolve','release','lock','equip','unequip','breed','buy','raid','battle','claim','guild_create','guild_join','guild_leave','guild_donate','guild_buy','chat','gift','raid_claim','pvp_register','pvp_unregister') then
     null;
   else
     raise exception '未知遊戲操作';
@@ -86,10 +133,10 @@ begin
     insert into public.monsters(user_id,name,generation,life_stage,type,family,age_days,fullness,cleanliness,
       is_sick,is_dead,gene_hp,gene_atk,gene_def,gene_spd,combat_hp,combat_atk,combat_def,combat_spd,battles,wins,is_locked,last_updated_at,is_rescue)
     values(v_uid,'數位蛋',1,1,0,1+floor(random()*7)::int,0,100,100,false,false,50,5,5,5,50,5,5,5,0,0,false,now(),v_rescue);
-    return jsonb_build_object('message','孵化數位蛋成功！');
+    return arena_internal.finish_action(v_uid,v_request,p_action,p_data,jsonb_build_object('message','孵化數位蛋成功！'),v_u.gold);
   end if;
 
-  if p_action in ('feed','clean','heal','train','evolve','release','lock','equip','unequip','raid','battle') then
+  if p_action in ('feed','clean','heal','train','evolve','release','lock','equip','unequip','raid','battle','pvp_register') then
     v_mon_id := nullif(p_data->>'monster_id','')::uuid;
     if v_mon_id is null then raise exception '請選擇怪獸'; end if;
     select * into v_m from public.monsters where monster_id=v_mon_id and user_id=v_uid for update;
@@ -99,7 +146,7 @@ begin
     if p_action in ('feed','clean','train') and coalesce(v_m.life_stage,1)=1 then
       raise exception '數位蛋尚不能餵食、清潔或訓練';
     end if;
-    if p_action in ('raid','battle') then
+    if p_action in ('raid','battle','pvp_register') then
       if coalesce(v_m.life_stage,1)<2 then raise exception '數位蛋不能出戰'; end if;
       if coalesce(v_m.is_frozen,false) then raise exception '凍結中的怪獸不能出戰'; end if;
     end if;
@@ -125,7 +172,7 @@ begin
            when v_item in ('chip_atk','chip_def','chip_hp','chip_spd') then 4
            when v_item in ('medicine_standard','vitamin') then 2 else 1 end,v_qty)
       on conflict(user_id,item_id) do update set quantity=public.user_inventory.quantity+excluded.quantity;
-    return jsonb_build_object('message','購買成功，花費 '||v_cost||'G');
+    return arena_internal.finish_action(v_uid,v_request,p_action,p_data,jsonb_build_object('message','購買成功，花費 '||v_cost||'G'),v_u.gold);
   end if;
 
   if p_action in ('feed','heal','equip','unequip','evolve') then
@@ -307,21 +354,41 @@ begin
       (v_m.combat_atk+v_m2.combat_atk)/2*v_bonus,
       (v_m.combat_def+v_m2.combat_def)/2*v_bonus,
       (v_m.combat_spd+v_m2.combat_spd)/2*v_bonus,0,0,false,now());
+  elsif p_action='pvp_register' then
+    insert into arena_internal.pvp_defenders(user_id,monster_id,monster_name,family,stage,type,hp,atk,def,spd)
+      values(v_uid,v_mon_id,coalesce(v_m.name,'怪獸'),coalesce(v_m.family,1),v_m.life_stage,coalesce(v_m.type,0),
+      greatest(1,coalesce(v_m.combat_hp,1)),greatest(1,coalesce(v_m.combat_atk,1)),
+      greatest(0,coalesce(v_m.combat_def,0)),greatest(1,coalesce(v_m.combat_spd,1)))
+      on conflict(user_id) do update set monster_id=excluded.monster_id,monster_name=excluded.monster_name,
+      family=excluded.family,stage=excluded.stage,type=excluded.type,hp=excluded.hp,atk=excluded.atk,def=excluded.def,spd=excluded.spd,updated_at=now();
+    v_result:=jsonb_build_object('message','防守怪獸已登記');
+  elsif p_action='pvp_unregister' then
+    delete from arena_internal.pvp_defenders where user_id=v_uid;
+    v_result:=jsonb_build_object('message','已取消競技場防守登記');
+  elsif p_action='raid_claim' then
+    v_boss_id:=p_data->>'boss_id';
+    select * into v_boss from public.raid_boss where id=v_boss_id;
+    if not found or v_boss.current_hp<>0 then raise exception '世界王尚未討伐成功'; end if;
+    select damage into v_contribution from arena_internal.raid_contributions where boss_id=v_boss_id and user_id=v_uid and claimed_at is null for update;
+    if not found then raise exception '沒有可領取的討伐獎勵'; end if;
+    v_reward:=floor(5000::numeric*v_contribution/v_boss.max_hp)::int;
+    update arena_internal.raid_contributions set claimed_at=now() where boss_id=v_boss_id and user_id=v_uid;
+    update public.users set gold=coalesce(gold,0)+v_reward where user_id=v_uid;
+    v_result:=jsonb_build_object('message','領取討伐貢獻獎勵 '||v_reward||'G','reward',v_reward);
   elsif p_action='raid' then
     if v_u.stamina < 15 then raise exception '需要 15 點體力'; end if;
-    select * into v_boss from public.raid_boss order by created_at desc limit 1 for update;
-    if not found then
-      insert into public.raid_boss(name,current_hp,max_hp,is_active)
-        values('數碼世界王',500000,500000,true) returning * into v_boss;
-    end if;
-    if not coalesce(v_boss.is_active,false) then raise exception '世界王已被討伐'; end if;
-    v_damage:=greatest(1,round((v_m.combat_atk*20*
+    v_boss_id:=arena_internal.ensure_raid(v_date);
+    select * into v_boss from public.raid_boss where id=v_boss_id for update;
+    if not coalesce(v_boss.is_active,false) then raise exception '今日世界王已被討伐'; end if;
+    v_damage:=least(v_boss.current_hp,greatest(1,round((v_m.combat_atk*20*
       case when v_m.type=3 then 1.3 when v_m.type=2 then 0.7 else 1 end
-      *(0.9+random()*0.2))::numeric)::int);
+      *(0.9+random()*0.2))::numeric)::int));
     v_remaining:=greatest(0,v_boss.current_hp-v_damage);
     update public.raid_boss set current_hp=v_remaining,is_active=v_remaining>0 where id=v_boss.id;
-    update public.users set stamina=stamina-15,gold=gold+case when v_remaining=0 then 5000 else 0 end where user_id=v_uid;
-    return jsonb_build_object('message',case when v_remaining=0 then '討伐成功，獲得 5000G' else '造成傷害！' end,'damage',v_damage);
+    insert into arena_internal.raid_contributions(boss_id,user_id,damage) values(v_boss.id,v_uid,v_damage)
+      on conflict(boss_id,user_id) do update set damage=arena_internal.raid_contributions.damage+excluded.damage;
+    update public.users set stamina=stamina-15 where user_id=v_uid;
+    v_result:=jsonb_build_object('message',case when v_remaining=0 then '討伐成功！可依傷害貢獻領取獎勵' else '造成傷害！' end,'damage',v_damage);
   elsif p_action='battle' then
     -- Ignore legacy caller-provided battleId and won. The server owns all outcomes.
     -- The owning user row is FOR UPDATE locked above, serializing requests across tabs.
@@ -331,17 +398,32 @@ begin
       limit 1;
     if found then raise exception '對戰冷卻中，請 5 秒後再挑戰'; end if;
     v_encounter:=coalesce(p_data->>'encounter','wild');
-    if v_encounter not in ('wild','boss') then raise exception '無效的對戰類型'; end if;
     if coalesce(v_m.is_frozen,false) then raise exception '凍結的怪獸不能出戰'; end if;
-    v_enemy_name:=case when v_encounter='boss' then '究極體王怪' else '野生病毒怪獸' end;
-    v_enemy_type:=case when v_encounter='boss' then 1 else 3 end;
+    select count(*) into v_count from public.battle_records where user_id=v_uid
+      and created_at>=date_trunc('day',now() at time zone 'Asia/Taipei') at time zone 'Asia/Taipei';
+    if v_count>=30 then raise exception '今日已達 30 場挑戰上限'; end if;
     v_own_max_hp:=greatest(1,coalesce(v_m.combat_hp,1));
     v_own_hp:=v_own_max_hp;
-    v_enemy_max_hp:=greatest(1,round((v_own_max_hp*(case when v_encounter='boss' then 2.2 else 0.9 end))::numeric));
+    v_pvp:=v_encounter='pvp';
+    if v_pvp then
+      v_target:=nullif(p_data->>'opponent_id','')::uuid;
+      if v_target is null or v_target=v_uid then raise exception '對手無效'; end if;
+      select * into v_defender from arena_internal.pvp_defenders where user_id=v_target;
+      if not found then raise exception '對手未登記防守怪獸'; end if;
+      select count(*) into v_count from arena_internal.pvp_results where attacker_id=v_uid and battle_day=v_date::date;
+      if v_count>=5 then raise exception '今日玩家對戰已達 5 場上限'; end if;
+      if exists(select 1 from arena_internal.pvp_results where attacker_id=v_uid and defender_id=v_target and battle_day=v_date::date)
+        then raise exception '今天已挑戰過這位玩家'; end if;
+      v_enemy_name:=v_defender.monster_name;v_enemy_type:=v_defender.type;v_enemy_family:=v_defender.family;
+      v_enemy_stage:=v_defender.stage;v_enemy_max_hp:=v_defender.hp;v_enemy_atk:=v_defender.atk;
+      v_enemy_def:=v_defender.def;v_enemy_spd:=v_defender.spd;
+    else
+      select * into v_enc from arena_internal.encounter(v_encounter);
+      if not found then raise exception '無效的對戰類型'; end if;
+      v_enemy_name:=v_enc.name;v_enemy_type:=v_enc.kind;v_enemy_family:=v_enc.family;v_enemy_stage:=v_enc.stage;
+      v_enemy_max_hp:=v_enc.hp;v_enemy_atk:=v_enc.atk;v_enemy_def:=v_enc.def;v_enemy_spd:=v_enc.spd;
+    end if;
     v_enemy_hp:=v_enemy_max_hp;
-    v_enemy_atk:=greatest(1,coalesce(v_m.combat_atk,1)*(case when v_encounter='boss' then 1.6 else 0.8 end));
-    v_enemy_def:=greatest(0,coalesce(v_m.combat_def,0)*(case when v_encounter='boss' then 1.5 else 0.8 end));
-    v_enemy_spd:=greatest(1,coalesce(v_m.combat_spd,1)*(case when v_encounter='boss' then 1.3 else 0.9 end));
     v_player_first:=coalesce(v_m.combat_spd,1)>=v_enemy_spd;
     for v_round in 1..100 loop
       for v_step in 1..2 loop
@@ -382,12 +464,28 @@ begin
       values(v_uid,v_battle,v_mon_id,v_won);
     update public.monsters set battles=coalesce(battles,0)+1,
       wins=coalesce(wins,0)+case when v_won then 1 else 0 end where monster_id=v_mon_id;
+    v_reward:=0;
+    if v_pvp then
+      insert into arena_internal.pvp_results(attacker_id,defender_id,battle_day,battle_id,won)
+        values(v_uid,v_target,v_date::date,v_battle,v_won);
+      insert into arena_internal.pvp_scores(season,user_id,points,wins,losses)
+        values(v_season,v_uid,case when v_won then 3 else 1 end,case when v_won then 1 else 0 end,case when v_won then 0 else 1 end)
+        on conflict(season,user_id) do update set points=arena_internal.pvp_scores.points+excluded.points,
+        wins=arena_internal.pvp_scores.wins+excluded.wins,losses=arena_internal.pvp_scores.losses+excluded.losses;
+    elsif v_won then
+      insert into arena_internal.pve_first_clear(user_id,clear_day,encounter) values(v_uid,v_date::date,v_encounter)
+        on conflict do nothing;
+      if found then
+        v_reward:=v_enc.reward;
+        update public.users set gold=coalesce(gold,0)+v_reward where user_id=v_uid;
+      end if;
+    end if;
     v_key:='battle_count';
     v_result:=jsonb_build_object(
       'message',case when v_won then '對戰勝利！' else '對戰失敗' end,
       'won',v_won,'battleId',v_battle,'events',v_events,
       'ownMaxHp',v_own_max_hp,'enemyMaxHp',v_enemy_max_hp,
-      'enemyName',v_enemy_name,'enemyType',v_enemy_type,
+      'enemyName',v_enemy_name,'enemyType',v_enemy_type,'enemyFamily',v_enemy_family,'enemyStage',v_enemy_stage,'reward',v_reward,
       'enemyAtk',v_enemy_atk,'enemyDef',v_enemy_def,'enemySpd',v_enemy_spd,
       'ownHp',v_own_hp,'enemyHp',v_enemy_hp);
   elsif p_action='chat' then
@@ -484,7 +582,7 @@ begin
       update public.daily_quests set battle_count=coalesce(battle_count,0)+1 where quest_id=v_uid::text||'_'||v_date;
     end if;
   end if;
-  return coalesce(v_result,jsonb_build_object('message','操作成功！'));
+  return arena_internal.finish_action(v_uid,v_request,p_action,p_data,coalesce(v_result,jsonb_build_object('message','操作成功！')),v_u.gold);
 end; $function$
 REVOKE ALL ON FUNCTION public.game_action(text,jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_action(text,jsonb) TO authenticated;

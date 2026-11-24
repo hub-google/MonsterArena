@@ -16,6 +16,17 @@ concurrency:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: arena_ci
+          POSTGRES_DB: arena_test
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arena_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - name: 取得 main 原始碼
         uses: actions/checkout@v4
@@ -34,6 +45,15 @@ jobs:
         run: npm run test:unit
       - name: 驗證 SQL 組合
         run: npm run db:sql > /dev/null
+      - name: 隔離 PostgreSQL 遊戲交易驗收
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/fixture.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < supabase/schema/game_rules_v2.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < supabase/schema/functions/game_age_monsters.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < supabase/schema/functions/game_action.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/game-rules-v2.sql
       - name: 檢查 Supabase 驗證服務
         run: node scripts/check-supabase-game.mjs
       - name: 建置測試站

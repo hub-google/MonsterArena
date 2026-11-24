@@ -3,8 +3,9 @@
 import { readFileSync } from 'node:fs';
 import { GAME_FUNCTIONS } from '../supabase/schema/manifest.mjs';
 
+const prelude=readFileSync(new URL('../supabase/schema/game_rules_v2.sql',import.meta.url),'utf8').trim();
 const chunks = GAME_FUNCTIONS.map(({ name }) => {
   const file = new URL(`../supabase/schema/functions/${name}.sql`, import.meta.url);
   return readFileSync(file, 'utf8').trim();
 });
-process.stdout.write(chunks.join('\n\n') + '\n');
+process.stdout.write([prelude,...chunks].join('\n\n') + '\n');

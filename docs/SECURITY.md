@@ -8,3 +8,7 @@
 - `scripts/check-game-contract.mjs` 檢查**現行 SQL**，而非只檢查已過時的 migration。前端共用孵蛋規則有 `node --test` 單元測試。
 - CI 自動測試不能證明所有線上 SQL 權限或跨帳號操作正確；需要用 `BEGIN ... ROLLBACK` 的授權測試獨立驗收，切勿對玩家資料做破壞性重置。
 - 舊 Firebase 工具、規則與測試已從執行路徑刪除，Git 歷史可以追溯。不要重新安裝 Firebase 以「修補」Supabase 問題。
+
+## 2026-11-24 V2 測試隔離
+
+新增的 arena_internal schema 不對 anon/authenticated/PUBLIC 開放；內部表啟用 RLS，公開 RPC 仍驗證 auth.uid() 及資源歸屬。只有自選登記的防守快照與排行榜安全欄位可由 RPC 取得。測試版 SQL 不自動套用共用 Game；GitHub Actions 使用空白 PostgreSQL fixture，沒有真實玩家資料。交易 UUID 可在七天內回傳同一結果，不得以相同 UUID 提交不同內容。

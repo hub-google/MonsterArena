@@ -9,7 +9,7 @@
 ## 唯一現行 SQL 程式碼
 
 **所有 8 個有效的 `game_*` RPC，以 `supabase/schema/functions/<函式名稱>.sql` 為唯一維護入口。**
-這些檔案在 2026-11-17 根據目前 Game 資料庫真正執行的定義整理，包含：
+2026-11-24 main 版的 `game_action`、`game_age_monsters` 及 `game_rules_v2.sql` 為下一版規則，**尚未套用共用 Game 資料庫**；其餘 RPC 保留既有定義。包含：
 
 - `game_action.sql`：孵蛋、訓練、晶片、戰鬥、公會、任務、世界王等交易邏輯（保留救援蛋防套利與舊晶片數值）
 - `game_age_monsters.sql`、`game_rename_monster.sql`
@@ -37,6 +37,15 @@ npm run db:sql > /tmp/arena-functions.sql
 - `src/utils/gameRules.js`：共享前端孵化／免費救援蛋規則，Dashboard、Roster 使用同一份。
 - 既有的 Firebase client、Firebase rules、emulator 測試與 firebase-tools 相依性已從 `main` 移除；舊版可從 Git 歷史查詢。
 
+## 遊戲規則 V2（隔離測試）
+
+- 固定五關 PvE、每日首勝、每日挑戰上限；敵人不再隨玩家能力等比變強。
+- 非即時 PVP 防守快照、每人每日五場且同對手每日一次、按月賽季排行榜。
+- 每日世界王、有效傷害貢獻、共享 5,000G 獎池及防重複領取。
+- 依實際時間老化和清潔度、生病機率；交易 UUID 防重複扣款、私有金幣流水。
+- `tests/sql/fixture.sql` 只用真實表結構 metadata 產出，不包含玩家資料；CI 使用臨時 PostgreSQL 容器驗證。
+- 瀏覽器 V2 僅於設定 `VITE_ARENA_V2=true`、`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY` 且指向非原本 Game 專案時啟用。main GitHub Pages 預設仍使用既有後端，避免波及 release。不得將共用資料庫當成隔離測試庫。
+
 ## 開發與驗收
 
 Node.js 22：
@@ -51,7 +60,7 @@ npm run build
 npm run dev
 ```
 
-`main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。完整的多帳號登入後 E2E 尚未由 CI 覆蓋；不以靜態測試替代資安驗證。
+`main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。另以隔離 PostgreSQL 容器、兩組測試身分實測 V2 SQL 權限及交易。真實 Supabase Auth 多帳號登入後 E2E 尚未由 CI 覆蓋；不以隔離 SQL 或模擬瀏覽器測試替代線上驗收。
 
 **部署隔離：**`main` 只更新 GitHub Pages；`release` 才是 Cloudflare Pages 正式版。任何程式碼清理都不修改 `release`、Cloudflare DNS/Worker，或共用 Supabase 的其他專案資料。詳細安全說明見 `docs/SECURITY.md`。
 

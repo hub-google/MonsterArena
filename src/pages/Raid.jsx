@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { api } from '../utils/api';
+import { api, GAME_RULES_V2 } from '../utils/api';
 
 export default function Raid({ 
   user, 
@@ -49,6 +49,11 @@ export default function Raid({
 
   const selectedMonster = aliveMonsters.find(m => m.monster_id === selectedMonsterId) || aliveMonsters[0] || null;
 
+  const handleClaim=async bossId=>{
+    setLoading(true);setMessage('');
+    try{const result=await api.claimRaid(bossId);setMessage(result.message);await refreshData(['profile']);await fetchBossStatus();}
+    catch(err){setMessage(err.message);}finally{setLoading(false);}
+  };
   const handleAttack = async () => {
     if (!selectedMonster || selectedMonster.is_dead) {
       setMessage('❌ 請選擇已孵化且未凍結的怪獸！');
@@ -141,6 +146,11 @@ export default function Raid({
           </div>
         )}
 
+        {GAME_RULES_V2&&boss&&<div className="glass-card p-3 space-y-2">
+          <div className="text-sm font-bold text-amber-300">今日傷害貢獻：{Number(boss.my_damage||0).toLocaleString()}</div>
+          <p className="text-xs text-slate-300">每天台灣時間更新世界王；成功討伐後按有效傷害分配 5,000G，不再只獎勵最後一擊。</p>
+          {(boss.claims||[]).map(c=><button key={c.boss_id} disabled={loading} onClick={()=>handleClaim(c.boss_id)} className="w-full neon-button neon-button-success px-3 py-2">領取 {c.boss_id.replace('daily:','')} 貢獻獎勵 {c.reward}G</button>)}
+        </div>}
         {/* Monster selector & Attack triggers */}
         {boss && boss.is_active && (
           <div className="glass-card p-5 mt-auto">

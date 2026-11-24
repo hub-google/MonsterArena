@@ -27,7 +27,7 @@ export const ACTION_RESOURCES=Object.freeze({
  evolve:['monsters','inventory'],release:['profile','monsters','inventory'],
  toggleLock:['monsters'],equipChip:['monsters','inventory'],unequipChip:['monsters','inventory'],
  breed:['profile','monsters','inventory'],buyItem:['profile','inventory'],
- rename:['monsters'],claimQuest:['profile'],startBattle:['monsters'],
+ rename:['monsters'],claimQuest:['profile'],startBattle:['profile','monsters'],claimRaid:['profile'],
  attackRaidBoss:['profile'],createGuild:['profile','guilds'],joinGuild:['guilds'],
  leaveGuild:['guilds'],donateGuild:['profile','guilds'],buyGuildShop:['guilds','inventory'],
  addFriend:['friends']

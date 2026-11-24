@@ -1,4 +1,9 @@
-import { supabase } from './supabaseClient';
+import { supabase, supabaseUrl } from './supabaseClient';
+
+// Rules V2 must use an explicitly configured isolated backend, never the shared Game project.
+export const GAME_RULES_V2 = import.meta.env.VITE_ARENA_V2 === 'true' &&
+  Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) &&
+  !supabaseUrl.includes('fanffwnhkxpfhttylntw');
 
 // All economy mutations go through authenticated PostgreSQL transactions.
 // Direct client updates are reserved for owner-controlled presentation state.
@@ -11,7 +16,13 @@ const usernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9_]/g, '')}@
 const legacyUsernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@monsterarena.app`;
 const throwIfError = error => { if (error) throw new Error(error.message); };
 const action = async (p_action, p_data = {}) => {
-  const { data, error } = await supabase.rpc('game_action', { p_action, p_data });
+  const args={p_action,p_data:GAME_RULES_V2?{...p_data,request_id:crypto.randomUUID()}:p_data};
+  let {data,error}=await supabase.rpc('game_action',args);
+  // The isolated V2 server caches the transaction result under the same UUID.
+  // Never retry legacy mutations or business-rule rejections.
+  if(GAME_RULES_V2 && error && !error.code && /fetch|network|timeout/i.test(error.message??'')){
+    ({data,error}=await supabase.rpc('game_action',args));
+  }
   throwIfError(error);
   return data ?? { message: '操作成功！' };
 };
@@ -117,7 +128,11 @@ export const api = {
     return data ?? { feed_count:0, clean_count:0, train_count:0, battle_count:0, claimed:[] };
   },
   claimQuest: quest_id => action('claim', { quest_id }),
-  startBattle: (monster_id, encounter='wild') => action('battle', { monster_id, encounter }),
+  startBattle: (monster_id, encounter='wild', opponent_id) => action('battle', { monster_id, encounter, ...(opponent_id?{opponent_id}:{}) }),
+  getPvp: () => action('pvp_list'),
+  registerPvp: monster_id => action('pvp_register',{monster_id}),
+  unregisterPvp: () => action('pvp_unregister'),
+  claimRaid: boss_id => action('raid_claim',{boss_id}),
   getGuilds: async (uid) => {
     uid = uid ?? await getUid();
     const [guildResult, memberResult] = await Promise.all([
@@ -144,6 +159,7 @@ export const api = {
   donateGuild: amount => action('guild_donate', { amount }),
   buyGuildShop: item_id => action('guild_buy', { item_id }),
   getRaidStatus: async () => {
+    if(GAME_RULES_V2)return action('raid_status');
     const { data, error } = await supabase.from('raid_boss').select('*')
       .order('created_at', { ascending: false }).limit(1).maybeSingle();
     throwIfError(error);
