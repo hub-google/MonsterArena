@@ -244,7 +244,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
    const b=el.getBBox(),m=el.getScreenCTM(),p=new DOMPoint(b.x,b.y).matrixTransform(m),q=new DOMPoint(b.x+b.width,b.y+b.height).matrixTransform(m);
    return {x:Math.min(p.x,q.x),y:Math.min(p.y,q.y),w:Math.abs(q.x-p.x),h:Math.abs(q.y-p.y)};
   });
-  console.log('UI_VISUAL '+JSON.stringify({viewport:page.viewportSize(),paint}));
+  console.log('UI_VISUAL '+JSON.stringify({viewport:page.viewportSize(),paint,svg:await sprite.boundingBox(),frame:await screen.boundingBox()}));
   expect(paint.w).toBeGreaterThanOrEqual(minimum);
   expect(paint.h).toBeGreaterThanOrEqual(minimum);
   const frame=await screen.boundingBox(),area=await main.boundingBox();
