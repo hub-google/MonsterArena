@@ -104,6 +104,14 @@ jobs:
             sleep 1
           done
           npx playwright test tests/smoke.spec.js tests/authenticated-ui.spec.js --project=chromium
+      - name: 保存實際瀏覽器 UI 截圖
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arena-ui-visual-review
+          path: test-results/ui-visual/
+          if-no-files-found: warn
+          retention-days: 7
       - name: 上傳 GitHub Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:

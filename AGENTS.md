@@ -11,3 +11,9 @@
 7. Report exact root cause, edited files, test outcomes and any remaining limitations. No fabricated BUGs or hiding failures behind retries.
 
 **Project scope:** This file governs Arena. For the same rule across *all* projects, add it to account-wide ChatGPT Custom Instructions or to each Project's instructions.
+
+## 網頁 UI 驗收（必須執行）
+
+- GitHub Actions 成功不等於網頁驗收完成。凡涉及 UI、功能或排版，必須以真實瀏覽器呈現建置後的畫面，擷取桌面、手機、短視窗及高風險狀態截圖；以肉眼檢視可讀性、視覺比例、對齊、留白、資訊層級、遮擋、操作可達性，再確認實際發布網址。不以程式碼、元素存在或 HTTP 200 取代視覺驗收。
+- 養成頁需在一般桌面及手機的一個視窗顯示主角、狀態、戰鬥數值、六個操作及導覽；機甲必須是視覺焦點。短桌面 1280×550 與手機 360×640 必須檢查 SVG 實際著色圖形邊界（而非只測外框），同時檢查按鈕可點、無遮擋與無捲動。保留清晰完整中文及可辨識圖示。多種狀態、機器人與載具皆須涵蓋。
+- 將驗收截圖保存在 Actions artifact。若無法實際檢視截圖或正式網頁，據實標記未完成視覺驗收，不宣稱 UI 已全部驗收。

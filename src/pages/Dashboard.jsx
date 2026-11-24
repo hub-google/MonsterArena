@@ -157,7 +157,7 @@ export default function Dashboard({
         <button aria-label="上一隻機甲" title="上一隻機甲" className="play-arrow" disabled={monsters.length<2} onClick={()=>choosePet(-1)}>‹</button>
         <div className="min-w-0 text-center">
           <div className="cockpit-name"><h2 title={displayName}>{displayName}</h2><button className="cockpit-edit" aria-label="改名" title="改名" disabled={loading} onClick={handleRename}><GameIcon name="edit"/></button></div>
-          <div className="cockpit-species"><span>{mecha.factionName}・{mecha.roleName}</span><span>G{monster.generation} {STAGE_NAMES[monster.life_stage]}</span></div>
+          <div className="cockpit-species">{displayName!==speciesName&&<span>{mecha.factionName}・{mecha.roleName}</span>}<span>G{monster.generation}{displayName!==speciesName?' '+STAGE_NAMES[monster.life_stage]:''}</span></div>
         </div>
         <button aria-label="下一隻機甲" title="下一隻機甲" className="play-arrow" disabled={monsters.length<2} onClick={()=>choosePet(1)}>›</button>
       </div>
@@ -168,6 +168,7 @@ export default function Dashboard({
       </div>
       <div className="cockpit-meta"><span data-testid="mecha-current-form">目前形態：{vehicle&&canTransform?mecha.vehicle:'機器人'}</span><span>{Math.max(index,0)+1}/{monsters.length}</span></div>
     </section>
+    <div className="cockpit-console">
     <section className="cockpit-readouts">
       {monster.is_dead?<div role="status" aria-label="此怪獸已死亡，無法照顧或出戰" className="cockpit-dead"><GameIcon name="alert"/>核心失效，請切換其他機體</div>:<div className="cockpit-meters">{meter('feed','能源',monster.fullness,'#79cda6',monster.fullness<30)}{meter('clean','機體維護',monster.cleanliness,'#68c5dc',monster.cleanliness<40)}</div>}
       <div className="cockpit-stats" data-testid="combat-readouts">{stats.map(([icon,label,value])=><div key={label}><GameIcon name={icon}/><span>{label}</span><strong>{Math.round(value||0)}</strong></div>)}</div>
@@ -182,6 +183,7 @@ export default function Dashboard({
       <PlayButton icon="transform" label={vehicle?'切換機器人':'變形：'+(mecha.vehicle||'載具')} caption={vehicle?'切換機器人':'機體變形'} tone="purple" onClick={()=>setVehicle(v=>!v)} disabled={!canTransform||loading} selected={vehicle}/>
     </div>
     <div className="cockpit-feedback-slot">{message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極進化條件':' '}</span>}{ready&&<button className="cockpit-link" onClick={()=>setShowDetails(true)}><GameIcon name="evolve"/>進化</button>}</div>
+    </div>
     {showDetails&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="機體詳細資料">
      <section className="cockpit-dialog" data-testid="mecha-details">
       <div className="dialog-heading"><h2>機體詳細資料</h2><button onClick={()=>setShowDetails(false)} aria-label="關閉詳細資料">×</button></div>

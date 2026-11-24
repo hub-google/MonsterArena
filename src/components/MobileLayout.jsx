@@ -6,7 +6,7 @@ export default function MobileLayout({children,page,setPage,isConnected,onRefres
  const extras=[['raid','raid','世界王','王'],['guild','guild','公會','隊'],['social','social','社交','友']];
  useEffect(()=>setMore(false),[page]);
  const go=id=>{setMore(false);setPage(id)};
- return <div className="w-full max-w-[480px] h-[100dvh] mx-auto bg-slate-950 text-slate-200 relative shadow-2xl flex flex-col overflow-hidden sm:rounded-3xl sm:h-[min(850px,96dvh)] sm:my-2 border-x border-slate-700/30 sm:border-y">
+ return <div data-testid="game-shell" className={'arena-shell '+(page==='dashboard'?'arena-shell-home':'')}>
    <header className="cockpit-header">
     <div className="cockpit-brand"><GameIcon name="robot"/><span>MONSTER <strong>ARENA</strong></span></div>
     <span title={isConnected?'瀏覽器在線':'瀏覽器離線'} aria-label={isConnected?'瀏覽器在線':'瀏覽器離線'} className={'w-2.5 h-2.5 rounded-full '+(isConnected?'bg-emerald-400':'bg-rose-500')}/>

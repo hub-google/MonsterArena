@@ -229,3 +229,45 @@ test('cockpit shows readable labels, all main metrics and six actions within one
  await page.getByRole('button',{name:'下一頁圖鑑'}).click();
  await expect(page.locator('.catalog-entry')).toHaveCount(6);
 });
+
+test('visual acceptance: actual painted robot stays prominent with real-world short desktop and phone layouts',async({page})=>{
+ const {mkdir}=await import('node:fs/promises');
+ await mkdir('test-results/ui-visual',{recursive:true});
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.setViewportSize({width:1280,height:550});
+ await setupAuthenticatedGame(page,[{...dead,name:'鋼鐵族・重砲型・超限機',family:4,type:3,life_stage:5,is_dead:false,is_sick:true,fullness:0,cleanliness:0,combat_hp:1725,combat_atk:78,combat_def:71,combat_spd:37,age_days:119.9,battles:3,wins:1}]);
+ const main=page.getByTestId('game-main'),screen=page.getByTestId('mecha-screen'),home=page.getByTestId('cockpit-home'),actions=page.getByTestId('care-actions');
+ const assertVisiblePaint=async(minimum)=>{
+  const sprite=screen.locator('svg[role="img"]');
+  await expect(sprite).toBeVisible();
+  const paint=await sprite.evaluate(el=>{
+   const b=el.getBBox(),m=el.getScreenCTM(),p=new DOMPoint(b.x,b.y).matrixTransform(m),q=new DOMPoint(b.x+b.width,b.y+b.height).matrixTransform(m);
+   return {x:Math.min(p.x,q.x),y:Math.min(p.y,q.y),w:Math.abs(q.x-p.x),h:Math.abs(q.y-p.y)};
+  });
+  console.log('UI_VISUAL '+JSON.stringify({viewport:page.viewportSize(),paint}));
+  expect(paint.w).toBeGreaterThanOrEqual(minimum);
+  expect(paint.h).toBeGreaterThanOrEqual(minimum);
+  const frame=await screen.boundingBox(),area=await main.boundingBox();
+  expect(paint.y).toBeGreaterThanOrEqual(frame.y-1);
+  expect(paint.y+paint.h).toBeLessThanOrEqual(frame.y+frame.height+1);
+  const warnings=await screen.getByTestId('mecha-status-list').boundingBox();
+  expect(paint.y+paint.h).toBeLessThanOrEqual(warnings.y+1);
+  for(const el of await actions.getByRole('button').all()){
+   const b=await el.boundingBox();expect(b.width).toBeGreaterThanOrEqual(44);expect(b.height).toBeGreaterThanOrEqual(44);expect(b.y+b.height).toBeLessThanOrEqual(area.y+area.height+1);
+   expect(await el.evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))})).toBe(true);
+  }
+  expect(await main.evaluate(el=>el.scrollHeight-el.clientHeight)).toBeLessThanOrEqual(2);
+ };
+ await assertVisiblePaint(150);
+ expect((await page.getByTestId('game-shell').boundingBox()).width).toBeGreaterThan(800);
+ await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
+ await expect(home.locator('.cockpit-species')).not.toContainText('鋼鐵族');
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop.png',animations:'disabled'});
+ await actions.getByRole('button',{name:'變形：重型坦克'}).click();
+ await assertVisiblePaint(150);
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop-vehicle.png',animations:'disabled'});
+ await actions.getByRole('button',{name:'切換機器人'}).click();
+ await page.setViewportSize({width:360,height:640});
+ await assertVisiblePaint(85);
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/mobile.png',animations:'disabled'});
+});
