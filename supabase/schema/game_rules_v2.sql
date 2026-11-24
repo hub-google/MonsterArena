@@ -5,7 +5,7 @@ ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_atk int NOT NULL D
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_def int NOT NULL DEFAULT 0 CHECK(training_def BETWEEN 0 AND 30);
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_spd int NOT NULL DEFAULT 0 CHECK(training_spd BETWEEN 0 AND 30);
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_unspent int NOT NULL DEFAULT 0 CHECK(training_unspent BETWEEN 0 AND 60);
-DO $ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='arena_training_pool_budget' AND conrelid='public.monsters'::regclass) THEN ALTER TABLE public.monsters ADD CONSTRAINT arena_training_pool_budget CHECK(training_hp+training_atk+training_def+training_spd+training_unspent<=60); END IF; END $;
+DO $pool$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='arena_training_pool_budget' AND conrelid='public.monsters'::regclass) THEN ALTER TABLE public.monsters ADD CONSTRAINT arena_training_pool_budget CHECK(training_hp+training_atk+training_def+training_spd+training_unspent<=60); END IF; END $pool$;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS core_quality int NOT NULL DEFAULT 0 CHECK(core_quality BETWEEN 0 AND 5);
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS legacy_combat jsonb;
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='arena_training_budget' AND conrelid='public.monsters'::regclass) THEN ALTER TABLE public.monsters ADD CONSTRAINT arena_training_budget CHECK(training_hp+training_atk+training_def+training_spd<=60); END IF; END $$;
