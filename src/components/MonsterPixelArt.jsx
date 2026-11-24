@@ -1,5 +1,5 @@
 import React from 'react';
-import { MONSTER_SPRITES } from '../utils/monsterSprites';
+import { getMonsterGrid } from '../utils/monsterSprites';
 
 // 16x16 Pixel Art Grids (1 = active pixel, 0 = empty)
 const PIXEL_GRIDS = {
@@ -399,8 +399,9 @@ export default function MonsterPixelArt({ family, stage, type, isDead, isSick, i
   } else {
     // Attempt to load procedurally generated sprite from 100 monsters
     const spriteKey = `${family || 1}_${stage}_${type || 0}`;
-    if (MONSTER_SPRITES[spriteKey]) {
-      grid = MONSTER_SPRITES[spriteKey].grid;
+    const sprite=getMonsterGrid(spriteKey);
+    if (sprite) {
+      grid = sprite;
     } else {
       // Fallback
       const stagePrefix = stage === 3 ? 'child' : stage === 4 ? 'mature' : stage === 5 ? 'perfect' : 'ultimate';
@@ -430,23 +431,7 @@ export default function MonsterPixelArt({ family, stage, type, isDead, isSick, i
         viewBox="0 0 96 96" 
         className={`${animClass}`}
       >
-        {grid.map((row, rIdx) => 
-          row.map((val, cIdx) => {
-            if (val === 1) {
-              return (
-                <rect 
-                  key={`${rIdx}-${cIdx}`} 
-                  x={cIdx * pixelSize} 
-                  y={rIdx * pixelSize} 
-                  width={pixelSize} 
-                  height={pixelSize} 
-                  fill="#38bdf8" // Bright cyan for dark LCD screen effect
-                />
-              );
-            }
-            return null;
-          })
-        )}
+        <path fill="#38bdf8" d={grid.flatMap((row,y)=>row.map((value,x)=>value===1 ? `M${x*pixelSize} ${y*pixelSize}h${pixelSize}v${pixelSize}h-${pixelSize}Z` : '')).join('')}/>
       </svg>
 
       {/* Emotes Overlay (Happy / Angry / Sweat) */}

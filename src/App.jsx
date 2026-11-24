@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import MobileLayout from './components/MobileLayout';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Roster from './pages/Roster';
-import Arena from './pages/Arena';
-import Guild from './pages/Guild';
-import Raid from './pages/Raid';
-import Social from './pages/Social';
-import Pokedex from './pages/Pokedex';
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Roster = lazy(() => import('./pages/Roster'));
+const Arena = lazy(() => import('./pages/Arena'));
+const Guild = lazy(() => import('./pages/Guild'));
+const Raid = lazy(() => import('./pages/Raid'));
+const Social = lazy(() => import('./pages/Social'));
+const Pokedex = lazy(() => import('./pages/Pokedex'));
 import { api } from './utils/api';
 import { supabase } from './utils/supabaseClient';
 
@@ -22,51 +22,57 @@ export default function App() {
   const [page,setPage]=useState('dashboard');
   const [loading,setLoading]=useState(true);
   const [loadError,setLoadError]=useState('');
-  const [receivedChallenge,setReceivedChallenge]=useState(null);
   const [battleState,setBattleState]=useState(null);
   const [isOnline,setIsOnline]=useState(typeof navigator==='undefined' || navigator.onLine);
   const authUidRef=useRef(null);
-  const loadVersionRef=useRef(0);
+  const loadVersionRef=useRef({});
   const hasLoadedProfileRef=useRef(false);
 
   const clearUser=()=>{
     setUser(null);setMonsters([]);setInventory([]);setFriends([]);
     setGuilds([]);setMyGuild(null);setActiveMonster(null);
-    setBattleState(null);setReceivedChallenge(null);setLoadError('');
+    setBattleState(null);setLoadError('');
   };
 
-  const loadUserData=async()=>{
+  const loadUserData=async (resources=['profile','monsters','inventory','friends','guilds'])=>{
     const expectedUid=authUidRef.current;
     if(!expectedUid)return;
-    const version=++loadVersionRef.current;
-    const isCurrent=()=>authUidRef.current===expectedUid && loadVersionRef.current===version;
-    setLoadError('');
-    try {
-      const profile=await api.getMe();
-      // The user may have signed out or switched accounts during the request.
-      if(!isCurrent() || profile.user_id!==expectedUid)return;
-      const [ownedMonsters,ownedInventory,friendsList,guildInfo] = await Promise.all([
-        api.getMonsters(),api.getInventory(),api.getFriends(),api.getGuilds()
-      ]);
-      if(!isCurrent())return;
-      hasLoadedProfileRef.current=true;
-      setUser(profile);
-      setMonsters(ownedMonsters);
-      setInventory(ownedInventory);
-      setFriends(friendsList);
-      setGuilds(guildInfo.guilds);
-      setMyGuild(guildInfo.myGuild);
-      setActiveMonster(previous=>{
-        const live=ownedMonsters.find(m=>!m.is_dead);
-        return ownedMonsters.find(m=>!m.is_dead && m.monster_id===previous?.monster_id)||live||null;
-      });
-    } catch(err) {
-      if(isCurrent()){
+    const initial=!hasLoadedProfileRef.current;
+    if(initial) resources=['profile','monsters','inventory','friends','guilds'];
+    const versions=loadVersionRef.current;
+    const isAccount=()=>authUidRef.current===expectedUid && loadVersionRef.current===versions;
+    const tasks={
+      profile:[()=>api.getMe(),profile=>{if(profile.user_id!==expectedUid)throw Error('登入帳號不符');setUser(profile);}],
+      monsters:[()=>api.getMonsters(expectedUid),owned=>{
+        setMonsters(owned);
+        setActiveMonster(previous=>owned.find(m=>!m.is_dead && m.monster_id===previous?.monster_id)||owned.find(m=>!m.is_dead)||null);
+      }],
+      inventory:[()=>api.getInventory(expectedUid),setInventory],
+      friends:[()=>api.getFriends(expectedUid),setFriends],
+      guilds:[()=>api.getGuilds(expectedUid),info=>{setGuilds(info.guilds);setMyGuild(info.myGuild);}]
+    };
+    if(initial)setLoadError('');
+    const run=async key=>{
+      const version=(versions[key]||0)+1;
+      versions[key]=version;
+      const [read,apply]=tasks[key];
+      const value=await read();
+      if(isAccount() && versions[key]===version)apply(value);
+    };
+    try{
+      if(initial){
+        await run('profile');
+        if(!isAccount())return;
+        await Promise.all(resources.filter(key=>key!=='profile').map(run));
+      }else await Promise.all(resources.map(run));
+      if(isAccount())hasLoadedProfileRef.current=true;
+    }catch(err){
+      if(isAccount()){
         console.error('Game data load failed:',err);
-        // A transient background refresh failure should not erase the game UI.
-        if(!hasLoadedProfileRef.current)setLoadError(err.message||'資料載入失敗');
+        if(initial)setLoadError(err.message||'資料載入失敗');
+        else throw err;
       }
-    } finally {if(isCurrent())setLoading(false);}
+    }finally{if(isAccount())setLoading(false);}
   };
 
   useEffect(()=>{
@@ -78,7 +84,7 @@ export default function App() {
       if(!nextUid){
         previousAuthId=null;
         authUidRef.current=null;
-        loadVersionRef.current++;
+        loadVersionRef.current={};
         hasLoadedProfileRef.current=false;
         clearUser();
         setLoading(false);
@@ -87,14 +93,14 @@ export default function App() {
       if(previousAuthId===nextUid)return;
       previousAuthId=nextUid;
       authUidRef.current=nextUid;
-      loadVersionRef.current++;
+      loadVersionRef.current={};
       hasLoadedProfileRef.current=false;
       clearUser();
       setLoading(true);
       // Auth callbacks must not synchronously await Supabase database operations.
       setTimeout(()=>{if(ready && authUidRef.current===nextUid)loadUserData();},0);
     });
-    return ()=>{ready=false;loadVersionRef.current++;subscription.unsubscribe();};
+    return ()=>{ready=false;loadVersionRef.current={};subscription.unsubscribe();};
   },[]);
 
   useEffect(()=>{
@@ -106,16 +112,22 @@ export default function App() {
   useEffect(()=>{
     if(!user)return;
     const id=setInterval(()=>{
-      if(document.visibilityState==='visible')loadUserData();
+      if(document.visibilityState==='visible')loadUserData(['profile','monsters']).catch(console.warn);
     },300000);
     return ()=>clearInterval(id);
   },[user?.user_id]);
+
+  useEffect(()=>{
+    if(!user || !hasLoadedProfileRef.current)return;
+    if(page==='guild')loadUserData(['guilds']).catch(console.warn);
+    if(page==='arena')loadUserData(['friends']).catch(console.warn);
+  },[page,user?.user_id]);
 
   const handleLogout=async()=>{
     try {
       await api.logout();
       authUidRef.current=null;
-      loadVersionRef.current++;
+      loadVersionRef.current={};
       hasLoadedProfileRef.current=false;
       clearUser();
       setLoading(false);
@@ -132,22 +144,21 @@ export default function App() {
   if(loadError)return <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-950 text-white p-6 text-center">
     <h2 className="text-xl font-bold">遊戲資料讀取失敗</h2>
     <p className="text-rose-400 max-w-md break-words">{loadError}</p>
-    <button onClick={loadUserData} className="neon-button neon-button-primary px-6 py-3">重試載入</button>
+    <button onClick={()=>loadUserData().catch(console.warn)} className="neon-button neon-button-primary px-6 py-3">重試載入</button>
     <button onClick={handleLogout} className="text-sm text-slate-400 underline">登出重新登入</button>
   </div>;
 
   if(!user)return <Login onLoginSuccess={()=>{ /* session loads through onAuthStateChange */ }} />;
 
-  const activePlayers=[];
   return <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4">
     <MobileLayout isConnected={isOnline} page={page} setPage={setPage}>
+      <Suspense fallback={<div className="p-6 text-center text-cyan-400">載入功能中...</div>}>
       {page==='dashboard'&&<Dashboard user={user} monsters={monsters} inventory={inventory} refreshData={loadUserData}
         activeMonster={activeMonster} setActiveMonster={setActiveMonster} setPage={setPage}/>}
       {page==='roster'&&<Roster user={user} monsters={monsters} inventory={inventory} refreshData={loadUserData}
         activeMonster={activeMonster} setActiveMonster={setActiveMonster} setPage={setPage}/>}
       {page==='arena'&&<Arena user={user} monsters={monsters} friends={friends} activeMonster={activeMonster}
-        channel={null} activePlayers={activePlayers} receivedChallenge={receivedChallenge}
-        setReceivedChallenge={setReceivedChallenge} battleState={battleState}
+        battleState={battleState}
         setBattleState={setBattleState} refreshData={loadUserData} setPage={setPage}/>}
       {page==='raid'&&<Raid user={user} monsters={monsters} activeMonster={activeMonster}
         refreshData={loadUserData} setPage={setPage}/>}
@@ -155,9 +166,10 @@ export default function App() {
         refreshData={loadUserData} setPage={setPage}/>}
       {page==='social'&&<Social user={user}/>}
       {page==='pokedex'&&<Pokedex setPage={setPage}/>}
+      </Suspense>
     </MobileLayout>
     <div className="mt-4 flex gap-4 text-xs">
-      <button onClick={loadUserData} className="text-slate-400 hover:text-cyan-600">重新整理</button>
+      <button onClick={()=>loadUserData().catch(console.warn)} className="text-slate-400 hover:text-cyan-600">重新整理</button>
       <span className="text-slate-600">|</span>
       <button onClick={handleLogout} className="text-rose-500 hover:text-rose-400">安全登出 ({user.username})</button>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../utils/api';
 
 export default function Raid({ 
@@ -17,30 +17,35 @@ export default function Raid({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  const requestRef=useRef(0);
   // Reload boss stats
   const fetchBossStatus = async () => {
+    const version=++requestRef.current;
     try {
       const data = await api.getRaidStatus();
+      if(version!==requestRef.current)return;
       setBoss(data);
       setBossError('');
     } catch (err) {
+      if(version!==requestRef.current)return;
       setBossError(err.message || '世界王資料讀取失敗');
     }
   };
 
   useEffect(() => {
-    fetchBossStatus();
+    if(document.visibilityState==='visible')fetchBossStatus();
     // Avoid wasting backend requests while the game is in a background tab.
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') fetchBossStatus();
     };
-    const interval = setInterval(refreshWhenVisible, 10000);
+    const interval = setInterval(refreshWhenVisible, boss?.is_active ? 15000 : 60000);
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
+      ++requestRef.current;
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, []);
+  }, [boss?.is_active]);
 
   const selectedMonster = aliveMonsters.find(m => m.monster_id === selectedMonsterId) || aliveMonsters[0] || null;
 
@@ -59,7 +64,7 @@ export default function Raid({
     try {
       const data = await api.attackRaidBoss(selectedMonster.monster_id);
       setMessage(`💥 造成 ${data.damage.toLocaleString()} 點傷害！\n${data.message}`);
-      await refreshData();
+      await refreshData(['profile']);
       await fetchBossStatus();
     } catch (err) {
       setMessage(`❌ ${err.message}`);

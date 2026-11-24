@@ -75,8 +75,8 @@ export const api = {
     }
     return data;
   },
-  getMonsters: async () => {
-    const uid = await getUid();
+  getMonsters: async (uid) => {
+    uid = uid ?? await getUid();
     const aged=await supabase.rpc('game_age_monsters');
     throwIfError(aged.error);
     const { data, error } = await supabase.from('monsters').select('*').eq('user_id', uid);
@@ -94,8 +94,8 @@ export const api = {
   equipChip: (monster_id, item_id, slot) => action('equip', { monster_id, item_id, slot }),
   unequipChip: (monster_id, slot) => action('unequip', { monster_id, slot }),
   breed: (parent1, parent2, useCatalyst=false) => action('breed', { parent1, parent2, useCatalyst }),
-  getInventory: async () => {
-    const uid = await getUid();
+  getInventory: async (uid) => {
+    uid = uid ?? await getUid();
     const { data, error } = await supabase.from('user_inventory').select('*').eq('user_id', uid).order('item_id');
     throwIfError(error);
     return data ?? [];
@@ -118,8 +118,8 @@ export const api = {
   },
   claimQuest: quest_id => action('claim', { quest_id }),
   startBattle: (monster_id, encounter='wild') => action('battle', { monster_id, encounter }),
-  getGuilds: async () => {
-    const uid = await getUid();
+  getGuilds: async (uid) => {
+    uid = uid ?? await getUid();
     const [guildResult, memberResult] = await Promise.all([
       supabase.from('guilds').select('*').order('created_at', { ascending: false }).limit(100),
       supabase.from('guild_members').select('*,guilds(*)').eq('user_id', uid).maybeSingle()
@@ -170,8 +170,8 @@ export const api = {
     }
     return [...grouped.values()].slice(0,30);
   },
-  getFriends: async () => {
-    const uid = await getUid();
+  getFriends: async (uid) => {
+    uid = uid ?? await getUid();
     const { data, error } = await supabase.from('friends').select('*')
       .eq('user_id',uid).eq('status',1);
     throwIfError(error);
@@ -217,20 +217,35 @@ export const api = {
     return action('chat', {text});
   },
   subscribeMessages: (channel,callback) => {
-    let disposed=false;
+    let disposed=false,running=false,queued=false,cursor=null;
+    let messages=[];
     const load=async()=>{
-      try {
-        const {data,error}=await supabase.from('messages').select('message_id,channel,user_id,username,text,timestamp')
-          .eq('channel',channel).order('timestamp',{ascending:false}).limit(50);
+      if(disposed || document.visibilityState==='hidden')return;
+      if(running){queued=true;return;}
+      running=true;
+      try{
+        const query=supabase.from('messages').select('message_id,channel,user_id,username,text,timestamp').eq('channel',channel);
+        const {data,error}=cursor
+          ? await query.gte('timestamp',cursor).order('timestamp',{ascending:true}).order('message_id',{ascending:true}).limit(100)
+          : await query.order('timestamp',{ascending:false}).order('message_id',{ascending:false}).limit(50);
         throwIfError(error);
-        if(!disposed) callback((data??[]).reverse().map(m=>({...m,id:m.message_id})));
-      } catch(e){if(!disposed)console.warn('Chat read error:',e.message);}
+        if(disposed)return;
+        const combined=new Map(messages.map(m=>[m.message_id,m]));
+        for(const m of data??[])combined.set(m.message_id,m);
+        messages=[...combined.values()].sort((a,b)=>a.timestamp.localeCompare(b.timestamp)||String(a.message_id).localeCompare(String(b.message_id))).slice(-50);
+        cursor=messages.at(-1)?.timestamp??null;
+        callback(messages.map(m=>({...m,id:m.message_id})));
+        if(cursor && data?.length===100){
+          if(data[0].timestamp===data.at(-1).timestamp)cursor=null;
+          queued=true;
+        }
+      }catch(e){if(!disposed)console.warn('Chat read error:',e.message);}
+      finally{running=false;if(queued&&!disposed){queued=false;load();}}
     };
     load();
-    // The Game database does not publish "messages" via postgres_changes.
-    // Avoid opening a nonfunctional Realtime connection for every chat viewer.
     const interval=setInterval(load,30000);
-    const unsubscribe=()=>{disposed=true;clearInterval(interval);};
+    document.addEventListener('visibilitychange',load);
+    const unsubscribe=()=>{disposed=true;clearInterval(interval);document.removeEventListener('visibilitychange',load);};
     unsubscribe.refresh=load;
     return unsubscribe;
   }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api } from '../utils/api';
-import { getHatchState, canCareForMonster, canHealMonster } from '../utils/gameRules';
+import { resourcesForAction, getHatchState, canCareForMonster, canHealMonster } from '../utils/gameRules';
 import { MONSTER_SPRITES } from '../utils/monsterSprites';
 import ShopModal from '../components/ShopModal';
 import QuestModal from '../components/QuestModal';
@@ -48,7 +48,7 @@ export default function Dashboard({
         setTimeout(() => setActionEmote(null), 3000);
       }
 
-      await refreshData();
+      await refreshData(resourcesForAction(api,actionFn));
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {
@@ -62,7 +62,7 @@ export default function Dashboard({
     try {
       const data = await api.hatchEgg();
       setMessage(data.message);
-      await refreshData();
+      await refreshData(['profile','monsters']);
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {
@@ -137,7 +137,7 @@ export default function Dashboard({
       try {
         const data = await api.rename(monster.monster_id, newName.trim());
         setMessage(data.message || '改名成功！');
-        await refreshData();
+        await refreshData(['monsters']);
       } catch (err) {
         setMessage(`❌ ${err.message}`);
       } finally {

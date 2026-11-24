@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../utils/api';
-import { getHatchState, canManageMonsterChips } from '../utils/gameRules';
+import { resourcesForAction, getHatchState, canManageMonsterChips } from '../utils/gameRules';
 
 const STAGE_NAMES = ['蛋', '蛋', '幼年期', '成長期', '成熟期', '完全體', '究極體'];
 
@@ -38,7 +38,7 @@ export default function Roster({
     try {
       const data = await actionFn(...args);
       setMessage(data.message || '操作成功！');
-      try { await refreshData(); }
+      try { await refreshData(resourcesForAction(api,actionFn)); }
       catch { setMessage('操作成功，但重新載入失敗，請手動更新。'); }
       return true;
     } catch (err) {

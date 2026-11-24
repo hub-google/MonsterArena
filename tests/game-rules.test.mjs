@@ -44,3 +44,13 @@ test('live pet care reflects sickness and stage', () => {
   assert.equal(canManageMonsterChips({ is_dead: false }), true);
   assert.equal(canManageMonsterChips(null), false);
 });
+
+import { resourcesForAction } from '../src/utils/gameRules.js';
+test('successful actions refresh only changed groups',()=>{
+ const api={feed:()=>{},buyItem:()=>{},joinGuild:()=>{},rename:()=>{}};
+ assert.deepEqual(resourcesForAction(api,api.feed),['profile','monsters','inventory']);
+ assert.deepEqual(resourcesForAction(api,api.buyItem),['profile','inventory']);
+ assert.deepEqual(resourcesForAction(api,api.joinGuild),['guilds']);
+ assert.deepEqual(resourcesForAction(api,api.rename),['monsters']);
+ assert.equal(resourcesForAction(api,()=>{}),undefined);
+});

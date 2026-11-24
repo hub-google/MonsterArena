@@ -11,7 +11,7 @@ export default function ShopModal({ user, onClose, refreshData }) {
     try {
       const res = await api.buyItem(itemId, 1);
       setMessage(res.message);
-      await refreshData();
+      await refreshData(['profile','inventory']);
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {

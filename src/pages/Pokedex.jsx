@@ -7,6 +7,9 @@ const TYPE_NAMES = ['無屬性', '疫苗種', '資料種', '病毒種'];
 
 export default function Pokedex({ setPage }) {
   const [filterStage, setFilterStage] = useState('all');
+  const [pageNumber,setPageNumber]=useState(0);
+  const pageSize=24;
+  const changeFilter=value=>{setFilterStage(value);setPageNumber(0);};
 
   const monstersList = useMemo(() => {
     return Object.values(MONSTER_SPRITES).sort((a, b) => {
@@ -37,7 +40,7 @@ export default function Pokedex({ setPage }) {
       {/* Filter */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-2 hide-scrollbar">
         <button 
-          onClick={() => setFilterStage('all')}
+          onClick={() => changeFilter('all')}
           className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterStage === 'all' ? 'bg-amber-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}
         >
           全部
@@ -45,7 +48,7 @@ export default function Pokedex({ setPage }) {
         {[2, 3, 4, 5, 6].map(stage => (
           <button 
             key={stage}
-            onClick={() => setFilterStage(stage.toString())}
+            onClick={() => changeFilter(stage.toString())}
             className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterStage === stage.toString() ? 'bg-amber-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}
           >
             {STAGE_NAMES[stage]}
@@ -53,10 +56,15 @@ export default function Pokedex({ setPage }) {
         ))}
       </div>
 
+      <div className="flex items-center justify-between text-xs text-slate-300">
+        <button disabled={pageNumber===0} onClick={()=>setPageNumber(n=>n-1)} className="neon-button px-3 py-2 disabled:opacity-40">上一頁</button>
+        <span>{filteredMonsters.length} 隻・第 {pageNumber+1} / {Math.max(1,Math.ceil(filteredMonsters.length/pageSize))} 頁</span>
+        <button disabled={(pageNumber+1)*pageSize>=filteredMonsters.length} onClick={()=>setPageNumber(n=>n+1)} className="neon-button px-3 py-2 disabled:opacity-40">下一頁</button>
+      </div>
       {/* Grid */}
       <div className="flex-1 overflow-y-auto pb-10 pr-1">
         <div className="grid grid-cols-2 gap-3">
-          {filteredMonsters.map((monster, index) => (
+          {filteredMonsters.slice(pageNumber*pageSize,(pageNumber+1)*pageSize).map((monster, index) => (
             <div key={`${monster.family}_${monster.stage}_${monster.type}_${index}`} className="glass-card p-3 flex flex-col items-center gap-2 relative">
               <div className="absolute top-2 right-2 text-[9px] font-bold text-slate-600 bg-slate-900/50 px-1.5 rounded">
                 #{monster.id || index + 1}

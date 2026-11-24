@@ -19,3 +19,20 @@ export function getHatchState(user, monsters = []) {
 export const canCareForMonster = monster => Boolean(monster && !monster.is_dead && monster.life_stage > 1);
 export const canHealMonster = monster => Boolean(monster && !monster.is_dead && monster.is_sick);
 export const canManageMonsterChips = monster => Boolean(monster && !monster.is_dead);
+
+// Refresh only the resources a successful server action can change.
+export const ACTION_RESOURCES=Object.freeze({
+ hatchEgg:['profile','monsters'],feed:['profile','monsters','inventory'],
+ clean:['monsters'],heal:['monsters','inventory'],train:['profile','monsters','inventory'],
+ evolve:['monsters','inventory'],release:['profile','monsters','inventory'],
+ toggleLock:['monsters'],equipChip:['monsters','inventory'],unequipChip:['monsters','inventory'],
+ breed:['profile','monsters','inventory'],buyItem:['profile','inventory'],
+ rename:['monsters'],claimQuest:['profile'],startBattle:['monsters'],
+ attackRaidBoss:['profile'],createGuild:['profile','guilds'],joinGuild:['guilds'],
+ leaveGuild:['guilds'],donateGuild:['profile','guilds'],buyGuildShop:['guilds','inventory'],
+ addFriend:['friends']
+});
+export function resourcesForAction(api,action){
+ const name=Object.keys(ACTION_RESOURCES).find(key=>api[key]===action);
+ return name ? ACTION_RESOURCES[name] : undefined;
+}

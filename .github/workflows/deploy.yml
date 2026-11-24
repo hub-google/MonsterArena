@@ -1,4 +1,5 @@
-name: Build, check and deploy GitHub Pages test site
+name: Arena 01｜測試與部署
+run-name: Arena 01｜測試與部署｜#${{ github.run_number }}
 
 on:
   push:
@@ -16,30 +17,30 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
+      - name: 取得 main 原始碼
         uses: actions/checkout@v4
-      - name: Node.js 22
+      - name: 準備 Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - name: Install dependencies
+      - name: 安裝相依套件
         run: npm ci --no-audit --no-fund
-      - name: Static checks
+      - name: 靜態程式檢查
         run: npm run lint
-      - name: Verify authoritative game contract
+      - name: 驗證遊戲介面契約
         run: npm run check:contract
-      - name: Unit tests for shared game rules
+      - name: 遊戲規則單元測試
         run: npm run test:unit
-      - name: Validate canonical SQL composition
+      - name: 驗證 SQL 組合
         run: npm run db:sql > /dev/null
-      - name: Verify original Supabase Authentication
+      - name: 檢查 Supabase 驗證服務
         run: node scripts/check-supabase-game.mjs
-      - name: Build test site
+      - name: 建置測試站
         run: npm run build
-      - name: Install Chromium for smoke test
+      - name: 安裝測試瀏覽器
         run: npx playwright install --with-deps chromium
-      - name: Run browser smoke test against build
+      - name: 測試建置後網頁
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173/monster-arena-web/
         run: |
@@ -49,10 +50,19 @@ jobs:
             sleep 1
           done
           npx playwright test tests/smoke.spec.js tests/authenticated-ui.spec.js --project=chromium
-      - name: Publish test to gh-pages branch
+      - name: 發布 GitHub Pages 測試站
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           publish_branch: gh-pages
-          keep_files: true
+          keep_files: false
+
+      - name: 產生執行摘要
+        if: always()
+        run: |
+          echo "## Arena 測試與部署報告" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 分支：${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 版本：${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 執行結果：${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 登入後瀏覽器測試使用模擬 API；不代表真實多帳號資料庫驗收" >> "$GITHUB_STEP_SUMMARY"

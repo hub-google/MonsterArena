@@ -26,7 +26,7 @@ export default function QuestModal({ user, onClose, refreshData }) {
       const res = await api.claimQuest(questId, rewardGold);
       setMessage(res.message);
       await loadQuests();
-      await refreshData();
+      await refreshData(['profile']);
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {

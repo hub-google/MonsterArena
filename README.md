@@ -32,7 +32,8 @@ npm run db:sql > /tmp/arena-functions.sql
 
 ## 前端程式碼
 
-- `src/utils/api.js`：唯一 Supabase RPC／讀取介面。
+- `src/utils/api.js`：唯一 Supabase RPC／讀取介面，聊天採可見時增量讀取。
+- `src/App.jsx`：頁面按需載入，依交易類型刷新對應資源；圖鑑分頁、無損壓縮像素資料。
 - `src/utils/gameRules.js`：共享前端孵化／免費救援蛋規則，Dashboard、Roster 使用同一份。
 - 既有的 Firebase client、Firebase rules、emulator 測試與 firebase-tools 相依性已從 `main` 移除；舊版可從 Git 歷史查詢。
 

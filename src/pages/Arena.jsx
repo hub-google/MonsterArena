@@ -9,10 +9,6 @@ export default function Arena({
   monsters, 
   friends, 
   activeMonster, 
-  channel, 
-  activePlayers, 
-  receivedChallenge, 
-  setReceivedChallenge, 
   battleState, 
   setBattleState, 
   refreshData, 
@@ -37,6 +33,7 @@ export default function Arena({
 
   // Shared game chat (authenticated Supabase read-only polling)
   useEffect(() => {
+    if(subTab!=='chat' || battleState)return;
     const unsubscribe = api.subscribeMessages('world', (msgs) => {
       setChatLogs(msgs.map(m => ({
         senderName: m.username,
@@ -48,7 +45,7 @@ export default function Arena({
       refreshChatRef.current = null;
       unsubscribe();
     };
-  }, []);
+  }, [subTab,Boolean(battleState)]);
 
   // Battle transcript playback is cosmetic; the database already determined the winner.
   useEffect(() => {
@@ -111,7 +108,7 @@ export default function Arena({
         logs:[`⚔️ 戰鬥開始！ ${monster.name} vs ${enemy.name}！`],
         isOver:false,winner:null,finalOwnHp:result.ownHp,finalEnemyHp:result.enemyHp
       });
-      await refreshData();
+      await refreshData(['monsters']);
     } catch (err) {
       setMessage(`對戰失敗：${err.message || '請稍後重試'}`);
     } finally { challengePending.current=false; setLoading(false); }
@@ -122,7 +119,7 @@ export default function Arena({
     setLoading(true); setMessage('');
     try {
       const data = await api.addFriend(targetUsername);
-      setMessage(data.message); setTargetUsername(''); await refreshData();
+      setMessage(data.message); setTargetUsername(''); await refreshData(['friends']);
     } catch (err) { setMessage(`❌ ${err.message}`); }
     finally { setLoading(false); }
   };
@@ -211,7 +208,7 @@ export default function Arena({
 
         <div className="mt-auto">
           {isBattleOver ? (
-            <button onClick={() => { setBattleState(null); refreshData(); }} className="w-full neon-button neon-button-primary py-4 font-bold text-lg">離開戰場</button>
+            <button onClick={() => { setBattleState(null); }} className="w-full neon-button neon-button-primary py-4 font-bold text-lg">離開戰場</button>
           ) : (
             <button onClick={() => setBattleState(prev => prev && ({
               ...prev,isOver:true,winner:prev.serverWon?'A':'B',
