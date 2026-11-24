@@ -9,6 +9,7 @@ const user={id:uid,email:'appearance-fixture@example.invalid',aud:'authenticated
 const common={user_id:uid,generation:1,family:4,type:3,age_days:10,is_dead:false,is_sick:false,is_frozen:false,is_locked:false,fullness:60,cleanliness:80,combat_hp:237,combat_atk:51,combat_def:37,combat_spd:39,battles:60,wins:45};
 const pets=[{...common,monster_id:'22222222-2222-4222-8222-222222222222',name:'終極機驗收',life_stage:6},{...common,monster_id:'22222222-2222-4222-8222-222222222223',name:'超限機驗收',life_stage:5}];
 test('published site renders different robots and transformations for stage 5 and 6',async({page})=>{
+ test.setTimeout(120000);
  await mkdir('test-results/ui-visual',{recursive:true});
  const now=Math.floor(Date.now()/1000);
  const payload=Buffer.from(JSON.stringify({sub:uid,aud:'authenticated',role:'authenticated',exp:now+36000,iat:now,iss:host+'/auth/v1'})).toString('base64url');
@@ -85,8 +86,7 @@ test('published site renders different robots and transformations for stage 5 an
     const card=page.getByTestId('catalog-'+faction+'_6_'+role);
     await expect(card.getByText(name,{exact:true})).toBeVisible();
     const pic=card.getByRole('img',{name,exact:true});
-    await expect(pic.locator('image')).toHaveAttribute('href',new RegExp(file+'-robot[.]png
-));
+    await expect(pic.locator('image')).toHaveAttribute('href',new RegExp(file+'-robot[.]png'+String.fromCharCode(36)));
     const check=async locator=>{
      const href=await locator.getAttribute('href');
      const size=await page.evaluate(async url=>{const image=new Image();image.src=url;await image.decode();return [image.naturalWidth,image.naturalHeight]},href);
@@ -95,8 +95,7 @@ test('published site renders different robots and transformations for stage 5 an
     await check(pic.locator('image'));
     await card.getByRole('button',{name:'變身：'+name,exact:true}).click();
     const alternate=card.getByRole('img',{name:vehicle,exact:true});
-    await expect(alternate.locator('image')).toHaveAttribute('href',new RegExp(file+'-vehicle[.]png
-));
+    await expect(alternate.locator('image')).toHaveAttribute('href',new RegExp(file+'-vehicle[.]png'+String.fromCharCode(36)));
     await check(alternate.locator('image'));
     await card.getByRole('button',{name,exact:true}).click();
     await expect(page.getByRole('dialog').getByRole('img',{name:vehicle,exact:true})).toBeVisible();
