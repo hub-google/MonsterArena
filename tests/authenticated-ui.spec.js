@@ -166,8 +166,15 @@ test('existing stage-six legacy type-three unit retains custom name and converts
  await expect(page.getByTestId('mecha-details').getByText('鋼鐵族・重砲型',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'關閉詳細資料'}).click();
  await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'})).toBeVisible();
- await page.getByRole('button',{name:'變形：重型坦克'}).click();
- await expect(page.getByRole('img',{name:'重型坦克'})).toBeVisible();
+ await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'}).locator('image')).toHaveAttribute('href',/tyranno-robot\.png$/);
+ await page.getByRole('button',{name:'變形：暴龍型態'}).click();
+ await expect(page.getByRole('img',{name:'暴龍型態'})).toBeVisible();
+ await expect(page.getByRole('img',{name:'暴龍型態'}).locator('image')).toHaveAttribute('href',/tyranno-rex\.png$/);
+ for(const name of ['robot','rex']){
+  const info=await page.evaluate(async name=>{const img=new Image();img.src=new URL('mecha/tyranno-'+name+'.png',location.href).href;await img.decode();return [img.naturalWidth,img.naturalHeight]},name);
+  expect(info).toEqual([128,128]);
+ }
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/tyranno-rex.png',animations:'disabled'});
  await page.getByRole('button',{name:'切換機器人'}).click();
  await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'})).toBeVisible();
 });
@@ -202,9 +209,9 @@ test('three simultaneous status warnings stay separate from each other and the m
  };
  await assertLayout('鋼鐵族・重砲型・終極機');
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：機器人');
- await page.getByRole('button',{name:'變形：重型坦克'}).click();
- await assertLayout('重型坦克');
- await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：重型坦克');
+ await page.getByRole('button',{name:'變形：暴龍型態'}).click();
+ await assertLayout('暴龍型態');
+ await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：暴龍型態');
  await page.getByRole('button',{name:'切換機器人'}).click();
  await assertLayout('鋼鐵族・重砲型・終極機');
  expect(calls).not.toContain('/rest/v1/rpc/game_action');
