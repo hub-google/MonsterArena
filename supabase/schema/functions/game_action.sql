@@ -81,7 +81,7 @@ begin
   p_data:=coalesce(p_data,'{}'::jsonb);
   if jsonb_typeof(p_data)<>'object' then raise exception '操作參數錯誤'; end if;
   if p_action='capabilities' then
-    return jsonb_build_object('version',2,'fixedEncounters',true,'asyncPvp',true,'dailyRaid',true,'idempotency',true);
+    return jsonb_build_object('version',2,'combatBalance',3,'fixedEncounters',true,'asyncPvp',true,'dailyRaid',true,'idempotency',true);
   end if;
   if p_action='raid_status' then
     v_boss_id:=arena_internal.ensure_raid(v_date);

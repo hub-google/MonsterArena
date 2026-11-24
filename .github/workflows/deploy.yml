@@ -93,11 +93,8 @@ jobs:
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/combat-balance.sql
       - name: 檢查 Supabase 驗證服務
         run: node scripts/check-supabase-game.mjs
-      - name: 建置測試站
-        id: build
-        run: |
-          npm run build
-          echo "index_sha=$(sha256sum dist/index.html | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - name: 建置舊版相容測試站
+        run: npm run build
       - name: 安裝測試瀏覽器
         run: npx playwright install --with-deps chromium
       - name: 測試建置後網頁
@@ -110,6 +107,37 @@ jobs:
             sleep 1
           done
           npx playwright test tests/smoke.spec.js tests/authenticated-ui.spec.js --project=chromium
+      - name: 新版瀏覽器與真實隔離 SQL 交易整合驗收
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+          VITE_ARENA_V2: 'true'
+          VITE_SUPABASE_URL: https://arena-v2-ci.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_arena_ci_only
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4174/monster-arena-web/
+        run: |
+          npm run build -- --outDir dist-v2
+          npm run preview -- --outDir dist-v2 --port 4174 --host 127.0.0.1 > /tmp/arena-v2-preview.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS "$PLAYWRIGHT_BASE_URL" >/dev/null; then break; fi
+            sleep 1
+          done
+          npx playwright test tests/v2-ui.spec.js --project=chromium
+      - name: 準備實際發布版本
+        id: build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.ARENA_TEST_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.ARENA_TEST_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "$VITE_SUPABASE_URL" ] || [ -n "$VITE_SUPABASE_ANON_KEY" ]; then
+            test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY"
+            case "$VITE_SUPABASE_URL" in *fanffwnhkxpfhttylntw*|*unapiwajmgqqtdkixaab*) echo '禁止共用資料庫作為新版測試站' >&2; exit 1;; esac
+            VITE_ARENA_V2=true npm run build
+            echo '已配置獨立新版測試後端' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '未配置獨立測試後端；公開站仍使用既有後端' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "index_sha=$(sha256sum dist/index.html | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
       - name: 保存實際瀏覽器 UI 截圖
         if: always()
         uses: actions/upload-artifact@v4
@@ -130,7 +158,7 @@ jobs:
           echo "- 分支：${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- 版本：${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- 執行結果：${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- 登入後瀏覽器測試使用模擬 API；不代表真實多帳號資料庫驗收" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 舊版登入後測試使用模擬 API；新版瀏覽器交易使用隔離 PostgreSQL 真實 RPC，登入傳輸仍為測試身分" >> "$GITHUB_STEP_SUMMARY"
 
   publish-pages:
     name: 發布 GitHub Pages 測試站

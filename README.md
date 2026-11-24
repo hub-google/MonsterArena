@@ -68,7 +68,7 @@ npm run build
 npm run dev
 ```
 
-`main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。另以隔離 PostgreSQL 容器、兩組測試身分實測 V2 SQL 權限及交易。真實 Supabase Auth 多帳號登入後 E2E 尚未由 CI 覆蓋；不以隔離 SQL 或模擬瀏覽器測試替代線上驗收。
+`main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。另以隔離 PostgreSQL 容器、兩組測試身分實測 V2 SQL 權限及交易。新版另外建置 V2 前端，瀏覽器使用隔離 PostgreSQL 實際 RPC 交易驗收訓練、商城、首領結算、屬性配對與世界王；登入傳輸仍為測試身分。真正 Supabase Auth 多帳號及公開新版後端仍須線上驗收。設置 repository variables `ARENA_TEST_SUPABASE_URL` 與 `ARENA_TEST_SUPABASE_PUBLISHABLE_KEY` 後才發布 V2，禁止指向兩個現有共用專案。
 
 **部署隔離：**依 2026-11-24 指示，Repository 僅保留 `main`；GitHub Pages 改採 Artifact 部署，不再建立 `gh-pages`。本次不部署 Cloudflare 正式站，不變更 DNS/Worker 或共用 Supabase 資料。詳細安全說明見 `docs/SECURITY.md`。
 

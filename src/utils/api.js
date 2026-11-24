@@ -78,6 +78,7 @@ export const api = {
   getMe: async () => {
     const { data, error } = await supabase.rpc('game_ensure_profile');
     throwIfError(error);
+    if(GAME_RULES_V2){const caps=await action('capabilities');if(caps.combatBalance!==3)throw new Error('測試後端未部署目前戰鬥平衡版本');}
     const giftResult = await supabase.rpc('game_claim_gifts');
     throwIfError(giftResult.error);
     if (giftResult.data > 0) {
