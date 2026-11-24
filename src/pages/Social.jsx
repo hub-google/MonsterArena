@@ -155,7 +155,7 @@ export default function Social({ user }) {
               onChange={(e) => setTypeFilter(e.target.value)}
               className="bg-slate-800/80 border border-slate-700 text-white p-2 rounded-lg text-sm outline-none focus:border-cyan-500 flex-1"
             >
-              <option value="">全部種族（公開玩家名單）</option>
+              <option value="">全部陣營（公開玩家名單）</option>
               <option value="1">疾風族</option>
               <option value="2">鋼鐵族</option>
               <option value="3">蒼空族</option>

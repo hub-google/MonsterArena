@@ -111,13 +111,13 @@ export default function Raid({
             {/* Boss Name */}
             <div className="text-6xl mb-4 animate-pulse drop-shadow-[0_0_15px_rgba(225,29,72,0.6)]">👹</div>
             <h2 className="text-2xl font-black text-rose-500 tracking-widest mb-6">
-              {boss.name}
+              {boss.name?.includes('機械')||boss.name?.includes('機甲')?boss.name:'巨型機甲首領'}
             </h2>
 
             {/* Boss Health Bar */}
             <div className="w-full relative z-10 mb-6">
               <div className="flex justify-between text-sm mb-2 font-bold">
-                <span className="text-rose-400">HP</span>
+                <span className="text-rose-400">耐久</span>
                 <span className="text-white">{boss.current_hp.toLocaleString()} <span className="text-slate-500">/ {boss.max_hp.toLocaleString()}</span></span>
               </div>
               <div className="w-full h-4 bg-slate-950 rounded-full overflow-hidden border border-slate-700 shadow-inner">

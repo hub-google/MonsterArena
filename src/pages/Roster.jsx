@@ -142,7 +142,7 @@ export default function Roster({
               </h3>
               
               {!canManageMonsterChips(selectedMonster) && (
-                <p role="status" className="mb-4 text-sm text-rose-300">此機體核心已失效，無法安裝或拆除晶片。請切換其他怪獸。</p>
+                <p role="status" className="mb-4 text-sm text-rose-300">此機體核心已失效，無法安裝或拆除晶片。請切換其他機體。</p>
               )}
               <details className="text-xs text-slate-400 mb-4"><summary>ℹ️</summary>新晶片基本加成 +5。舊版強化晶片拆除後會保留原本加成，同種類下次安裝優先恢復強化晶片。</details>
               <div className="grid grid-cols-2 gap-4 mb-6">

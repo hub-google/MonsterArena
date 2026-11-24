@@ -496,3 +496,13 @@ test('zero gold checkout explains deficit without charging',async({page})=>{
  await expect(page.getByTestId('item-menu')).toBeVisible();
  expect(calls.filter(x=>x==='/rest/v1/rpc/game_action')).toHaveLength(0);
 });
+
+ test('daily mission and shop copy consistently use mechanical terminology',async({page})=>{
+ await setupAuthenticatedGame(page,[{...dead,name:'任務測試機',is_dead:false,is_sick:false}],{gold:500});
+ await page.getByRole('button',{name:'任務',exact:true}).click();
+ for(const title of ['能源補給','例行維護','戰鬥校準','戰場演習'])await expect(page.getByText(title,{exact:true})).toBeVisible();
+ await expect(page.getByText('為機體補充能源 3 次')).toBeVisible();
+ await page.getByRole('button',{name:'✕',exact:true}).click();
+ await page.getByRole('button',{name:'商城',exact:true}).click();
+ for(const title of ['標準電池','高密度電池','雙效充能模組','標準修復套件','效能增幅器'])await expect(page.getByText(title,{exact:true})).toBeAttached();
+});

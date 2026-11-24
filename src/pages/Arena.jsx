@@ -233,7 +233,7 @@ export default function Arena({
             ].map(([id,name,hp,atk,def,spd,reward],i)=>(
               <div className="glass-card p-3 flex justify-between items-center gap-2" key={id}>
                 <div><div className="font-bold text-amber-300">第 {i+1} 關｜{name}</div>
-                  <div className="text-xs text-slate-300">HP {hp}・攻 {atk}・防 {def}・速 {spd}</div>
+                  <div className="text-xs text-slate-300" >耐久 {hp}・攻 {atk}・防 {def}・速 {spd}</div>
                   <div className="text-xs text-emerald-300">每日首勝 {reward}G</div></div>
                 <PlayButton icon="battle" label={'挑戰'+name} short="打" tone="red" disabled={loading||!getFighter()} onClick={()=>handleChallenge(id)} className="play-compact"/>
               </div>
@@ -266,7 +266,7 @@ export default function Arena({
             {pvp?.opponents?.map(o=>(
               <div key={o.user_id} className="glass-card p-3 flex items-center gap-2 justify-between">
                 <MonsterPixelArt family={o.family} stage={o.stage} type={o.type} skin={o.skin_id} className="scale-75"/>
-                <div className="flex-1"><div className="text-sm font-bold">{o.username}｜{getSkin(o.skin_id)?.name||o.monster_name}</div><div className="text-xs text-slate-300">{o.points} 分・HP {Math.round(o.hp)}・攻 {Math.round(o.atk)}</div></div>
+                <div className="flex-1"><div className="text-sm font-bold">{o.username}｜{getSkin(o.skin_id)?.name||o.monster_name}</div><div className="text-xs text-slate-300">{o.points} 分・耐久 {Math.round(o.hp)}・攻 {Math.round(o.atk)}</div></div>
                 <button disabled={loading} onClick={()=>handleChallenge('pvp',o.user_id)} className="neon-button neon-button-danger px-3 py-2">挑戰</button>
               </div>
             ))}
