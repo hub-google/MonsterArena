@@ -5,7 +5,7 @@ import {appearance,hasDisguise} from '../utils/skins';
 import {ACTIONS,MAX_ROUNDS,TIMING_MS,initialDuel,chooseEnemy,enemyHint,resolveRound,timingGrade} from '../utils/tacticalDuel';
 import './TacticalDuel.css';
 
-const opponent={name:'競技教練',family:3,life_stage:5,type:2};
+const opponent={name:'戰術訓練機',family:3,life_stage:5,type:2};
 const gradeNames={perfect:'完美',good:'普通',miss:'失誤'};
 export default function TacticalDuel({monster,mode,onExit}){
  const [duel,setDuel]=useState(initialDuel);
@@ -60,8 +60,8 @@ export default function TacticalDuel({monster,mode,onExit}){
     <strong>{m.name}</strong>
     <div className="tactical-art"><BattleReveal monster={m} look={i===0?look:{}} revealing={i===0&&revealing} restored={Boolean(duel.result)} dead={duel.hp[i]===0} size={150}/></div>
     <div className="tactical-hp-label"><GameIcon name="heart"/><span data-testid={'tactical-hp-'+i}>{duel.hp[i]} / 100</span></div>
-    <div className="tactical-hp" role="progressbar" aria-label={i===0?'我方生命':'敵方生命'} aria-valuenow={duel.hp[i]} aria-valuemin={0} aria-valuemax={100}><span style={{width:duel.hp[i]+'%'}}/></div>
-    <div className="tactical-energy" aria-label={'能量 '+duel.energy[i]+'/5'}>{Array.from({length:5},(_,n)=><i key={n} className={n<duel.energy[i]?'filled':''}/>)}</div>
+    <div className="tactical-hp" role="progressbar" aria-label={i===0?'我方耐久':'敵方耐久'} aria-valuenow={duel.hp[i]} aria-valuemin={0} aria-valuemax={100}><span style={{width:duel.hp[i]+'%'}}/></div>
+    <div className="tactical-energy" aria-label={'戰術能源 '+duel.energy[i]+'/5'}>{Array.from({length:5},(_,n)=><i key={n} className={n<duel.energy[i]?'filled':''}/>)}</div>
    </div>)}<span className="tactical-vs">VS</span>
   </div>
   <div className="tactical-intel" role="status"><GameIcon name={duel.result?'trophy':revealing?'transform':ACTIONS[enemy].icon}/><span>{duel.result?resultText:revealing?'解除偽裝・真身出戰':enemyHint(enemy,duel.energy[1])}</span></div>
@@ -70,7 +70,7 @@ export default function TacticalDuel({monster,mode,onExit}){
    <div className="tactical-track" aria-hidden="true"><i className="tactical-good"/><i className="tactical-perfect"/><b style={{left:progress*100+'%'}}/></div>
    {pending?<button type="button" className="tactical-tap" onClick={tap}>{pending==='guard'?'立即格擋':'立即攻擊'}</button>:<div className="tactical-feedback" aria-live="polite">{latest?<><span>我方 −{latest.damage[0]} ・ 敵方 −{latest.damage[1]}</span><small>{latest.notes.join('・')||ACTIONS[latest.player].label+' / '+ACTIONS[latest.enemy].label}{['attack','guard'].includes(latest.player)?'・'+gradeNames[latest.grade]:''}</small></>:<span>觀察敵方動作，再選擇你的招式</span>}</div>}
   </div>
-  {duel.result?<div className="tactical-result"><strong>{resultText}</strong><PlayButton icon="refresh" label="再戰一場" tone="blue" onClick={restart}/></div>:<div className="tactical-actions">{Object.entries(ACTIONS).map(([id,a])=><PlayButton key={id} icon={id==='attack'&&duel.energy[0]===5?'bolt':a.icon} label={id==='attack'&&duel.energy[0]===5?'必殺技':a.label} subtext={id==='attack'&&duel.energy[0]===5?'消耗 5 能量':a.hint} tone={a.tone} disabled={revealing||Boolean(pending)||(id==='break'&&duel.energy[0]<2)} onClick={()=>select(id)}/>)}</div>}
+  {duel.result?<div className="tactical-result"><strong>{resultText}</strong><PlayButton icon="refresh" label="再戰一場" tone="blue" onClick={restart}/></div>:<div className="tactical-actions">{Object.entries(ACTIONS).map(([id,a])=><PlayButton key={id} icon={id==='attack'&&duel.energy[0]===5?'bolt':a.icon} label={id==='attack'&&duel.energy[0]===5?'必殺技':a.label} subtext={id==='attack'&&duel.energy[0]===5?'消耗 5 戰術能源':a.hint} tone={a.tone} disabled={revealing||Boolean(pending)||(id==='break'&&duel.energy[0]<2)} onClick={()=>select(id)}/>)}</div>}
   <footer className="tactical-footer"><span>攻擊克重擊・重擊克格擋・格擋克攻擊</span>{duel.round===1&&!pending&&!duel.result&&<button type="button" aria-pressed={difficulty==='easy'} onClick={()=>setDifficulty(d=>d==='easy'?'normal':'easy')}>{difficulty==='easy'?'慢速練習 ✓':'慢速練習'}</button>}</footer>
  </section>;
 }

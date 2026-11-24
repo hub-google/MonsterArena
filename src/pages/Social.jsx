@@ -110,7 +110,7 @@ export default function Social({ user }) {
     setPendingGiftFriendId(friend.friend_id);
     try {
       await api.giftStamina(friend.friend_id);
-      setMessage('已發送體力給 ' + friend.friend_name);
+      setMessage('已發送行動電力給 ' + friend.friend_name);
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -266,7 +266,7 @@ export default function Social({ user }) {
                       disabled={pendingGiftFriendId !== null} 
                       className="text-[10px] bg-slate-700 px-3 py-1.5 rounded hover:bg-slate-600 transition"
                     >
-                      贈送體力
+                      贈送行動電力
                     </button>
                   </div>
               ))

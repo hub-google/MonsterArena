@@ -1,8 +1,8 @@
 export const ACTIONS = {
  attack:{label:'攻擊',icon:'battle',tone:'red',hint:'抓準時機暴擊'},
  guard:{label:'格擋反擊',icon:'guild',tone:'blue',hint:'完美格擋反擊'},
- break:{label:'破防重擊',icon:'tools',tone:'red',hint:'消耗 2 能量'},
- charge:{label:'蓄能',icon:'bolt',tone:'green',hint:'能量 +2、生命 +10'},
+ break:{label:'破防重擊',icon:'tools',tone:'red',hint:'消耗 2 戰術能源'},
+ charge:{label:'蓄能',icon:'bolt',tone:'green',hint:'戰術能源 +2、耐久 +10'},
 };
 export const MAX_ROUNDS=16;
 export const TIMING_MS=1800;
@@ -24,10 +24,10 @@ export function chooseEnemy(s){
  return ['attack','charge','attack','guard','break'][ (s.round-1)%5 ]==='break'&&energy<2?'attack':['attack','charge','attack','guard','break'][(s.round-1)%5];
 }
 export function enemyHint(action,energy){
- if(action==='attack')return energy>=5?'敵方能量滿了！準備必殺技':'敵方舉起武器，準備攻擊';
+ if(action==='attack')return energy>=5?'敵方戰術能源滿了！準備必殺技':'敵方舉起武器，準備攻擊';
  if(action==='guard')return '敵方架起盾牌，可能反擊';
  if(action==='break')return '敵方重拳蓄力，普通攻擊可打斷';
- return '敵方正在補充能量';
+ return '敵方正在補充戰術能源';
 }
 export function resolveRound(s,player,grade='good',enemy=chooseEnemy(s),enemyGrade=s.round%3===0?'perfect':'good'){
  if(s.result||!ACTIONS[player]||!ACTIONS[enemy]||(player==='break'&&s.energy[0]<2)||(enemy==='break'&&s.energy[1]<2))return s;

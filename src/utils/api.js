@@ -1,3 +1,4 @@
+import {presentGameMessage} from './mechaVocabulary';
 import { supabase, supabaseUrl } from './supabaseClient';
 
 // Rules V2 must use an explicitly configured isolated backend, never the shared Game project.
@@ -14,7 +15,7 @@ const getUid = async () => {
 };
 const usernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9_]/g, '')}@monsterarena.app`;
 const legacyUsernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@monsterarena.app`;
-const throwIfError = error => { if (error) throw new Error(error.message); };
+const throwIfError = error => { if (error) throw new Error(presentGameMessage(error.message)); };
 const action = async (p_action, p_data = {}) => {
   const args={p_action,p_data:GAME_RULES_V2?{...p_data,request_id:crypto.randomUUID()}:p_data};
   let {data,error}=await supabase.rpc('game_action',args);
@@ -24,7 +25,7 @@ const action = async (p_action, p_data = {}) => {
     ({data,error}=await supabase.rpc('game_action',args));
   }
   throwIfError(error);
-  return data ?? { message: '操作成功！' };
+  return data?.message ? {...data,message:presentGameMessage(data.message)} : data ?? { message: '操作成功！' };
 };
 const dateInTaiwan = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit'
