@@ -12,6 +12,7 @@ export default function Raid({
 }) {
   const [boss, setBoss] = useState(null);
   const [bossError, setBossError] = useState('');
+  const [strategy,setStrategy]=useState('assault');
   const aliveMonsters = monsters.filter(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen && !m.repair_until);
   const [selectedMonsterId, setSelectedMonsterId] = useState(
     () => aliveMonsters.find(m => m.monster_id === activeMonster?.monster_id)?.monster_id || aliveMonsters[0]?.monster_id || ''
@@ -78,9 +79,9 @@ export default function Raid({
     try {
       if(hasDisguise(selectedMonster,appearanceModes[selectedMonster.monster_id])){setRevealing(true);await new Promise(resolve=>setTimeout(resolve,1200));if(!mounted.current)return;setRevealing(false);}
       setAttacking(true);
-      const data = await api.attackRaidBoss(selectedMonster.monster_id);
+      const data = await api.attackRaidBoss(selectedMonster.monster_id,strategy);
       if(!mounted.current)return;
-      setMessage(`💥 造成 ${data.damage.toLocaleString()} 點傷害！\n${data.message}`);
+      setMessage(`💥 造成 ${data.damage.toLocaleString()} 點傷害！\n${data.message}${GAME_RULES_V2?'\n有效支援 '+data.support+'・存活回合 '+data.rounds+'/10・參與獎勵 '+data.participationReward+'G':''}`);
       await refreshData(['profile']);
       await fetchBossStatus();
     } catch (err) {
@@ -159,8 +160,8 @@ export default function Raid({
         )}
 
         {GAME_RULES_V2&&boss&&<div className="glass-card p-3 space-y-2">
-          <div className="text-sm font-bold text-amber-300">今日傷害貢獻：{Number(boss.my_damage||0).toLocaleString()}</div>
-          <p className="text-xs text-slate-300">每天台灣時間更新巨型機甲首領；按近期活躍人數固定耐久，每人每日三次挑戰，成功討伐後按有效傷害分配 5,000G。</p>
+          <div className="text-sm font-bold text-amber-300">今日傷害 {Number(boss.my_damage||0).toLocaleString()}・支援 {boss.my_support||0}・挑戰 {boss.my_attempts||0}/3</div>
+          <p className="text-xs text-slate-300">每日更新，最多三次，依有效傷害及支援分配 {boss.reward_pool}G；首次參與獎勵 20G。</p>
           {(boss.claims||[]).map(c=><button key={c.boss_id} disabled={loading} onClick={()=>handleClaim(c.boss_id)} className="w-full neon-button neon-button-success px-3 py-2">領取 {c.boss_id.replace('daily:','')} 貢獻獎勵 {c.reward}G</button>)}
         </div>}
         {/* Monster selector & Attack triggers */}
@@ -186,9 +187,10 @@ export default function Raid({
                 </select>
               </div>
 
+              {GAME_RULES_V2&&<div className="space-y-2"><p className="text-xs">目前階段：{boss.current_hp/boss.max_hp>.6?'普通攻擊':boss.current_hp/boss.max_hp>.3?'護盾啟動':'暴走重擊'}</p><label className="text-xs" htmlFor="raid-strategy">共鬥策略</label><select id="raid-strategy" value={strategy} onChange={e=>setStrategy(e.target.value)} className="w-full bg-slate-900 rounded-lg p-2"><option value="assault">強攻輸出（普通階段）</option><option value="break">破甲干擾（護盾階段）</option><option value="defend">防禦支援（暴走階段）</option></select></div>}
               <button
                 onClick={handleAttack}
-                disabled={loading || user.stamina < 15 || !selectedMonster}
+                disabled={loading || user.stamina < 15 || !selectedMonster || (GAME_RULES_V2&&Number(boss.my_attempts)>=3)}
                 className="w-full neon-button neon-button-danger py-4 text-lg font-bold flex items-center justify-center gap-2"
               >
                 <span>💥 發動討伐突襲</span>

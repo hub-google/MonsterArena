@@ -228,10 +228,11 @@ export default function Arena({
             <details className="text-xs text-slate-300"><summary>挑戰說明</summary>固定敵人強度，各關每日首勝有金幣獎勵。</details>
             {[
               ['wild','廢棄機械兵',80,16,12,12,10],
-              ['stage2','失控巡邏機',115,23,18,18,30],
-              ['stage3','重裝守衛',180,26,38,18,60],
-              ['stage4','疾風獵手',175,38,22,42,100],
-              ['boss','終極機甲首領',300,52,40,35,200]
+              ['stage2','失控巡邏機',115,23,18,18,20],
+              ['stage3','重裝守衛',180,26,38,18,40],
+              ['stage4','疾風獵手',175,38,22,42,60],
+              ['stage5','深淵機甲',230,44,35,32,100],
+              ['boss','終極機甲首領',300,52,40,35,120]
             ].map(([id,name,hp,atk,def,spd,reward],i)=>(
               <div className="glass-card p-3 flex justify-between items-center gap-2" key={id}>
                 <div><div className="font-bold text-amber-300">第 {i+1} 關｜{name}</div>

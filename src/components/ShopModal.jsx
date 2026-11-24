@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { api } from '../utils/api';
+import { api, GAME_RULES_V2 } from '../utils/api';
 import {SKINS,ownsSkin} from '../utils/skins';
 import SkinArt from './SkinArt';
-import {SHOP_ITEMS} from '../utils/mechaVocabulary';
+import {SHOP_ITEMS,BALANCED_SHOP_ITEMS} from '../utils/mechaVocabulary';
 import {GameIcon} from './PlayButton';
 
 export default function ShopModal({ user, inventory=[], initialTab='items', onClose, refreshData }) {
@@ -45,7 +45,7 @@ export default function ShopModal({ user, inventory=[], initialTab='items', onCl
 
         <div className="skin-tabs" role="group" aria-label="商城分類"><button aria-pressed={tab==='items'} onClick={()=>setTab('items')}>道具</button><button aria-pressed={tab==='skins'} onClick={()=>setTab('skins')}>皮膚 · 10 款</button></div>
         {tab==='skins'?<div className="skin-shop-scroll"><p className="text-xs text-slate-300 mb-2">永久收藏，全機體共用，不影響戰力。</p><div className="skin-grid">{SKINS.map(s=>{const owned=ownsSkin(inventory,s.id);return <div key={s.id} className="skin-card"><SkinArt id={s.id}/><strong>{s.name}</strong><button className="skin-buy" disabled={owned||loading||Number(user.gold)<s.price} aria-label={owned?s.name+' 已收藏':'購買'+s.name+' '+s.price+'G'} onClick={()=>handleBuy(s.id)}>{owned?'已收藏':s.price+'G 購買'}</button></div>})}</div></div>:<div className="space-y-3 overflow-y-auto pr-2">
- {SHOP_ITEMS.map(item=><div key={item.id} className="bg-slate-900/50 border border-slate-700/50 p-3 rounded-xl flex items-center justify-between gap-2">
+ {(GAME_RULES_V2?BALANCED_SHOP_ITEMS:SHOP_ITEMS).map(item=><div key={item.id} className="bg-slate-900/50 border border-slate-700/50 p-3 rounded-xl flex items-center justify-between gap-2">
  <div className="flex gap-2 items-center min-w-0"><span className="text-cyan-300 shrink-0"><GameIcon name={item.icon}/></span><div className="min-w-0"><div className="font-bold text-white text-sm">{item.name}</div><div className="text-xs text-slate-400">{item.description}</div><div className="text-xs text-slate-400">庫存 {inventory.find(i=>i.item_id===item.id)?.quantity||0}</div></div></div>
  <button type="button" onClick={()=>handleBuy(item.id)} disabled={loading||Number(user.gold)<item.price} className="neon-button bg-cyan-700 text-white px-3 py-2 text-sm shrink-0 whitespace-nowrap">{item.price}G 購買</button>
  </div>)}

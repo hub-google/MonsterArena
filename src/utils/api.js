@@ -99,7 +99,7 @@ export const api = {
   feed: (monster_id, item_id) => action('feed', { monster_id, item_id }),
   clean: monster_id => action('clean', { monster_id }),
   heal: (monster_id, item_id = 'medicine_standard') => action('heal', { monster_id, item_id }),
-  train: monster_id => action('train', { monster_id }),
+  train: (monster_id,stat='atk',boost=false) => action('train', { monster_id, ...(GAME_RULES_V2?{stat,boost}:{}) }),
   evolve: monster_id => action('evolve', { monster_id }),
   release: monster_id => action('release', { monster_id }),
   toggleLock: monster_id => action('lock', { monster_id }),
@@ -168,7 +168,7 @@ export const api = {
     throwIfError(error);
     return data ?? { name:'機械紀元首領',current_hp:0,max_hp:500000,is_active:false };
   },
-  attackRaidBoss: monster_id => action('raid', { monster_id }),
+  attackRaidBoss: (monster_id,strategy='assault') => action('raid', { monster_id,...(GAME_RULES_V2?{strategy}:{}) }),
   searchPlayers: async typeFilter => {
     // Public plaza exposes only a safe projection, never other players' private genes/stats.
     const { data, error } = await supabase.rpc('game_plaza_monsters', {

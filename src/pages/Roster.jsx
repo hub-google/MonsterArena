@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { api } from '../utils/api';
+import { api, GAME_RULES_V2 } from '../utils/api';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import {appearance} from '../utils/skins';
 import {PlayButton} from '../components/PlayButton';
@@ -144,7 +144,7 @@ export default function Roster({
               {!canManageMonsterChips(selectedMonster) && (
                 <p role="status" className="mb-4 text-sm text-rose-300">此機體核心已失效，無法安裝或拆除晶片。請切換其他機體。</p>
               )}
-              <details className="text-xs text-slate-400 mb-4"><summary>ℹ️</summary>新晶片基本加成 +5。舊版強化晶片拆除後會保留原本加成，同種類下次安裝優先恢復強化晶片。</details>
+              <details className="text-xs text-slate-400 mb-4"><summary>ℹ️</summary>{GAME_RULES_V2?'所有晶片均增加對應階段職業基準 5%，舊晶片收藏保留，不再累積額外戰力。':'新晶片基本加成 +5。舊版強化晶片拆除後會保留原本加成，同種類下次安裝優先恢復強化晶片。'}</details>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-between min-h-[120px]">
                   <span className="text-xs text-slate-400">插槽 1 (戰鬥機)</span>
@@ -245,7 +245,7 @@ export default function Roster({
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-white">使用核心融合增幅器</span>
-                  <span className="text-xs text-fuchsia-300">變異機率翻倍 (庫存: {getItemQty('breed_catalyst')})</span>
+                  <span className="text-xs text-fuchsia-300">{GAME_RULES_V2?'先天品質最多 +5%，只繼承品質、不繼承裝備及訓練；增幅器變異率 12%':'變異機率翻倍'} (庫存: {getItemQty('breed_catalyst')})</span>
                 </div>
               </div>
 

@@ -76,7 +76,22 @@ export const BOSS_ACTIONS=Object.freeze({
 });
 export const BOSS_MAX_ROUNDS=20;
 export const bossDamage=(attack,defense)=>Math.max(1,Math.floor(attack*100/(100+Math.max(0,defense))));
+export const ROLE_STATS=Object.freeze([[187,42,27,30],[198,39,28,34],[216,34,37,25],[192,40,29,32],[197,39,30,30],[194,40,28,32],[207,37,30,33],[217,35,32,28]].map(Object.freeze));
+export function roleId(m){
+ if(Number(m.life_stage)<3||!Number(m.type))return 0;
+ return (({1:0,2:0,4:2,5:2,6:4,7:4,3:6,8:6})[m.family]||0)+(Number(m.type)===1?1:2);
+}
+export function unitStats(m){
+ const stage=Math.max(2,Math.min(6,Number(m.life_stage)||2)),role=roleId(m),base=role?ROLE_STATS[role-1]:[200,40,30,30],scale=({2:.5,3:.625,4:.8,5:1,6:1.2})[stage];
+ const quality=1+Math.max(0,Math.min(5,Number(m.core_quality)||0))/100;
+ return Object.fromEntries(['hp','atk','def','spd'].map((k,i)=>{
+  const v=base[i]*scale,points=Math.max(0,Math.min(30,Number(m['training_'+k])||0));
+  const chips=[m.chip_slot_1,m.chip_slot_2].filter(c=>c==='chip_'+k).length;
+  return [k,Math.floor(v*quality+points*(i===0?2:.5)+v*.05*chips+1e-9)];
+ }));
+}
 export function balancedFighter(monster={}){
+ if(Object.hasOwn(monster,'training_hp'))return unitStats(monster);
  const stage=Math.max(2,Math.min(6,Math.floor(Number(monster.life_stage)||2)));
  const base=STAGE_STATS[stage];
  const keys=['combat_hp','combat_atk','combat_def','combat_spd'];

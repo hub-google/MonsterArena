@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
-import { api } from '../utils/api';
+import { api, GAME_RULES_V2 } from '../utils/api';
 import { resourcesForAction, getHatchState, canCareForMonster, canHealMonster } from '../utils/gameRules';
 import { STAGE_NAMES, FACTIONS, getMecha } from '../utils/monsterSprites';
-import {ITEM_BY_ID} from '../utils/mechaVocabulary';
+import {ITEM_BY_ID as LEGACY_ITEMS,BALANCED_ITEM_BY_ID} from '../utils/mechaVocabulary';
 import ShopModal from '../components/ShopModal';
 import QuestModal from '../components/QuestModal';
 import SkinWardrobe from '../components/SkinWardrobe';
@@ -11,6 +11,7 @@ import {canWearSkin,wornSkin,appearance,appearanceMode,nextAppearanceMode} from 
 import {PlayButton,ActionFeedback,GameIcon} from '../components/PlayButton';
 
 
+const ITEM_BY_ID=GAME_RULES_V2?BALANCED_ITEM_BY_ID:LEGACY_ITEMS;
 export default function Dashboard({ 
   user, 
   monsters, 
@@ -33,6 +34,8 @@ export default function Dashboard({
   const [wardrobeError,setWardrobeError]=useState('');
   const [shopTab,setShopTab]=useState('items');
   const [showDetails,setShowDetails]=useState(false);
+  const [showTrain,setShowTrain]=useState(false);
+  const [trainBoost,setTrainBoost]=useState(false);
 
   const monster = activeMonster || monsters[0];
   const [repairClock,setRepairClock]=useState(Date.now);
@@ -56,7 +59,7 @@ export default function Dashboard({
     setShowHealMenu(false);
     setShowWardrobe(false);
     setWardrobeError('');
-    setShowDetails(false);
+    setShowDetails(false);setShowTrain(false);setTrainBoost(false);
     setMessage('');
     setActionEmote(null);setCheckout(null);setCheckoutMessage('');
   }, [monster?.monster_id]);
@@ -204,7 +207,7 @@ export default function Dashboard({
       <PlayButton icon="feed" label="補充能源" tone="green" onClick={()=>{setShowHealMenu(false);setShowFeedMenu(v=>!v)}} disabled={loading||!care} selected={showFeedMenu} className={monster.fullness<30&&care?'play-needed':''}/>
       <PlayButton icon="clean" label="保養" caption="機體保養" tone="blue" onClick={()=>handleAction(api.clean,monster.monster_id)} disabled={loading||!care} className={monster.cleanliness<40&&care?'play-needed':''}/>
       <PlayButton icon="heal" label="修復" caption={monster.repair_until?'修復進行中':'系統修復'} tone="red" onClick={()=>{setShowFeedMenu(false);setShowHealMenu(v=>!v)}} disabled={loading || !canHealMonster(monster)} className={monster.is_sick&&!monster.is_dead?'play-needed':''} selected={showHealMenu}/>
-      <PlayButton icon="train" label="訓練" caption="機體訓練" tone="orange" onClick={()=>handleAction(api.train,monster.monster_id)} disabled={loading||!care||Boolean(monster.repair_until)}/>
+      <PlayButton icon="train" label="訓練" caption="機體訓練" tone="orange" onClick={()=>GAME_RULES_V2?(setShowTrain(true),setShowFeedMenu(false),setShowHealMenu(false)):handleAction(api.train,monster.monster_id)} disabled={loading||!care||Boolean(monster.repair_until)}/>
       <PlayButton icon="transform" label={formLabel} caption={formCaption} tone="purple" onClick={()=>setAppearanceMode(monster.monster_id,nextMode)} disabled={!nextMode||loading} selected={currentMode==='vehicle'}/>
     </div>
     <div className="cockpit-feedback-slot">{monster.repair_until?<span role="status">緊急修復中 · 剩餘 {Math.floor(repairSeconds/60)}:{String(repairSeconds%60).padStart(2,'0')} · 耐久不變</span>:message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極升級條件，請開啟詳情':' '}</span>}</div>
@@ -218,6 +221,12 @@ export default function Dashboard({
       {monster.life_stage===5&&<><PlayButton icon="evolve" label="終極升級（需核心、50戰及70%勝率）" caption="終極升級" tone="purple" onClick={()=>{if(getItemQty('ultimate_core')===0){openCheckout('ultimate_core');return;}setShowDetails(false);handleAction(api.evolve,monster.monster_id)}} disabled={loading || monster.is_dead || Boolean(monster.repair_until) || monster.battles < 50 || monster.wins/monster.battles<0.7} className="w-full"/><p className="text-xs text-slate-400">升級條件：核心、50 場戰鬥、70% 勝率</p></>}
      </section>
     </div>}
+    {showTrain&&GAME_RULES_V2&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="選擇訓練項目"><div className="cockpit-dialog">
+       <div className="dialog-heading"><h2>機體訓練</h2><button aria-label="關閉訓練" onClick={()=>setShowTrain(false)}>×</button></div>
+       <p className="text-sm">總配點 {['hp','atk','def','spd'].reduce((n,k)=>n+Number(monster['training_'+k]||0),0)}/60，單項上限 30。每次消耗 10 行動電力。</p>
+       <label className="text-sm"><input type="checkbox" checked={trainBoost} disabled={getItemQty('vitamin')<1} onChange={e=>setTrainBoost(e.target.checked)}/> 使用效能增幅器（庫存 {getItemQty('vitamin')}）</label>
+       <div className="grid grid-cols-2 gap-2">{[['hp','耐久','guild'],['atk','攻擊','battle'],['def','防禦','guild'],['spd','速度','speed']].map(([k,n,icon])=><PlayButton key={k} icon={icon} label={'訓練'+n} subtext={(monster['training_'+k]||0)+'/30'} disabled={loading||user.stamina<10||monster.is_sick||monster.fullness<20||Number(monster['training_'+k]||0)>=30||['hp','atk','def','spd'].reduce((a,x)=>a+Number(monster['training_'+x]||0),0)>=60} onClick={()=>{setShowTrain(false);handleAction(api.train,monster.monster_id,k,trainBoost)}}/>)}</div>
+       </div></div>}
     {(showFeedMenu||showHealMenu)&&!checkout&&!monster.is_dead&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label={showFeedMenu?'選擇補給':'選擇修復道具'}>
      <section className="cockpit-dialog" data-testid="item-menu">
       <div className="dialog-heading"><h2>{showFeedMenu?'選擇補給':'選擇修復道具'}</h2><button onClick={closeItems} aria-label="取消返回">×</button></div>
