@@ -130,3 +130,41 @@ test('existing stage-six legacy type-three unit retains custom name and converts
  await page.getByRole('button',{name:'切換機器人'}).click();
  await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'})).toBeVisible();
 });
+
+test('three simultaneous status warnings stay separate from each other and the machine on mobile',async({page})=>{
+ await page.setViewportSize({width:360,height:800});
+ await page.emulateMedia({reducedMotion:'reduce'});
+ const calls=await setupAuthenticatedGame(page,[{...dead,name:'警示測試',family:4,type:3,life_stage:6,is_dead:false,is_sick:true,fullness:20,cleanliness:20}]);
+ const screen=page.getByTestId('mecha-screen');
+ const statuses=screen.getByTestId('mecha-status-list');
+ const fault=statuses.getByText('系統故障',{exact:true});
+ const energy=statuses.getByText('能源不足',{exact:true});
+ const maintenance=statuses.getByText('需要保養',{exact:true});
+ await expect(fault).toBeVisible();
+ await expect(energy).toBeVisible();
+ await expect(maintenance).toBeVisible();
+ const assertLayout=async(name)=>{
+  const sprite=screen.getByRole('img',{name});
+  await expect(sprite).toBeVisible();
+  const [art,a,b,c,frame]=await Promise.all([sprite.boundingBox(),fault.boundingBox(),energy.boundingBox(),maintenance.boundingBox(),screen.boundingBox()]);
+  const overlap=(x,y)=>x.x<y.x+y.width&&x.x+x.width>y.x&&x.y<y.y+y.height&&x.y+x.height>y.y;
+  const warningBoxes=[a,b,c];
+  for(const w of warningBoxes){
+   expect(w.y).toBeGreaterThanOrEqual(art.y+art.height);
+   expect(w.x).toBeGreaterThanOrEqual(frame.x);
+   expect(w.x+w.width).toBeLessThanOrEqual(frame.x+frame.width);
+   expect(w.y+w.height).toBeLessThanOrEqual(frame.y+frame.height);
+  }
+  expect(overlap(a,b)||overlap(a,c)||overlap(b,c)).toBe(false);
+  expect(art.width).toBeGreaterThan(140);
+  expect(await sprite.evaluate(el=>getComputedStyle(el).filter)).toBe('none');
+ };
+ await assertLayout('鋼鐵族・重砲型・終極機');
+ await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：機器人');
+ await page.getByRole('button',{name:'變形：重型坦克'}).click();
+ await assertLayout('重型坦克');
+ await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：重型坦克');
+ await page.getByRole('button',{name:'切換機器人'}).click();
+ await assertLayout('鋼鐵族・重砲型・終極機');
+ expect(calls).not.toContain('/rest/v1/rpc/game_action');
+});

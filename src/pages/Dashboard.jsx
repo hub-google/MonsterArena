@@ -200,7 +200,7 @@ export default function Dashboard({
         </div>
 
         {/* LCD Screen for Pet */}
-        <div className="relative z-10 scale-150 my-8 bg-slate-900 border-4 border-slate-700 rounded-xl p-4 shadow-inner shadow-slate-950/50">
+        <div data-testid="mecha-screen" className="relative z-10 w-full max-w-[248px] my-3 bg-slate-900 border-4 border-slate-700 rounded-xl p-3 shadow-inner shadow-slate-950/50">
           <MonsterPixelArt 
             family={monster.family}
             stage={monster.life_stage} 
@@ -210,11 +210,15 @@ export default function Dashboard({
             isPoop={monster.cleanliness < 40}
             isHappy={actionEmote === 'happy'}
             isHungry={monster.fullness < 30}
+            displaySize={192}
             vehicle={vehicle && monster.life_stage >= 4}
           />
         </div>
 
-        {!monster.is_dead && monster.life_stage >= 4 && <button onClick={()=>setVehicle(v=>!v)} className="neon-button text-xs px-3 py-2 z-10">{vehicle?'切換機器人':'變形：'+mecha.vehicle}</button>}
+        {!monster.is_dead && monster.life_stage >= 4 && <div className="flex flex-col items-center gap-1 z-10">
+          <span data-testid="mecha-current-form" className="text-xs text-slate-400">目前形態：{vehicle?mecha.vehicle:'機器人'}</span>
+          <button onClick={()=>setVehicle(v=>!v)} aria-pressed={vehicle} className="neon-button bg-slate-800 border border-slate-600 text-sm px-4 py-2">{vehicle?'切換機器人':'變形：'+mecha.vehicle}</button>
+        </div>}
         {/* Status Bars */}
         <div className="w-full space-y-4 z-10 mt-6">
           <div>

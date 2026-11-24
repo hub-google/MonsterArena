@@ -104,11 +104,11 @@
 /* --- Monster Behavior Animations --- */
 /* 1. Walk left and right with flip */
 @keyframes walk-side {
-  0% { transform: translateX(-20px) scaleX(1); }
-  45% { transform: translateX(20px) scaleX(1); }
-  50% { transform: translateX(20px) scaleX(-1); }
-  95% { transform: translateX(-20px) scaleX(-1); }
-  100% { transform: translateX(-20px) scaleX(1); }
+  0% { transform: translateX(-6px) scaleX(1); }
+  45% { transform: translateX(6px) scaleX(1); }
+  50% { transform: translateX(6px) scaleX(-1); }
+  95% { transform: translateX(-6px) scaleX(-1); }
+  100% { transform: translateX(-6px) scaleX(1); }
 }
 
 .animate-walk-side {
@@ -127,13 +127,18 @@
 
 /* 3. Weak/Angry Shake */
 @keyframes shake-weak {
-  0%, 100% { transform: translateX(0) scale(0.95); filter: grayscale(50%) drop-shadow(0 0 10px rgba(244,63,94,0.5)); }
-  25% { transform: translateX(-2px) translateY(1px) scale(0.95); }
-  50% { transform: translateX(2px) translateY(-1px) scale(0.95); }
-  75% { transform: translateX(-2px) translateY(1px) scale(0.95); }
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px) translateY(1px); }
+  50% { transform: translateX(2px) translateY(-1px); }
+  75% { transform: translateX(-2px) translateY(1px); }
 }
 
 .animate-shake-weak {
   animation: shake-weak 1.5s ease-in-out infinite;
 }
 
+
+/* Keep status text in normal layout and only animate the machine artwork. */
+@media (prefers-reduced-motion: reduce) {
+  .mecha-display > svg { animation: none !important; }
+}
