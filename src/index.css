@@ -248,6 +248,7 @@
  .arena-shell-home .cockpit-nav{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding-inline:16px}
 }
 @media(min-width:760px) and (max-height:620px){.arena-shell-home .cockpit-main{padding:7px 10px}.cockpit-console{gap:7px}.cockpit-hero{padding:7px}.cockpit-actions .play-button{min-height:54px}.cockpit-stats>div{padding:5px 2px}.play-meter{padding:6px}.cockpit-feedback-slot{min-height:14px}.cockpit-name h2{font-size:19px}}
+@media(max-width:420px){.cockpit-name h2{font-size:16px}.cockpit-edit{min-width:32px}.cockpit-identity{grid-template-columns:44px minmax(0,1fr) 44px}}
 @media(max-width:360px){.cockpit-main{padding-inline:8px}.cockpit-resources{gap:3px}.cockpit-resources>span{padding:4px}.cockpit-tools .play-small{padding-inline:2px}.cockpit-species{font-size:10px}.mecha-status{font-size:10px;padding:2px 3px}}
 /* Extremely short or zoomed screens remain usable, never clip actions. */
 @media(max-width:759px) and (max-height:575px){.cockpit-main-home{overflow-y:auto}.cockpit-home{height:auto;min-height:510px}.cockpit-art{min-height:160px}}

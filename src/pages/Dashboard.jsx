@@ -156,8 +156,8 @@ export default function Dashboard({
       <div className="cockpit-identity">
         <button aria-label="上一隻機甲" title="上一隻機甲" className="play-arrow" disabled={monsters.length<2} onClick={()=>choosePet(-1)}>‹</button>
         <div className="min-w-0 text-center">
-          <div className="cockpit-name"><h2 title={displayName}>{displayName}</h2><button className="cockpit-edit" aria-label="改名" title="改名" disabled={loading} onClick={handleRename}><GameIcon name="edit"/></button></div>
-          <div className="cockpit-species">{displayName!==speciesName&&<span>{mecha.factionName}・{mecha.roleName}</span>}<span>G{monster.generation}{displayName!==speciesName?' '+STAGE_NAMES[monster.life_stage]:''}</span></div>
+          <div className="cockpit-name"><h2 title={displayName} aria-label={displayName}>{displayName===speciesName?(mecha.type?mecha.roleName+'・'+mecha.stageName:mecha.stageName):displayName}</h2><button className="cockpit-edit" aria-label="改名" title="改名" disabled={loading} onClick={handleRename}><GameIcon name="edit"/></button></div>
+          <div className="cockpit-species"><span>{mecha.factionName}{displayName!==speciesName?'・'+mecha.roleName:''}</span><span>G{monster.generation}{displayName!==speciesName?' '+STAGE_NAMES[monster.life_stage]:''}</span></div>
         </div>
         <button aria-label="下一隻機甲" title="下一隻機甲" className="play-arrow" disabled={monsters.length<2} onClick={()=>choosePet(1)}>›</button>
       </div>
