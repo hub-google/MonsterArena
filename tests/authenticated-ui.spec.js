@@ -269,7 +269,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  const portrait=await shell.boundingBox();
  expect(portrait.width).toBeLessThanOrEqual(400);
  expect(portrait.height).toBeGreaterThan(portrait.width);
- const assertSingleColumn=async()=>{const hero=await home.locator('.cockpit-hero').boundingBox(),consoleBox=await home.locator('.cockpit-console').boundingBox();expect(Math.abs(hero.x-consoleBox.x)).toBeLessThanOrEqual(1);expect(Math.abs(hero.width-consoleBox.width)).toBeLessThanOrEqual(1);expect(hero.y+hero.height).toBeLessThanOrEqual(consoleBox.y+1)};
+ const assertSingleColumn=async()=>{await expect.poll(()=>home.evaluate(el=>{const hero=el.querySelector('.cockpit-hero').getBoundingClientRect(),panel=el.querySelector('.cockpit-console').getBoundingClientRect();return Math.max(Math.abs(hero.x-panel.x),Math.abs(hero.width-panel.width),hero.bottom-panel.top)})).toBeLessThanOrEqual(1)};
  await assertSingleColumn();
  await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
  await expect(home.locator('.cockpit-species')).toContainText('鋼鐵族');
@@ -280,6 +280,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  await assertVisiblePaint(90);
  await actions.getByRole('button',{name:'切換機器人'}).click();
  await page.setViewportSize({width:1280,height:800});
+ await expect.poll(()=>shell.evaluate(el=>el.getBoundingClientRect().width)).toBeCloseTo(400,0);
  await assertSingleColumn();
  await assertVisiblePaint(150);
  await shell.screenshot({path:'test-results/ui-visual/desktop-tall.png',animations:'disabled'});
@@ -292,12 +293,14 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  });
  const desktopLayout=await layoutSignature();
  await page.setViewportSize({width:400,height:780});
+ await expect.poll(()=>shell.evaluate(el=>el.getBoundingClientRect().width)).toBeCloseTo(400,0);
  await assertSingleColumn();
  await assertVisiblePaint(150);
  const phoneLayout=await layoutSignature();
  for(let i=0;i<desktopLayout.length;i++)for(let j=0;j<4;j++)expect(Math.abs(desktopLayout[i][j]-phoneLayout[i][j])).toBeLessThanOrEqual(2);
  await shell.screenshot({path:'test-results/ui-visual/mobile-matched.png',animations:'disabled'});
  await page.setViewportSize({width:360,height:640});
+ await expect.poll(()=>shell.evaluate(el=>el.getBoundingClientRect().width)).toBeCloseTo(360,0);
  await assertSingleColumn();
  await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
  expect(await home.locator('.cockpit-name h2').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
