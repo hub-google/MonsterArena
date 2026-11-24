@@ -1,6 +1,5 @@
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS repair_until timestamptz;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS skin_id text;
-ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS repair_until timestamptz;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_hp int NOT NULL DEFAULT 0 CHECK(training_hp BETWEEN 0 AND 30);
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_atk int NOT NULL DEFAULT 0 CHECK(training_atk BETWEEN 0 AND 30);
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_def int NOT NULL DEFAULT 0 CHECK(training_def BETWEEN 0 AND 30);
@@ -8,7 +7,13 @@ ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_spd int NOT NULL D
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS core_quality int NOT NULL DEFAULT 0 CHECK(core_quality BETWEEN 0 AND 5);
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS legacy_combat jsonb;
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='arena_training_budget' AND conrelid='public.monsters'::regclass) THEN ALTER TABLE public.monsters ADD CONSTRAINT arena_training_budget CHECK(training_hp+training_atk+training_def+training_spd<=60); END IF; END $$;
-UPDATE public.monsters SET legacy_combat=jsonb_build_object('hp',combat_hp,'atk',combat_atk,'def',combat_def,'spd',combat_spd,'train_count',train_count) WHERE legacy_combat IS NULL;
+UPDATE public.monsters SET legacy_combat=jsonb_build_object('hp',combat_hp,'atk',combat_atk,'def',combat_def,'spd',combat_spd,'train_count',train_count),
+ training_hp=least(15,greatest(0,(coalesce(train_count,0)+3)/4)),
+ training_atk=least(15,greatest(0,(coalesce(train_count,0)+2)/4)),
+ training_def=least(15,greatest(0,(coalesce(train_count,0)+1)/4)),
+ training_spd=least(15,greatest(0,coalesce(train_count,0)/4))
+ WHERE legacy_combat IS NULL AND coalesce(train_count,0)>0 AND training_hp+training_atk+training_def+training_spd=0;
+ UPDATE public.monsters SET legacy_combat=jsonb_build_object('hp',combat_hp,'atk',combat_atk,'def',combat_def,'spd',combat_spd,'train_count',train_count) WHERE legacy_combat IS NULL;
 -- Arena next game rules. Private tables are never exposed via PostgREST.
 -- Compose before canonical RPCs; deploy only through a reviewed, isolated migration.
 CREATE SCHEMA IF NOT EXISTS arena_internal;
@@ -100,11 +105,11 @@ CREATE OR REPLACE FUNCTION arena_internal.encounter(p_name text)
 RETURNS TABLE(name text,kind int,family int,stage int,hp double precision,atk double precision,def double precision,spd double precision,reward int)
 LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
   SELECT v.name,v.kind,v.family,v.stage,v.hp,v.atk,v.def,v.spd,v.reward FROM (VALUES
-    ('wild','廢棄機械兵',0,3,2,80::double precision,16::double precision,12::double precision,12::double precision,10),
-    ('stage2','失控巡邏機',2,4,3,115,23,18,18,20),
-    ('stage3','重裝守衛',2,4,4,180,26,38,18,40),
-    ('stage4','疾風獵手',1,5,5,175,38,22,42,60),
-    ('stage5','深淵機甲',2,7,6,230,44,35,32,100),
+    ('wild','廢棄機械兵',0,3,2,115::double precision,16::double precision,12::double precision,12::double precision,10),
+    ('stage2','失控巡邏機',2,4,3,117,23,18,18,20),
+    ('stage3','重裝守衛',2,4,4,156,26,38,18,40),
+    ('stage4','疾風獵手',1,5,5,197,38,22,42,60),
+    ('stage5','深淵機甲',2,7,6,226,44,35,32,100),
     ('boss','終極機甲首領',1,7,6,300,52,40,35,120)
   ) AS v(id,name,kind,family,stage,hp,atk,def,spd,reward)
   WHERE v.id=p_name;
@@ -112,17 +117,98 @@ $$;
 REVOKE ALL ON FUNCTION arena_internal.encounter(text) FROM PUBLIC, anon, authenticated;
 
 
+-- Factions form a directed cycle; undeveloped units have no combat affinity.
+CREATE OR REPLACE FUNCTION arena_internal.role_id(p_stage int,p_family int,p_type int) RETURNS int LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
+ SELECT CASE WHEN coalesce(p_stage,1)<3 OR coalesce(p_type,0)=0 THEN 0 ELSE (CASE p_family WHEN 1 THEN 0 WHEN 2 THEN 0 WHEN 4 THEN 2 WHEN 5 THEN 2 WHEN 6 THEN 4 WHEN 7 THEN 4 WHEN 3 THEN 6 WHEN 8 THEN 6 ELSE 0 END)+CASE WHEN p_type=1 THEN 1 ELSE 2 END END;
+$$;
+REVOKE ALL ON FUNCTION arena_internal.role_id(int,int,int) FROM PUBLIC, anon, authenticated;
+CREATE OR REPLACE FUNCTION arena_internal.base_profiles(p_stage int)
+RETURNS TABLE(role int,hp int,atk int,def int,spd int) LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
+ SELECT v.role,v.hp,v.atk,v.def,v.spd FROM (VALUES
+ (2,0,100,20,15,15),
+ (3,0,125,25,20,20),
+ (3,1,115,26,15,18),
+ (3,2,123,24,17,21),
+ (3,3,133,21,24,15),
+ (3,4,120,25,18,20),
+ (3,5,122,24,18,17),
+ (3,6,119,25,16,21),
+ (3,7,127,23,18,21),
+ (3,8,137,21,21,19),
+ (4,0,160,32,25,25),
+ (4,1,151,33,21,23),
+ (4,2,157,31,22,28),
+ (4,3,170,27,29,20),
+ (4,4,152,32,23,26),
+ (4,5,156,31,24,24),
+ (4,6,154,32,21,25),
+ (4,7,165,29,25,26),
+ (4,8,172,28,25,23),
+ (5,0,200,40,30,30),
+ (5,1,187,42,27,30),
+ (5,2,198,39,28,34),
+ (5,3,213,34,38,25),
+ (5,4,193,40,29,33),
+ (5,5,196,39,30,30),
+ (5,6,194,40,27,32),
+ (5,7,206,37,30,33),
+ (5,8,217,35,32,28),
+ (6,0,240,48,36,36),
+ (6,1,226,50,31,35),
+ (6,2,235,47,33,39),
+ (6,3,253,40,44,30),
+ (6,4,231,48,34,38),
+ (6,5,235,46,36,38),
+ (6,6,233,48,32,38),
+ (6,7,246,44,36,39),
+ (6,8,254,42,38,34)
+ ) v(stage,role,hp,atk,def,spd) WHERE v.stage=greatest(2,least(6,coalesce(p_stage,2)));
+$$;
+REVOKE ALL ON FUNCTION arena_internal.base_profiles(int) FROM PUBLIC, anon, authenticated;
 CREATE OR REPLACE FUNCTION arena_internal.unit_stats(m public.monsters)
 RETURNS TABLE(hp double precision,atk double precision,def double precision,spd double precision)
 LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
- WITH role AS (SELECT CASE WHEN coalesce(m.life_stage,1)<3 OR coalesce(m.type,0)=0 THEN 0 ELSE (CASE m.family WHEN 1 THEN 0 WHEN 2 THEN 0 WHEN 4 THEN 2 WHEN 5 THEN 2 WHEN 6 THEN 4 WHEN 7 THEN 4 WHEN 3 THEN 6 WHEN 8 THEN 6 ELSE 0 END)+CASE WHEN m.type=1 THEN 1 ELSE 2 END END id),
- base AS (SELECT v.hp,v.atk,v.def,v.spd,CASE greatest(2,least(6,coalesce(m.life_stage,2))) WHEN 2 THEN .5 WHEN 3 THEN .625 WHEN 4 THEN .8 WHEN 5 THEN 1 ELSE 1.2 END scale FROM (VALUES (0,200,40,30,30),(1,187,42,27,30),(2,198,39,28,34),(3,216,34,37,25),(4,192,40,29,32),(5,197,39,30,30),(6,193,40,28,32),(7,207,37,30,33),(8,216,35,32,28)) v(id,hp,atk,def,spd) JOIN role r USING(id))
- SELECT floor(hp*scale*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_hp,0)*2+hp*scale*.05*((CASE WHEN m.chip_slot_1='chip_hp' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_hp' THEN 1 ELSE 0 END))),
- floor(atk*scale*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_atk,0)*0.5+atk*scale*.05*((CASE WHEN m.chip_slot_1='chip_atk' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_atk' THEN 1 ELSE 0 END))),
- floor(def*scale*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_def,0)*0.5+def*scale*.05*((CASE WHEN m.chip_slot_1='chip_def' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_def' THEN 1 ELSE 0 END))),
- floor(spd*scale*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_spd,0)*0.5+spd*scale*.05*((CASE WHEN m.chip_slot_1='chip_spd' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_spd' THEN 1 ELSE 0 END))) FROM base;
+ SELECT floor(b.hp*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_hp,0)*2+b.hp*.05*((CASE WHEN m.chip_slot_1='chip_hp' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_hp' THEN 1 ELSE 0 END))),
+ floor(b.atk*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_atk,0)*0.5+b.atk*.05*((CASE WHEN m.chip_slot_1='chip_atk' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_atk' THEN 1 ELSE 0 END))),
+ floor(b.def*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_def,0)*0.5+b.def*.05*((CASE WHEN m.chip_slot_1='chip_def' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_def' THEN 1 ELSE 0 END))),
+ floor(b.spd*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_spd,0)*0.5+b.spd*.05*((CASE WHEN m.chip_slot_1='chip_spd' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_spd' THEN 1 ELSE 0 END)))
+ FROM arena_internal.base_profiles(m.life_stage) b WHERE b.role=arena_internal.role_id(m.life_stage,m.family,m.type);
 $$;
 REVOKE ALL ON FUNCTION arena_internal.unit_stats(public.monsters) FROM PUBLIC, anon, authenticated;
+-- All automatic matches use this engine. Advantage increases damage rather than predetermining a winner.
+CREATE OR REPLACE FUNCTION arena_internal.duel_damage(p_atk double precision,p_def double precision,p_role int,p_other int,p_round int,p_roll double precision)
+RETURNS int LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
+ SELECT greatest(1,floor(
+ p_atk*(CASE WHEN p_other=7 AND p_round%3=0 THEN 1 WHEN p_role=1 AND p_round%3=1 THEN 1.12 WHEN p_role=2 AND p_round%2=0 THEN 1.10 WHEN p_role=4 AND p_round%3=0 THEN 1.10 WHEN p_role=5 THEN 1.04 WHEN p_role=6 AND p_round%3=0 THEN 1.16 ELSE 1 END)
+ *(CASE WHEN p_role=5 THEN .88+p_roll*.24 ELSE .85+p_roll*.30 END)
+ *100/(100+p_def*(CASE WHEN p_role=4 AND p_round%3=0 AND p_other<>7 THEN .85 ELSE 1 END))
+ *(CASE WHEN p_role>0 AND p_other>0 AND (p_other-1)/2=((p_role-1)/2+1)%4 THEN 1.045 ELSE 1 END)
+ *(CASE WHEN p_other=3 THEN .95 WHEN p_other=7 AND p_round%3=0 THEN .93 ELSE 1 END)
+ ))::int;
+$$;
+REVOKE ALL ON FUNCTION arena_internal.duel_damage(double precision,double precision,int,int,int,double precision) FROM PUBLIC, anon, authenticated;
+CREATE OR REPLACE FUNCTION arena_internal.auto_battle(a double precision[],b double precision[],role_a int,role_b int,log_events boolean DEFAULT true)
+RETURNS jsonb LANGUAGE plpgsql VOLATILE SET search_path TO pg_catalog,pg_temp AS $$
+DECLARE h double precision[]:=ARRAY[a[1],b[1]]; mx double precision[]:=h; atk double precision[]:=ARRAY[a[2],b[2]]; def double precision[]:=ARRAY[a[3],b[3]];
+ roles int[]:=ARRAY[role_a,role_b]; first int; attacker int; defender int; dmg int; r int; rounds int:=0; events jsonb:='[]'; won boolean;
+BEGIN
+ FOR r IN 1..25 LOOP
+  rounds:=r;
+  first:=CASE WHEN random()<.5+.4*(a[4]-b[4])/greatest(1,a[4]+b[4]) THEN 1 ELSE 2 END;
+  FOR step IN 1..2 LOOP
+   attacker:=CASE WHEN step=1 THEN first ELSE 3-first END; defender:=3-attacker;
+   dmg:=least(h[defender],arena_internal.duel_damage(atk[attacker],def[defender],roles[attacker],roles[defender],r,random()))::int;
+   h[defender]:=greatest(0,h[defender]-dmg);
+   IF roles[attacker]=8 AND r%3=0 AND roles[defender]<>7 THEN h[attacker]:=least(mx[attacker],h[attacker]+greatest(1,floor(mx[attacker]*.025))); END IF;
+   IF log_events THEN events:=events||jsonb_build_array(jsonb_build_object('attacker',CASE WHEN attacker=1 THEN 'A' ELSE 'B' END,'damage',dmg,'ownHp',h[1],'enemyHp',h[2])); END IF;
+   EXIT WHEN h[1]<=0 OR h[2]<=0;
+  END LOOP;
+  EXIT WHEN h[1]<=0 OR h[2]<=0;
+ END LOOP;
+ won:=CASE WHEN h[2]<=0 THEN true WHEN h[1]<=0 THEN false WHEN h[1]/mx[1]=h[2]/mx[2] THEN random()<.5 ELSE h[1]/mx[1]>h[2]/mx[2] END;
+ RETURN jsonb_build_object('won',won,'ownHp',h[1],'enemyHp',h[2],'rounds',rounds,'events',events);
+END $$;
+REVOKE ALL ON FUNCTION arena_internal.auto_battle(double precision[],double precision[],int,int,boolean) FROM PUBLIC, anon, authenticated;
 CREATE OR REPLACE FUNCTION arena_internal.refresh_unit(p_id uuid)
 RETURNS void LANGUAGE sql SET search_path TO pg_catalog,pg_temp AS $$
  UPDATE public.monsters m SET combat_hp=f.hp,combat_atk=f.atk,combat_def=f.def,combat_spd=f.spd FROM public.monsters source CROSS JOIN LATERAL arena_internal.unit_stats(source) f WHERE m.monster_id=p_id AND source.monster_id=m.monster_id AND m.life_stage>=2;

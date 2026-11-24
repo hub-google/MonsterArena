@@ -225,6 +225,7 @@ export default function Dashboard({
        <div className="dialog-heading"><h2>機體訓練</h2><button aria-label="關閉訓練" onClick={()=>setShowTrain(false)}>×</button></div>
        <p className="text-sm">總配點 {['hp','atk','def','spd'].reduce((n,k)=>n+Number(monster['training_'+k]||0),0)}/60，單項上限 30。每次消耗 10 行動電力。</p>
        <label className="text-sm"><input type="checkbox" checked={trainBoost} disabled={getItemQty('vitamin')<1} onChange={e=>setTrainBoost(e.target.checked)}/> 使用效能增幅器（庫存 {getItemQty('vitamin')}）</label>
+       {['hp','atk','def','spd'].reduce((n,k)=>n+Number(monster['training_'+k]||0),0)>=60&&<PlayButton icon="train" label="維持訓練" subtext="配點已滿，仍可完成每日任務" disabled={loading||user.stamina<10||monster.is_sick||monster.fullness<20} onClick={()=>{setShowTrain(false);handleAction(api.train,monster.monster_id,'practice',false)}}/>}
        <div className="grid grid-cols-2 gap-2">{[['hp','耐久','guild'],['atk','攻擊','battle'],['def','防禦','guild'],['spd','速度','speed']].map(([k,n,icon])=><PlayButton key={k} icon={icon} label={'訓練'+n} subtext={(monster['training_'+k]||0)+'/30'} disabled={loading||user.stamina<10||monster.is_sick||monster.fullness<20||Number(monster['training_'+k]||0)>=30||['hp','atk','def','spd'].reduce((a,x)=>a+Number(monster['training_'+x]||0),0)>=60} onClick={()=>{setShowTrain(false);handleAction(api.train,monster.monster_id,k,trainBoost)}}/>)}</div>
        </div></div>}
     {(showFeedMenu||showHealMenu)&&!checkout&&!monster.is_dead&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label={showFeedMenu?'選擇補給':'選擇修復道具'}>

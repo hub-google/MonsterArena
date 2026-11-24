@@ -21,7 +21,6 @@ declare
   v_price int;
   v_count int;
   v_stat text;
-  v_value numeric;
   v_old numeric;
   v_bonus numeric;
   v_stage int;
@@ -49,15 +48,6 @@ declare
   v_enemy_spd double precision;
   v_own_hp double precision;
   v_own_max_hp double precision;
-  v_damage_a integer;
-  v_own_faction integer;
-  v_enemy_faction integer;
-  v_own_role integer;
-  v_enemy_role integer;
-  v_damage_b integer;
-  v_round integer;
-  v_step integer;
-  v_player_first boolean;
   v_events jsonb := '[]'::jsonb;
   v_result jsonb;
   v_text text;
@@ -250,12 +240,12 @@ begin
     if v_u.stamina<10 then raise exception '體力不足，需要 10 點'; end if;
     if v_m.is_sick or coalesce(v_m.fullness,0)<20 then raise exception '怪獸太餓或生病，無法訓練'; end if;
     v_stat:=coalesce(p_data->>'stat','atk');
-    IF v_stat NOT IN ('hp','atk','def','spd') THEN RAISE EXCEPTION '無效訓練項目'; END IF;
+    IF v_stat NOT IN ('hp','atk','def','spd','practice') THEN RAISE EXCEPTION '無效訓練項目'; END IF;
     v_allocated:=v_m.training_hp+v_m.training_atk+v_m.training_def+v_m.training_spd;
     v_count:=CASE v_stat WHEN 'hp' THEN v_m.training_hp WHEN 'atk' THEN v_m.training_atk WHEN 'def' THEN v_m.training_def ELSE v_m.training_spd END;
     v_points:=least(1,60-v_allocated,30-v_count);
-    IF v_points<=0 THEN RAISE EXCEPTION '訓練配點已達上限'; END IF;
-    IF coalesce((p_data->>'boost')::boolean,false) AND v_allocated<59 AND v_count<29 THEN
+    IF v_allocated>=60 AND v_stat='practice' THEN v_points:=0; ELSIF v_points<=0 OR v_stat='practice' THEN RAISE EXCEPTION '訓練配點已達上限'; END IF;
+    IF v_stat<>'practice' AND coalesce((p_data->>'boost')::boolean,false) AND v_allocated<59 AND v_count<29 THEN
       SELECT * INTO v_inv FROM public.user_inventory WHERE user_id=v_uid AND item_id='vitamin' AND quantity>0 FOR UPDATE;
       IF NOT FOUND THEN RAISE EXCEPTION '效能增幅器不足'; END IF;
       UPDATE public.user_inventory SET quantity=quantity-1 WHERE inventory_id=v_inv.inventory_id; v_points:=2;
@@ -266,7 +256,7 @@ begin
       training_def=training_def+CASE WHEN v_stat='def' THEN v_points ELSE 0 END,
       training_spd=training_spd+CASE WHEN v_stat='spd' THEN v_points ELSE 0 END,fullness=greatest(0,fullness-10),train_count=coalesce(train_count,0)+1 WHERE monster_id=v_mon_id;
     PERFORM arena_internal.refresh_unit(v_mon_id);
-    v_result:=jsonb_build_object('message','訓練完成，配點 +'||v_points);
+    v_result:=jsonb_build_object('message',CASE WHEN v_points=0 THEN '維持訓練完成' ELSE '訓練完成，配點 +'||v_points END);
     v_key:='train_count';
   elsif p_action='evolve' then
     if v_m.life_stage<>5 or coalesce(v_m.battles,0)<50 or (coalesce(v_m.wins,0)::numeric/nullif(v_m.battles,0))<0.7 then
@@ -436,61 +426,11 @@ begin
       v_own_hp:=(v_tactical->>'ownHp')::double precision; v_enemy_hp:=(v_tactical->>'enemyHp')::double precision;
       v_won:=(v_tactical->>'won')::boolean; v_events:=v_tactical->'events';
     ELSE
-    v_own_faction:=(case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end);
-    v_enemy_faction:=(case coalesce(v_enemy_family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end);
-    v_own_role:=case when coalesce(v_m.life_stage,1)<3 then 0 else (v_own_faction-1)*2+case when v_m.type=1 then 1 else 2 end end;
-    v_enemy_role:=case when coalesce(v_enemy_stage,1)<3 then 0 else (v_enemy_faction-1)*2+case when v_enemy_type=1 then 1 else 2 end end;
-    for v_round in 1..25 loop
-      v_player_first:=random()<0.5+0.4*(v_fighter.spd-v_enemy_spd)/greatest(1,v_fighter.spd+v_enemy_spd);
-      for v_step in 1..2 loop
-        if (v_step=1 and v_player_first) or (v_step=2 and not v_player_first) then
-          v_damage_a:=greatest(1,floor(
-            greatest(1,(v_fighter.atk) *
-              (case when v_enemy_role=7 and mod(v_round,3)=0 then 1
-                    when v_own_role=1 and mod(v_round,3)=1 then 1.12
-                    when v_own_role=2 and mod(v_round,2)=0 then 1.10
-                    when v_own_role=4 and mod(v_round,3)=0 then 1.10
-                    when v_own_role=5 then 1.04
-                    when v_own_role=6 and mod(v_round,3)=0 then 1.16 else 1 end) *
-              (case when v_own_role=5 then 0.88+random()*0.24 else 0.85+random()*0.30 end)
-              *100/(100+v_enemy_def*(case when v_own_role=4 and mod(v_round,3)=0 and not (v_enemy_role=7 and mod(v_round,3)=0) then 0.85 else 1 end)))
-            * (case when v_enemy_faction=mod(v_own_faction,4)+1 then 1.01 else 1 end)
-            * (case when v_enemy_role=3 then 0.95 when v_enemy_role=7 and mod(v_round,3)=0 then 0.93 else 1 end)
-          )::int);
-          v_enemy_hp:=greatest(0,v_enemy_hp-v_damage_a);
-          if v_own_role=8 and mod(v_round,3)=0 and not (v_enemy_role=7 and mod(v_round,3)=0) then
-            v_own_hp:=least(v_own_max_hp,v_own_hp+greatest(1,floor(v_own_max_hp*0.025)));
-          end if;
-          v_events:=v_events||jsonb_build_array(jsonb_build_object(
-            'attacker','A','damage',v_damage_a,'ownHp',v_own_hp,'enemyHp',v_enemy_hp));
-        else
-          v_damage_b:=greatest(1,floor(
-            greatest(1,(v_enemy_atk) *
-              (case when v_own_role=7 and mod(v_round,3)=0 then 1
-                    when v_enemy_role=1 and mod(v_round,3)=1 then 1.12
-                    when v_enemy_role=2 and mod(v_round,2)=0 then 1.10
-                    when v_enemy_role=4 and mod(v_round,3)=0 then 1.10
-                    when v_enemy_role=5 then 1.04
-                    when v_enemy_role=6 and mod(v_round,3)=0 then 1.16 else 1 end) *
-              (case when v_enemy_role=5 then 0.88+random()*0.24 else 0.85+random()*0.30 end)
-              *100/(100+v_fighter.def*(case when v_enemy_role=4 and mod(v_round,3)=0 and not (v_own_role=7 and mod(v_round,3)=0) then 0.85 else 1 end)))
-            * (case when v_own_faction=mod(v_enemy_faction,4)+1 then 1.01 else 1 end)
-            * (case when v_own_role=3 then 0.95 when v_own_role=7 and mod(v_round,3)=0 then 0.93 else 1 end)
-          )::int);
-          v_own_hp:=greatest(0,v_own_hp-v_damage_b);
-          if v_enemy_role=8 and mod(v_round,3)=0 and not (v_own_role=7 and mod(v_round,3)=0) then
-            v_enemy_hp:=least(v_enemy_max_hp,v_enemy_hp+greatest(1,floor(v_enemy_max_hp*0.025)));
-          end if;
-          v_events:=v_events||jsonb_build_array(jsonb_build_object(
-            'attacker','B','damage',v_damage_b,'ownHp',v_own_hp,'enemyHp',v_enemy_hp));
-        end if;
-        exit when v_own_hp<=0 or v_enemy_hp<=0;
-      end loop;
-      exit when v_own_hp<=0 or v_enemy_hp<=0;
-    end loop;
-    -- A battle is bounded to avoid excessive RPC work with extreme stats.
-    v_won:=case when v_enemy_hp<=0 then true when v_own_hp<=0 then false
-      else v_own_hp/v_own_max_hp > v_enemy_hp/v_enemy_max_hp end;
+      v_tactical:=arena_internal.auto_battle(
+        ARRAY[v_fighter.hp,v_fighter.atk,v_fighter.def,v_fighter.spd],ARRAY[v_enemy_max_hp,v_enemy_atk,v_enemy_def,v_enemy_spd],
+        arena_internal.role_id(v_m.life_stage,v_m.family,v_m.type),arena_internal.role_id(v_enemy_stage,v_enemy_family,v_enemy_type),true);
+      v_won:=(v_tactical->>'won')::boolean; v_events:=v_tactical->'events';
+      v_own_hp:=(v_tactical->>'ownHp')::double precision; v_enemy_hp:=(v_tactical->>'enemyHp')::double precision;
     END IF;
     v_battle:=gen_random_uuid()::text;
     insert into public.battle_records(user_id,battle_id,monster_id,won)

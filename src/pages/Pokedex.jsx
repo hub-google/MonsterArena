@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
+import {GAME_RULES_V2} from '../utils/api';
 import {FACTIONS,MONSTER_SPRITES} from '../utils/monsterSprites';
 import {PlayButton,GameIcon} from '../components/PlayButton';
 const glyphs=['car','guild','wing','orbit'];
@@ -21,7 +22,7 @@ export default function Pokedex(){
    {canTransform(m)?<button type="button" aria-label={(isVehicle(m)?'還原：':'變身：')+m.name} aria-pressed={isVehicle(m)} onClick={()=>toggle(m)} className="catalog-transform"><GameIcon name="transform"/><span>{isVehicle(m)?'還原':'變身'}</span></button>:<span className="catalog-transform-placeholder">尚未解鎖變身</span>}
   </article>)}</div>
   <div className="page-controls"><button className="play-arrow" aria-label="上一頁圖鑑" disabled={!current} onClick={()=>setPage(current-1)}>‹</button><span>{current+1} / {pages}</span><button className="play-arrow" aria-label="下一頁圖鑑" disabled={current>=pages-1} onClick={()=>setPage(current+1)}>›</button></div>
-  <details className="text-xs text-slate-400"><summary>陣營克制</summary>疾風 → 鋼鐵 → 蒼空 → 星核 → 疾風　克制傷害 +20%</details>
+  <details className="text-xs text-slate-400"><summary>陣營克制</summary>疾風 → 鋼鐵 → 蒼空 → 星核 → 疾風　克制傷害 +{GAME_RULES_V2?'4.5':'20'}%；不同職業另有技能優勢，不代表必勝。</details>
   {selected&&<div className="cockpit-overlay" role="dialog" aria-label={selected.name} aria-modal="true"><div className="cockpit-dialog flex flex-col items-center gap-2">
     <div className="dialog-heading w-full"><h2>機甲資料</h2><button onClick={()=>setSelected(null)} aria-label="關閉圖鑑詳情">×</button></div>
     <MonsterPixelArt family={selected.family} stage={selected.stage} type={selected.type} vehicle={isVehicle(selected)} fitVehicle displaySize={200}/>

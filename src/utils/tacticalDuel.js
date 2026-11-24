@@ -76,20 +76,42 @@ export const BOSS_ACTIONS=Object.freeze({
 });
 export const BOSS_MAX_ROUNDS=20;
 export const bossDamage=(attack,defense)=>Math.max(1,Math.floor(attack*100/(100+Math.max(0,defense))));
-export const ROLE_STATS=Object.freeze([[187,42,27,30],[198,39,28,34],[216,34,37,25],[192,40,29,32],[197,39,30,30],[194,40,28,32],[207,37,30,33],[217,35,32,28]].map(Object.freeze));
+export const STAGE_ROLE_STATS=Object.freeze(Object.fromEntries(Object.entries({"2":[[100,20,15,15]],"3":[[125,25,20,20],[115,26,15,18],[123,24,17,21],[133,21,24,15],[120,25,18,20],[122,24,18,17],[119,25,16,21],[127,23,18,21],[137,21,21,19]],"4":[[160,32,25,25],[151,33,21,23],[157,31,22,28],[170,27,29,20],[152,32,23,26],[156,31,24,24],[154,32,21,25],[165,29,25,26],[172,28,25,23]],"5":[[200,40,30,30],[187,42,27,30],[198,39,28,34],[213,34,38,25],[193,40,29,33],[196,39,30,30],[194,40,27,32],[206,37,30,33],[217,35,32,28]],"6":[[240,48,36,36],[226,50,31,35],[235,47,33,39],[253,40,44,30],[231,48,34,38],[235,46,36,38],[233,48,32,38],[246,44,36,39],[254,42,38,34]]}).map(([k,rows])=>[k,Object.freeze(rows.map(Object.freeze))])));
+export const ROLE_STATS=Object.freeze(STAGE_ROLE_STATS[5].slice(1));
+export const AFFINITY_BONUS=1.045;
 export function roleId(m){
  if(Number(m.life_stage)<3||!Number(m.type))return 0;
  return (({1:0,2:0,4:2,5:2,6:4,7:4,3:6,8:6})[m.family]||0)+(Number(m.type)===1?1:2);
 }
+export function affinityAdvantage(a,b){return a>0&&b>0&&Math.floor((b-1)/2)===(Math.floor((a-1)/2)+1)%4;}
 export function unitStats(m){
- const stage=Math.max(2,Math.min(6,Number(m.life_stage)||2)),role=roleId(m),base=role?ROLE_STATS[role-1]:[200,40,30,30],scale=({2:.5,3:.625,4:.8,5:1,6:1.2})[stage];
+ const stage=Math.max(2,Math.min(6,Math.floor(Number(m.life_stage)||2))),role=roleId(m),base=STAGE_ROLE_STATS[stage][role]||STAGE_ROLE_STATS[stage][0];
  const quality=1+Math.max(0,Math.min(5,Number(m.core_quality)||0))/100;
  return Object.fromEntries(['hp','atk','def','spd'].map((k,i)=>{
-  const v=base[i]*scale,points=Math.max(0,Math.min(30,Number(m['training_'+k])||0));
+  const v=base[i],points=Math.max(0,Math.min(30,Number(m['training_'+k])||0));
   const chips=[m.chip_slot_1,m.chip_slot_2].filter(c=>c==='chip_'+k).length;
   return [k,Math.floor(v*quality+points*(i===0?2:.5)+v*.05*chips+1e-9)];
  }));
 }
+// Deterministic simulation mirror; the isolated SQL tests exercise the authoritative engine.
+export function duelDamage(atk,def,role,other,round,roll){
+ const mult=other===7&&round%3===0?1:role===1&&round%3===1?1.12:role===2&&round%2===0?1.10:role===4&&round%3===0?1.10:role===5?1.04:role===6&&round%3===0?1.16:1;
+ return Math.max(1,Math.floor(atk*mult*(role===5?.88+roll*.24:.85+roll*.30)*100/(100+def*(role===4&&round%3===0&&other!==7?.85:1))*(affinityAdvantage(role,other)?AFFINITY_BONUS:1)*(other===3?.95:other===7&&round%3===0?.93:1)));
+}
+export function autoBattle(a,b,roleA,roleB,rng=Math.random){
+ const S=[a,b],R=[roleA,roleB],H=[a[0],b[0]];let rounds=0;
+ for(let r=1;r<=25;r++){
+  rounds=r;const first=rng()<.5+.4*(a[3]-b[3])/Math.max(1,a[3]+b[3])?0:1;
+  for(let k=0;k<2;k++){const x=k===0?first:1-first,y=1-x;
+   H[y]=Math.max(0,H[y]-duelDamage(S[x][1],S[y][2],R[x],R[y],r,rng()));
+   if(R[x]===8&&r%3===0&&R[y]!==7)H[x]=Math.min(S[x][0],H[x]+Math.max(1,Math.floor(S[x][0]*.025)));
+   if(H[y]<=0)break;
+  }
+  if(H.some(v=>v<=0))break;
+ }
+ return {won:H[1]<=0?true:H[0]<=0?false:H[0]/a[0]===H[1]/b[0]?rng()<.5:H[0]/a[0]>H[1]/b[0],hp:H,rounds};
+}
+export const FIXED_ENCOUNTERS=Object.freeze([['wild','廢棄機械兵',115,16,12,12,10,2,0],['stage2','失控巡邏機',117,23,18,18,20,3,4],['stage3','重裝守衛',156,26,38,18,40,4,4],['stage4','疾風獵手',197,38,22,42,60,5,5],['stage5','深淵機甲',226,44,35,32,100,6,6],['boss','終極機甲首領',300,52,40,35,120,6,0]].map(Object.freeze));
 export function balancedFighter(monster={}){
  if(Object.hasOwn(monster,'training_hp'))return unitStats(monster);
  const stage=Math.max(2,Math.min(6,Math.floor(Number(monster.life_stage)||2)));

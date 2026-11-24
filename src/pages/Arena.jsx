@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import BattleReveal from '../components/BattleReveal';
 import TacticalDuel from './TacticalDuel';
+import {FIXED_ENCOUNTERS} from '../utils/tacticalDuel';
 import {appearance,hasDisguise,getSkin} from '../utils/skins';
 import { api, GAME_RULES_V2 } from '../utils/api';
 import {PlayButton,GameIcon} from '../components/PlayButton';
@@ -226,14 +227,7 @@ export default function Arena({
         {subTab==='players'&&GAME_RULES_V2&&(
           <div className="flex flex-col gap-3">
             <details className="text-xs text-slate-300"><summary>挑戰說明</summary>固定敵人強度，各關每日首勝有金幣獎勵。</details>
-            {[
-              ['wild','廢棄機械兵',80,16,12,12,10],
-              ['stage2','失控巡邏機',115,23,18,18,20],
-              ['stage3','重裝守衛',180,26,38,18,40],
-              ['stage4','疾風獵手',175,38,22,42,60],
-              ['stage5','深淵機甲',230,44,35,32,100],
-              ['boss','終極機甲首領',300,52,40,35,120]
-            ].map(([id,name,hp,atk,def,spd,reward],i)=>(
+            {FIXED_ENCOUNTERS.map(([id,name,hp,atk,def,spd,reward],i)=>(
               <div className="glass-card p-3 flex justify-between items-center gap-2" key={id}>
                 <div><div className="font-bold text-amber-300">第 {i+1} 關｜{name}</div>
                   <div className="text-xs text-slate-300" >耐久 {hp}・攻 {atk}・防 {def}・速 {spd}</div>
