@@ -8,7 +8,7 @@ import { api, GAME_RULES_V2 } from '../utils/api';
 import { selectBattleMonster, refreshAfterCommit } from '../utils/gameRules';
 import {PlayButton,GameIcon} from '../components/PlayButton';
 
-import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
+import { displayMonsterName } from '../utils/monsterSprites';
 
 export default function Arena({ 
   user, 
@@ -49,11 +49,11 @@ export default function Arena({
       const index = prev.eventIndex || 0;
       const step = prev.events?.[index];
       const winner = prev.serverWon ? 'A' : 'B';
-      const victoryText = `🏆 戰鬥結束！${prev.serverWon ? prev.mA.name : prev.mB.name} 獲勝！${prev.reward?` 首勝獎勵 ${prev.reward}G`:''}`;
+      const victoryText = `🏆 戰鬥結束！${prev.serverWon ? displayMonsterName(prev.mA) : displayMonsterName(prev.mB)} 獲勝！${prev.reward?` 首勝獎勵 ${prev.reward}G`:''}`;
       if (!step) return {...prev, isOver:true, winner,
         logs:[...prev.logs,victoryText]};
       const finished = index + 1 >= prev.events.length;
-      const attackerName=step.attacker==='A' ? prev.mA.name : prev.mB.name;
+      const attackerName=step.attacker==='A' ? displayMonsterName(prev.mA) : displayMonsterName(prev.mB);
       return {...prev, eventIndex:index+1,
         mA_HP:step.ownHp, mB_HP:step.enemyHp,
         mA_ATB:step.attacker==='A'?100:0, mB_ATB:step.attacker==='B'?100:0,
@@ -105,7 +105,7 @@ export default function Arena({
         mA_HP:result.ownMaxHp,mB_HP:result.enemyMaxHp,
         mA_MaxHP:result.ownMaxHp,mB_MaxHP:result.enemyMaxHp,
         mA_ATB:0,mB_ATB:0,
-        logs:[revealing?'準備解除偽裝！':`⚔️ 戰鬥開始！ ${monster.name} vs ${enemy.name}！`],
+        logs:[revealing?'準備解除偽裝！':`⚔️ 戰鬥開始！ ${displayMonsterName(monster)} vs ${displayMonsterName(enemy)}！`],
         isOver:false,winner:null,finalOwnHp:result.ownHp,finalEnemyHp:result.enemyHp
       });
       const warning=await refreshAfterCommit(refreshData,GAME_RULES_V2?['profile','monsters']:['monsters']);
@@ -130,7 +130,7 @@ export default function Arena({
             
             {/* Player A */}
             <div className="flex flex-col items-center gap-2 w-1/3">
-              <span className="truncate w-full text-center text-sm font-bold text-cyan-400">{battleState.mA?.name}</span>
+              <span className="truncate w-full text-center text-sm font-bold text-cyan-400">{displayMonsterName(battleState.mA)}</span>
               <div className="my-2 w-full flex justify-center">
                 <BattleReveal monster={battleState.mA} look={battleState.ownLook} restored={isBattleOver} revealing={battleState.revealing&&Boolean(battleState.ownLook?.skin||battleState.ownLook?.vehicle)} dead={battleState.mA_HP<=0}/>
               </div>
@@ -160,7 +160,7 @@ export default function Arena({
 
             {/* Player B */}
             <div className="flex flex-col items-center gap-2 w-1/3">
-              <span className="truncate w-full text-center text-sm font-bold text-rose-400">{battleState.mB?.name}</span>
+              <span className="truncate w-full text-center text-sm font-bold text-rose-400">{displayMonsterName(battleState.mB)}</span>
               <div className="my-2 w-full flex justify-center">
                 <BattleReveal monster={battleState.mB} look={battleState.enemyLook} restored={isBattleOver} revealing={battleState.revealing&&Boolean(battleState.enemyLook?.skin||battleState.enemyLook?.vehicle)} dead={battleState.mB_HP<=0}/>
               </div>
@@ -206,7 +206,7 @@ export default function Arena({
               ...prev,isOver:true,winner:prev.serverWon?'A':'B',
               mA_HP:prev.finalOwnHp,mB_HP:prev.finalEnemyHp,
               eventIndex:prev.events?.length||0,
-              logs:[...prev.logs,`🏆 戰鬥結束！${prev.serverWon ? prev.mA.name : prev.mB.name} 獲勝！`]
+              logs:[...prev.logs,`🏆 戰鬥結束！${prev.serverWon ? displayMonsterName(prev.mA) : displayMonsterName(prev.mB)} 獲勝！`]
             }))} className="w-full neon-button neon-button-primary py-3 text-sm">⏩ 跳過戰鬥動畫</button>
           )}
         </div>
@@ -220,7 +220,7 @@ export default function Arena({
   return (
     <div className="h-full flex flex-col gap-4 animate-fade-in">
       <div className="flex justify-center items-center gap-2">
-        {getFighter()?<><MonsterPixelArt family={getFighter().family} stage={getFighter().life_stage} type={getFighter().type} {...appearance(getFighter(),appearanceModes[getFighter().monster_id])} displaySize={64}/><span className="font-bold text-cyan-300 text-sm truncate">{getFighter().name}</span></>:<p className="text-sm text-slate-400 text-center">請先在養成頁選擇可出戰機甲。</p>}
+        {getFighter()?<><MonsterPixelArt family={getFighter().family} stage={getFighter().life_stage} type={getFighter().type} {...appearance(getFighter(),appearanceModes[getFighter().monster_id])} displaySize={64}/><span className="font-bold text-cyan-300 text-sm truncate">{displayMonsterName(getFighter())}</span></>:<p className="text-sm text-slate-400 text-center">請先在養成頁選擇可出戰機甲。</p>}
       </div>
       {GAME_RULES_V2&&<div className="grid grid-cols-2 gap-2">
        {([['players','battle','失控機甲挑戰'],['pvp','🏆','玩家對戰']]).map(([id,icon,label])=><PlayButton key={id} icon={icon} label={label} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
@@ -267,7 +267,7 @@ export default function Arena({
             {pvp?.opponents?.map(o=>(
               <div key={o.user_id} className="glass-card p-3 flex items-center gap-2 justify-between">
                 <MonsterPixelArt family={o.family} stage={o.stage} type={o.type} skin={o.skin_id} className="scale-75"/>
-                <div className="flex-1"><div className="text-sm font-bold">{o.username}｜{getSkin(o.skin_id)?.name||o.monster_name}</div><div className="text-xs text-slate-300">{o.points} 分・耐久 {Math.round(o.hp)}・攻 {Math.round(o.atk)}{getFighter()&& (affinityAdvantage(roleId(getFighter()),roleId({life_stage:o.stage,family:o.family,type:o.type}))?'・克制優勢':affinityAdvantage(roleId({life_stage:o.stage,family:o.family,type:o.type}),roleId(getFighter()))?'・受到克制':'')}</div></div>
+                <div className="flex-1"><div className="text-sm font-bold">{o.username}｜{getSkin(o.skin_id)?.name||displayMonsterName(o)}</div><div className="text-xs text-slate-300">{o.points} 分・耐久 {Math.round(o.hp)}・攻 {Math.round(o.atk)}{getFighter()&& (affinityAdvantage(roleId(getFighter()),roleId({life_stage:o.stage,family:o.family,type:o.type}))?'・克制優勢':affinityAdvantage(roleId({life_stage:o.stage,family:o.family,type:o.type}),roleId(getFighter()))?'・受到克制':'')}</div></div>
                 <button disabled={loading||!canRankedMatch(getFighter(),o)} onClick={()=>handleChallenge('pvp',o.user_id)} className="neon-button neon-button-danger px-3 py-2">{canRankedMatch(getFighter(),o)?'挑戰':'戰力不符'}</button>
               </div>
             ))}

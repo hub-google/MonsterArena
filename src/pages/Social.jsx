@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api } from '../utils/api';
 
-import { getMecha } from '../utils/monsterSprites';
+import { getMecha, displayMonsterName } from '../utils/monsterSprites';
 import {wornSkin} from '../utils/skins';
 
 export default function Social({ user }) {
@@ -184,9 +184,9 @@ export default function Social({ user }) {
                           <MonsterPixelArt family={m.family} stage={m.life_stage} type={m.type} skin={wornSkin(m)?.id} displaySize={64} />
                         </div>
                         <span className="text-[10px] text-slate-300 text-center max-w-[60px] truncate">
-                          {wornSkin(m)?.name||m.name}
+                          {wornSkin(m)?.name||displayMonsterName(m)}
                         </span>
-                        <span className="text-[9px] text-slate-500">{wornSkin(m)?'偽裝造型':getMecha(m.family,m.life_stage,m.type).factionName+'・'+getMecha(m.family,m.life_stage,m.type).roleName}</span>
+                        <span className="text-[9px] text-slate-500">{wornSkin(m)?'偽裝造型':getMecha(m.family,m.life_stage,m.type).modelName||getMecha(m.family,m.life_stage,m.type).factionName+'・'+getMecha(m.family,m.life_stage,m.type).roleName}</span>
                       </div>
                     ))}
                   </div>

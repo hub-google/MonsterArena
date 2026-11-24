@@ -3,6 +3,7 @@ import BattleReveal from '../components/BattleReveal';
 import {PlayButton,GameIcon} from '../components/PlayButton';
 import {appearance,hasDisguise} from '../utils/skins';
 import {ACTIONS,MAX_ROUNDS,TIMING_MS,initialDuel,chooseEnemy,enemyHint,resolveRound,timingGrade,BOSS_ACTIONS,BOSS_MAX_ROUNDS,initialBossDuel,bossHint,canBossMove,resolveBossRound} from '../utils/tacticalDuel';
+import {displayMonsterName} from '../utils/monsterSprites';
 import './TacticalDuel.css';
 
 const opponent={name:'戰術訓練機',family:3,life_stage:5,type:2};
@@ -78,7 +79,7 @@ export default function TacticalDuel({monster,mode,onExit,boss=false,onSettle}){
   <header className="tactical-top"><button type="button" onClick={onExit} disabled={cannotLeave} aria-label="離開戰術對戰"><GameIcon name="back"/></button><div><h2>{boss?'終極機甲首領':'戰術競技場'}</h2><span>{boss?(onSettle?'戰術攻略 · 完成後結算':'首領攻略練習 · 不計金幣及排名'):'公平練習 · 不計金幣及排名'}</span></div><span className="tactical-round">{Math.min(duel.round,maxRounds)}/{maxRounds}</span></header>
   <div className="tactical-stage">
    {[monster,foe].map((m,i)=><div key={i} className={'tactical-fighter fighter-'+i}>
-    <strong>{m.name}</strong>
+    <strong>{displayMonsterName(m)}</strong>
     <div className="tactical-art"><BattleReveal monster={m} look={i===0?look:{}} revealing={i===0&&revealing} restored={Boolean(duel.result)} dead={duel.hp[i]===0} size={150}/></div>
     <div className="tactical-hp-label"><GameIcon name="heart"/><span data-testid={'tactical-hp-'+i}>{duel.hp[i]} / {maxHp[i]}</span></div>
     <div className="tactical-hp" role="progressbar" aria-label={i===0?'我方耐久':'敵方耐久'} aria-valuenow={duel.hp[i]} aria-valuemin={0} aria-valuemax={maxHp[i]}><span style={{width:(duel.hp[i]/maxHp[i]*100)+'%'}}/></div>

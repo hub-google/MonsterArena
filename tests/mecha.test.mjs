@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {FACTIONS,MONSTER_SPRITES,getMecha,factionOf,counterMultiplier} from '../src/utils/monsterSprites.js';
+import {FACTIONS,MONSTER_SPRITES,getMecha,factionOf,counterMultiplier,displayMonsterName} from '../src/utils/monsterSprites.js';
 import {spritePaths} from '../src/utils/mechaArt.js';
 test('40 stable sprites, 10 per faction, every legacy combination has a valid target',()=>{const all=Object.values(MONSTER_SPRITES);assert.equal(all.length,40);for(const f of FACTIONS)assert.equal(all.filter(m=>m.faction===f.id).length,10);for(let family=1;family<=8;family++)for(let stage=1;stage<=6;stage++)for(let type=0;type<=3;type++)assert.ok(MONSTER_SPRITES[getMecha(family,stage,type).key]);});
 test('four faction cycle and neutral reverse, exactly one advantage each',()=>{for(const a of FACTIONS){assert.equal(FACTIONS.filter(b=>counterMultiplier(a.legacy,b.legacy)===1.2).length,1);assert.equal(counterMultiplier(a.legacy,a.legacy),1);assert.equal(counterMultiplier(a.legacy,FACTIONS[a.id%4].legacy),1.2)}assert.equal(factionOf(8),4)});
@@ -50,5 +50,26 @@ test('advanced steel artillery shares the approved Tyranno sprite and alternate 
  }
  assert.equal(getMecha(4,4,3).spriteAsset,null);
  assert.equal(getMecha(4,5,1).spriteAsset,null);
- assert.equal(getMecha(1,6,2).spriteAsset,null);
+ assert.equal(getMecha(1,5,2).spriteAsset,null);
+});
+
+test('seven final model overrides are cosmetic, eight named final models, preserve Tyranno and player nicknames',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const expected=['雷霆暴龍','炫藍閃電W','巡邏戰警','暴龍戰炫王','翼龍機動裝甲','風暴翼龍','帝王暴龍','帝王暴龍 闇黑限定版'];
+ const models=FACTIONS.flatMap(f=>[1,2].map(type=>getMecha(f.legacy,6,type)));
+ assert.deepEqual(models.map(m=>m.modelName),expected);
+ for(const m of models){
+  assert.equal(m.skill,FACTIONS[m.faction-1].roles[m.type-1].skill);
+  assert.equal(m.stage,6);
+  assert.equal(displayMonsterName({family:m.family,life_stage:6,type:m.type,name:'數位蛋'}),m.modelName);
+  assert.equal(displayMonsterName({family:m.family,life_stage:6,type:m.type,name:'自訂名字'}),'自訂名字');
+  assert.equal(displayMonsterName({family:m.family,life_stage:6,type:m.type,name:m.legacyName}),m.modelName);
+  for(const path of Object.values(m.spriteAsset)){
+   const png=readFileSync(new URL('../public/'+path,import.meta.url));
+   assert.equal(png.subarray(1,4).toString(),'PNG');assert.equal(png.readUInt32BE(16),128);assert.equal(png.readUInt32BE(20),128);
+  }
+ }
+ assert.equal(new Set(models.map(m=>m.spriteAsset.robot)).size,8);
+ assert.equal(new Set(models.map(m=>m.spriteAsset.vehicle)).size,8);
+ for(const f of FACTIONS)for(const type of [1,2])if(f.id!==2||type!==2)assert.equal(getMecha(f.legacy,5,type).spriteAsset,null);
 });

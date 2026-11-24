@@ -5,7 +5,7 @@ import {appearance} from '../utils/skins';
 import {PlayButton} from '../components/PlayButton';
 import { refreshAfterCommit, resourcesForAction, getHatchState, canManageMonsterChips } from '../utils/gameRules';
 
-import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
+import { getMecha, displayMonsterName } from '../utils/monsterSprites';
 
 export default function Roster({ 
   user, 
@@ -115,20 +115,20 @@ export default function Roster({
         {subTab==='list'&&<div className="flex flex-col gap-3">
           {monsters.length<50&&<PlayButton icon="hatch" label={hatchState.label} caption={hatchState.isRescue?'免費領取救援核心':'啟動新機械核心'} subtext={hatchState.isRescue?'':'100 金幣'} tone="green" onClick={handleHatch} disabled={loading||!hatchState.available} className="w-full play-compact"/>}
           <div className="grid grid-cols-3 gap-2" data-testid="pet-picker">
-           {monsters.slice(currentPetPage*6,currentPetPage*6+6).map(m=><button key={m.monster_id} type="button" aria-label={'選擇 '+m.name} aria-pressed={selectedMonster?.monster_id===m.monster_id} onClick={()=>handleSetSelection(m.monster_id)} className={'play-encounter min-w-0 p-1 '+(selectedMonster?.monster_id===m.monster_id?'border-cyan-400':'border-slate-700')}>
+           {monsters.slice(currentPetPage*6,currentPetPage*6+6).map(m=><button key={m.monster_id} type="button" aria-label={'選擇 '+displayMonsterName(m)} aria-pressed={selectedMonster?.monster_id===m.monster_id} onClick={()=>handleSetSelection(m.monster_id)} className={'play-encounter min-w-0 p-1 '+(selectedMonster?.monster_id===m.monster_id?'border-cyan-400':'border-slate-700')}>
              <MonsterPixelArt family={m.family} stage={m.life_stage} type={m.type} isDead={m.is_dead} {...appearance(m,appearanceModes[m.monster_id])} fitVehicle displaySize={88}/>
-             <span className="truncate w-full text-xs">{m.name}</span>{m.is_locked&&<span aria-label="已鎖定">🔒</span>}
+             <span className="truncate w-full text-xs">{displayMonsterName(m)}</span>{m.is_locked&&<span aria-label="已鎖定">🔒</span>}
            </button>)}
           </div>
           {petPages>1&&<div className="page-controls"><button className="play-arrow" aria-label="上一頁機體" disabled={!currentPetPage} onClick={()=>setPetPage(currentPetPage-1)}>‹</button><span>{currentPetPage+1} / {petPages}</span><button className="play-arrow" aria-label="下一頁機體" disabled={currentPetPage>=petPages-1} onClick={()=>setPetPage(currentPetPage+1)}>›</button></div>}
           {selectedMonster&&<>
-           <details className="glass-card p-3"><summary className="cursor-pointer text-sm">機體管理 · {selectedMonster.name}</summary>
-            <div className="text-xs text-slate-400 my-2">{getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).name}・G{selectedMonster.generation}</div>
+           <details className="glass-card p-3"><summary className="cursor-pointer text-sm">機體管理 · {displayMonsterName(selectedMonster)}</summary>
+            <div className="text-xs text-slate-400 my-2">{getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).modelName||getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).name}・G{selectedMonster.generation}</div>
             {selectedMonster.is_rescue&&<div className="text-xs text-cyan-300">免費救援機體（拆解無金幣獎勵）</div>}
             <div className="grid grid-cols-4 gap-2 my-3">{[['❤️',selectedMonster.combat_hp],['⚔️',selectedMonster.combat_atk],['🛡️',selectedMonster.combat_def],['⚡',selectedMonster.combat_spd]].map(([icon,val])=><div key={icon} className="text-center">{icon}<div>{Math.round(val)}</div></div>)}</div>
             <div className="grid grid-cols-2 gap-2">
               <PlayButton icon={selectedMonster.is_locked?'🔓':'🔒'} label={selectedMonster.is_locked?'解除鎖定':'鎖定保護'} short="保護" disabled={loading} onClick={()=>handleAction(api.toggleLock,selectedMonster.monster_id)}/>
-              <PlayButton icon="🗑️" label="永久拆解" short="拆解" tone="red" disabled={loading||selectedMonster.is_locked} onClick={()=>{if(window.confirm('確定永久拆解「'+selectedMonster.name+'」？拆解後無法恢復。'+(selectedMonster.is_rescue?'免費救援機體不會獲得金幣。':'')))handleAction(api.release,selectedMonster.monster_id)}}/>
+              <PlayButton icon="🗑️" label="永久拆解" short="拆解" tone="red" disabled={loading||selectedMonster.is_locked} onClick={()=>{if(window.confirm('確定永久拆解「'+displayMonsterName(selectedMonster)+'」？拆解後無法恢復。'+(selectedMonster.is_rescue?'免費救援機體不會獲得金幣。':'')))handleAction(api.release,selectedMonster.monster_id)}}/>
             </div>
            </details>
           </>}
@@ -224,7 +224,7 @@ export default function Roster({
                 <select value={parent1} onChange={(e) => setParent1(e.target.value)} className="w-full bg-slate-950 border border-slate-600 rounded-lg p-3 text-white outline-none focus:border-fuchsia-500">
                   <option value="">--請選擇機體--</option>
                   {monsters.filter(m => m.life_stage >= 4 && !m.is_dead).map(m => (
-                    <option key={m.monster_id} value={m.monster_id}>{m.name} (G{m.generation})</option>
+                    <option key={m.monster_id} value={m.monster_id}>{displayMonsterName(m)} (G{m.generation})</option>
                   ))}
                 </select>
               </div>
@@ -234,7 +234,7 @@ export default function Roster({
                 <select value={parent2} onChange={(e) => setParent2(e.target.value)} className="w-full bg-slate-950 border border-slate-600 rounded-lg p-3 text-white outline-none focus:border-fuchsia-500">
                   <option value="">--請選擇機體--</option>
                   {monsters.filter(m => m.life_stage >= 4 && !m.is_dead).map(m => (
-                    <option key={m.monster_id} value={m.monster_id}>{m.name} (G{m.generation})</option>
+                    <option key={m.monster_id} value={m.monster_id}>{displayMonsterName(m)} (G{m.generation})</option>
                   ))}
                 </select>
               </div>

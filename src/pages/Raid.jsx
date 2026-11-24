@@ -1,3 +1,4 @@
+import {displayMonsterName} from '../utils/monsterSprites';
 import BattleReveal from '../components/BattleReveal';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import {GameIcon} from '../components/PlayButton';
@@ -128,7 +129,7 @@ export default function Raid({
           <label className="block text-xs text-slate-400 mb-1" htmlFor="raid-fighter-select">{revealing?'解除偽裝・真身出戰':attacking?'真身討伐中':'選擇出戰機甲'}</label>
           <select id="raid-fighter-select" disabled={loading||!selectedMonster} value={selectedMonster?.monster_id||''} onChange={e=>setSelectedMonsterId(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
             {!selectedMonster&&<option value="">沒有可出戰的機體</option>}
-            {aliveMonsters.map(m=><option key={m.monster_id} value={m.monster_id}>{m.name} (攻擊力: {Math.round(m.combat_atk)})</option>)}
+            {aliveMonsters.map(m=><option key={m.monster_id} value={m.monster_id}>{displayMonsterName(m)} (攻擊力: {Math.round(m.combat_atk)})</option>)}
           </select>
         </div>
       </div>
