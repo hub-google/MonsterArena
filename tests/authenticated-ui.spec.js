@@ -73,6 +73,9 @@ async function setupAuthenticatedGame(page, initialPets=[dead], profileOverrides
     if (path === '/rest/v1/monsters') return json(route, pets);
     if (path === '/rest/v1/user_inventory') return json(route, currentInventory);
     if (path === '/rest/v1/friends') return json(route, []);
+    if (path === '/rest/v1/rpc/game_plaza_monsters') return json(route,pets.filter(m=>!m.is_dead).map(({user_id,monster_id,name,family,type,life_stage,is_dead,skin_id})=>({user_id,monster_id,name,family,type,life_stage,is_dead,skin_id})));
+    if (path === '/rest/v1/rpc/game_public_profiles') return json(route,[{user_id:uid,username:currentProfile.username}]);
+    if (path === '/rest/v1/raid_boss') return json(route,{id:'mock-raid',name:'世界王測試',current_hp:500000,max_hp:500000,is_active:true});
     if (path === '/rest/v1/guilds') return json(route, []);
     if (path === '/rest/v1/guild_members') return json(route, null);
     if (path === '/rest/v1/rpc/game_action') {
@@ -92,6 +95,7 @@ async function setupAuthenticatedGame(page, initialPets=[dead], profileOverrides
       }
       if(args.p_action==='buy'&&args.p_data.item_id==='skin_husky'){currentProfile={...currentProfile,gold:currentProfile.gold-50};currentInventory.push({user_id:uid,item_id:'skin_husky',quantity:1});return json(route,{message:'購買成功，花費 50G'});}
       if(args.p_action==='skin_equip'){pets=pets.map(m=>m.monster_id===args.p_data.monster_id?{...m,skin_id:args.p_data.skin_id}:m);return json(route,{message:'造型已更新'});}
+      if(args.p_action==='raid'){currentProfile={...currentProfile,stamina:currentProfile.stamina-15};return json(route,{message:'討伐成功',damage:100});}
       if(args.p_action==='battle')return json(route,{battleId:'mock-battle',won:true,events:[{attacker:'A',damage:50,ownHp:500,enemyHp:0}],enemyName:'野外失控機甲',enemyFamily:3,enemyType:1,enemyStage:3,ownMaxHp:500,enemyMaxHp:50,ownHp:500,enemyHp:0,reward:0});
       throw new Error('Unexpected UI issued a game_action: ' + args.p_action);
     }
@@ -316,6 +320,8 @@ test('skin shop, permanent wardrobe, first-step reveal and vehicle restoration',
  await setupAuthenticatedGame(page,[{...dead,name:'皮膚測試',family:4,type:3,is_dead:false,is_sick:false,life_stage:4}],{gold:100});
  await page.getByRole('button',{name:'商城',exact:true}).click();
  await page.getByRole('button',{name:'皮膚 · 10 款'}).click();
+ await expect(page.locator('.skin-card')).toHaveCount(10);
+ await expect(page.getByRole('button',{name:'購買暗影惡魔 300G'})).toBeDisabled();
  await expect(page.getByRole('button',{name:'購買哈士奇 50G'})).toBeEnabled();
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/skin-shop.png',animations:'disabled'});
  await page.getByRole('button',{name:'購買哈士奇 50G'}).click();
@@ -328,15 +334,37 @@ test('skin shop, permanent wardrobe, first-step reveal and vehicle restoration',
  await page.getByRole('button',{name:'開始戰鬥'}).click();
  await page.getByRole('button',{name:'挑戰野外失控機甲'}).click();
  await expect(page.getByTestId('battle-reveal')).toBeVisible();
+ await expect(page.getByRole('button',{name:'跳過戰鬥動畫'})).toBeDisabled();
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/skin-reveal.png'});
  await expect(page.getByRole('status',{name:'勝利'})).toBeVisible({timeout:10000});
+ await expect(page.getByTestId('battle-restored').getByRole('img',{name:'哈士奇'})).toBeVisible();
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/skin-result.png',animations:'disabled'});
  await page.getByRole('button',{name:'離開戰場'}).click();
  await page.getByRole('button',{name:'養成',exact:true}).click();
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：哈士奇');
+ await page.getByRole('button',{name:'切換機器人'}).click();
+ await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：機器人');
  await page.getByRole('button',{name:'變形：重型坦克'}).click();
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：重型坦克');
  await page.getByRole('button',{name:'恢復偽裝'}).click();
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：哈士奇');
+ await page.reload({waitUntil:'domcontentloaded'});
+ await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：哈士奇');
+ await page.getByRole('button',{name:'更多功能'}).click();
+ await page.getByRole('button',{name:'社交',exact:true}).click();
+ await expect(page.getByRole('img',{name:'哈士奇'})).toBeVisible();
+ await expect(page.getByText('偽裝造型',{exact:true})).toBeVisible();
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/skin-plaza.png',animations:'disabled'});
+ await page.getByRole('button',{name:'更多功能'}).click();
+ await page.getByRole('button',{name:'世界王',exact:true}).click();
+ await expect(page.getByTestId('raid-fighter').getByRole('img',{name:'哈士奇'})).toBeVisible();
+ await page.getByRole('button',{name:/發動討伐突襲/}).click();
+ await expect(page.getByTestId('battle-reveal')).toBeVisible();
+ await expect(page.getByText(/造成 100 點傷害/)).toBeVisible({timeout:10000});
+ await expect(page.getByTestId('raid-fighter').getByRole('img',{name:'哈士奇'})).toBeVisible();
+ await page.getByRole('button',{name:'養成',exact:true}).click();
  await page.getByRole('button',{name:'皮膚衣櫃'}).click();
+ await expect(page.getByRole('button',{name:'穿戴哈士奇'})).toHaveAttribute('aria-pressed','true');
  await page.getByRole('button',{name:'卸下皮膚'}).click();
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：機器人');
 });

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api } from '../utils/api';
 
-import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
+import { getMecha } from '../utils/monsterSprites';
+import {wornSkin} from '../utils/skins';
 
 export default function Social({ user }) {
   const [subTab, setSubTab] = useState('plaza'); // 'plaza' or 'chat'
@@ -180,12 +181,12 @@ export default function Social({ user }) {
                     {p.monsters.map((m, idx) => (
                       <div key={idx} className="flex flex-col items-center gap-1">
                         <div className="w-16 h-16 bg-slate-800 rounded flex items-center justify-center overflow-hidden border border-slate-700">
-                          <MonsterPixelArt family={m.family} stage={m.life_stage} type={m.type} size={2} />
+                          <MonsterPixelArt family={m.family} stage={m.life_stage} type={m.type} skin={wornSkin(m)?.id} displaySize={64} />
                         </div>
                         <span className="text-[10px] text-slate-300 text-center max-w-[60px] truncate">
-                          {m.custom_name || m.name}
+                          {wornSkin(m)?.name||m.name}
                         </span>
-                        <span className="text-[9px] text-slate-500">{getMecha(m.family,m.life_stage,m.type).factionName}・{getMecha(m.family,m.life_stage,m.type).roleName}</span>
+                        <span className="text-[9px] text-slate-500">{wornSkin(m)?'偽裝造型':getMecha(m.family,m.life_stage,m.type).factionName+'・'+getMecha(m.family,m.life_stage,m.type).roleName}</span>
                       </div>
                     ))}
                   </div>

@@ -55,5 +55,22 @@ export const getSkin=id=>SKINS.find(s=>s.id===id)||null;
 export const ownsSkin=(inventory,id)=>Boolean(getSkin(id)&&inventory?.some(i=>i.item_id===id&&Number(i.quantity)>0));
 export const canWearSkin=monster=>Boolean(monster&&!monster.is_dead&&Number(monster.life_stage)>=2);
 export const wornSkin=monster=>canWearSkin(monster)?getSkin(monster.skin_id):null;
-export const appearance=(monster,vehicle=false)=>vehicle&&Number(monster?.life_stage)>=4&&!monster?.is_dead?{vehicle:true,skin:null}:{vehicle:false,skin:wornSkin(monster)?.id||null};
-export const hasDisguise=(monster,vehicle=false)=>Boolean(appearance(monster,vehicle).skin||appearance(monster,vehicle).vehicle);
+export const canTransform=monster=>canWearSkin(monster)&&Number(monster.life_stage)>=4;
+// A collected skin, a robot and its original vehicle are independent display modes.
+// Only the equipped skin is stored on the server; temporary mode selection is per session.
+export function appearanceMode(monster,preferred='skin'){
+ if(!canWearSkin(monster))return 'robot';
+ if(preferred==='vehicle'&&canTransform(monster))return 'vehicle';
+ if(preferred==='robot')return 'robot';
+ return wornSkin(monster)?'skin':'robot';
+}
+export function appearance(monster,preferred='skin'){
+ const mode=appearanceMode(monster,preferred);
+ return {vehicle:mode==='vehicle',skin:mode==='skin'?wornSkin(monster)?.id||null:null};
+}
+export function nextAppearanceMode(monster,preferred='skin'){
+ const modes=['robot',...(canTransform(monster)?['vehicle']:[]),...(wornSkin(monster)?['skin']:[])];
+ return modes.length>1?modes[(modes.indexOf(appearanceMode(monster,preferred))+1)%modes.length]:null;
+}
+export const hasDisguise=(monster,preferred='skin')=>{const look=appearance(monster,preferred);return Boolean(look.skin||look.vehicle);};
+

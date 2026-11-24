@@ -6,7 +6,7 @@ import { STAGE_NAMES, FACTIONS, getMecha } from '../utils/monsterSprites';
 import ShopModal from '../components/ShopModal';
 import QuestModal from '../components/QuestModal';
 import SkinWardrobe from '../components/SkinWardrobe';
-import {canWearSkin,wornSkin} from '../utils/skins';
+import {canWearSkin,wornSkin,appearance,appearanceMode,nextAppearanceMode} from '../utils/skins';
 import {PlayButton,ActionFeedback,GameIcon} from '../components/PlayButton';
 
 
@@ -17,7 +17,7 @@ export default function Dashboard({
   refreshData, 
   activeMonster, 
   setActiveMonster, 
-  setPage, vehicleModes={}, setVehicleMode=()=>{} 
+  setPage, appearanceModes={}, setAppearanceMode=()=>{} 
 }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -27,11 +27,15 @@ export default function Dashboard({
   const [showShop, setShowShop] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
   const [showWardrobe,setShowWardrobe]=useState(false);
+  const [wardrobeError,setWardrobeError]=useState('');
   const [shopTab,setShopTab]=useState('items');
   const [showDetails,setShowDetails]=useState(false);
 
   const monster = activeMonster || monsters[0];
-  const vehicle=Boolean(vehicleModes[monster?.monster_id]);
+  const preferredMode=appearanceModes[monster?.monster_id];
+  const look=appearance(monster,preferredMode);
+  const currentMode=appearanceMode(monster,preferredMode);
+  const nextMode=nextAppearanceMode(monster,preferredMode);
   const skin=wornSkin(monster);
   const hatchState = getHatchState(user, monsters);
 
@@ -40,6 +44,7 @@ export default function Dashboard({
     setShowFeedMenu(false);
     setShowHealMenu(false);
     setShowWardrobe(false);
+    setWardrobeError('');
     setShowDetails(false);
     setMessage('');
     setActionEmote(null);
@@ -118,10 +123,11 @@ export default function Dashboard({
     }
   };
 
-  const equipSkin=async id=>{setLoading(true);setMessage('');try{await api.equipSkin(monster.monster_id,id);setVehicleMode(monster.monster_id,false);await refreshData(['monsters']);setShowWardrobe(false);}catch(err){setMessage('❌ '+err.message);setShowWardrobe(false);}finally{setLoading(false);}};
+  const equipSkin=async id=>{if(loading)return;setLoading(true);setWardrobeError('');try{await api.equipSkin(monster.monster_id,id);setAppearanceMode(monster.monster_id,id?'skin':'robot');await refreshData(['monsters']);setShowWardrobe(false);}catch(err){setWardrobeError(err.message||'造型更新失敗');}finally{setLoading(false);}};
   const canBattle=!monster.is_dead&&Number(monster.life_stage)>=2&&!monster.is_frozen;
   const care=canCareForMonster(monster);
-  const canTransform=!monster.is_dead&&monster.life_stage>=4;
+  const formLabel=nextMode==='skin'?'恢復偽裝':nextMode==='robot'?'切換機器人':'變形：'+(mecha.vehicle||'載具');
+  const formCaption=nextMode==='skin'?'恢復偽裝':nextMode==='robot'?'切換機器人':'機體變形';
   const index=monsters.findIndex(m=>m.monster_id===monster.monster_id);
   const choosePet=delta=>setActiveMonster(monsters[(Math.max(index,0)+delta+monsters.length)%monsters.length]);
   const foodChoices=[
@@ -155,7 +161,7 @@ export default function Dashboard({
       <div className="cockpit-tools">
        <PlayButton icon="shop" label="商城" onClick={()=>{setShopTab('items');setShowShop(true)}} className="play-small"/>
        <PlayButton icon="quest" label="任務" onClick={()=>setShowQuests(true)} className="play-small"/>
-       <PlayButton icon="skin" label="皮膚衣櫃" caption="皮膚" disabled={!canWearSkin(monster)||loading} onClick={()=>setShowWardrobe(true)} className="play-small"/>
+       <PlayButton icon="skin" label="皮膚衣櫃" caption="皮膚" disabled={!canWearSkin(monster)||loading} onClick={()=>{setWardrobeError('');setShowWardrobe(true)}} className="play-small"/>
        <PlayButton icon="info" label="機體詳細資料" caption="詳情" selected={showDetails} onClick={()=>setShowDetails(v=>!v)} className="play-small"/>
       </div>
     </div>
@@ -171,9 +177,9 @@ export default function Dashboard({
       <div data-testid="mecha-screen" className="cockpit-art">
         <MonsterPixelArt family={monster.family} stage={monster.life_stage} type={monster.type}
           isDead={monster.is_dead} isSick={monster.is_sick} isPoop={monster.cleanliness<40}
-          isHappy={actionEmote==='happy'} isHungry={monster.fullness<30} displaySize={220} fitVehicle vehicle={vehicle&&canTransform} skin={skin?.id}/>
+          isHappy={actionEmote==='happy'} isHungry={monster.fullness<30} displaySize={220} fitVehicle {...look}/>
       </div>
-      <div className="cockpit-meta"><span data-testid="mecha-current-form">目前形態：{vehicle&&canTransform?mecha.vehicle:skin?.name||'機器人'}</span><span>{Math.max(index,0)+1}/{monsters.length}</span></div>
+      <div className="cockpit-meta"><span data-testid="mecha-current-form">目前形態：{monster.is_dead?'核心失效':Number(monster.life_stage)===1?'機械核心':currentMode==='vehicle'?mecha.vehicle:currentMode==='skin'?skin?.name:'機器人'}</span><span>{Math.max(index,0)+1}/{monsters.length}</span></div>
     </section>
     <div className="cockpit-console">
     <section className="cockpit-readouts">
@@ -187,7 +193,7 @@ export default function Dashboard({
       <PlayButton icon="heal" label="治療" caption="修復治療" tone="red" onClick={()=>{setShowFeedMenu(false);setShowHealMenu(v=>!v)}} disabled={loading || !canHealMonster(monster)} className={monster.is_sick&&!monster.is_dead?'play-needed':''} selected={showHealMenu}/>
       <PlayButton icon="train" label="訓練" caption="機體訓練" tone="orange" onClick={()=>handleAction(api.train,monster.monster_id)} disabled={loading||!care}/>
       <PlayButton icon="battle" label="開始戰鬥" tone="blue" onClick={()=>setPage('arena')} disabled={loading||!canBattle} className="cockpit-primary"/>
-      <PlayButton icon="transform" label={vehicle?(skin?'恢復偽裝':'切換機器人'):'變形：'+(mecha.vehicle||'載具')} caption={vehicle?(skin?'恢復偽裝':'切換機器人'):'機體變形'} tone="purple" onClick={()=>setVehicleMode(monster.monster_id,!vehicle)} disabled={!canTransform||loading} selected={vehicle}/>
+      <PlayButton icon="transform" label={formLabel} caption={formCaption} tone="purple" onClick={()=>setAppearanceMode(monster.monster_id,nextMode)} disabled={!nextMode||loading} selected={currentMode==='vehicle'}/>
     </div>
     <div className="cockpit-feedback-slot">{message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極進化條件':' '}</span>}{ready&&<button className="cockpit-link" onClick={()=>setShowDetails(true)}><GameIcon name="evolve"/>進化</button>}</div>
     </div>
@@ -208,7 +214,7 @@ export default function Dashboard({
       <PlayButton icon="shop" label="購買道具" onClick={()=>{closeItems();setShopTab('items');setShowShop(true)}} tone="blue" className="w-full play-compact"/>
      </section>
     </div>}
-    {showWardrobe&&canWearSkin(monster)&&<SkinWardrobe monster={monster} inventory={inventory} loading={loading} onEquip={equipSkin} onClose={()=>setShowWardrobe(false)} onShop={()=>{setShowWardrobe(false);setShopTab('skins');setShowShop(true)}}/>}
+    {showWardrobe&&canWearSkin(monster)&&<SkinWardrobe monster={monster} inventory={inventory} loading={loading} error={wardrobeError} onEquip={equipSkin} onClose={()=>setShowWardrobe(false)} onShop={()=>{setShowWardrobe(false);setShopTab('skins');setShowShop(true)}}/>}
     {showShop&&<ShopModal user={user} inventory={inventory} initialTab={shopTab} onClose={()=>setShowShop(false)} refreshData={refreshData}/>}
     {showQuests&&<QuestModal user={user} onClose={()=>setShowQuests(false)} refreshData={refreshData}/>}
   </div>;

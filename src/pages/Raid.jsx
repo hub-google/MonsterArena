@@ -6,7 +6,7 @@ import { api, GAME_RULES_V2 } from '../utils/api';
 export default function Raid({ 
   user, 
   monsters, 
-  activeMonster, vehicleModes={}, 
+  activeMonster, appearanceModes={}, 
   refreshData, 
   setPage 
 }) {
@@ -57,7 +57,10 @@ export default function Raid({
     catch(err){setMessage(err.message);}finally{setLoading(false);}
   };
   const [revealing,setRevealing]=useState(false);
+  const [attacking,setAttacking]=useState(false);
   const attackPending=useRef(false);
+  const mounted=useRef(false);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const handleAttack = async () => {
     if(attackPending.current)return;
     if (!selectedMonster || selectedMonster.is_dead) {
@@ -73,15 +76,17 @@ export default function Raid({
     setLoading(true);
     setMessage('');
     try {
-      if(hasDisguise(selectedMonster,vehicleModes[selectedMonster.monster_id])){setRevealing(true);await new Promise(resolve=>setTimeout(resolve,1200));setRevealing(false);}
+      if(hasDisguise(selectedMonster,appearanceModes[selectedMonster.monster_id])){setRevealing(true);await new Promise(resolve=>setTimeout(resolve,1200));if(!mounted.current)return;setRevealing(false);}
+      setAttacking(true);
       const data = await api.attackRaidBoss(selectedMonster.monster_id);
+      if(!mounted.current)return;
       setMessage(`💥 造成 ${data.damage.toLocaleString()} 點傷害！\n${data.message}`);
       await refreshData(['profile']);
       await fetchBossStatus();
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {
-      attackPending.current=false;setRevealing(false);setLoading(false);
+      attackPending.current=false;if(mounted.current){setRevealing(false);setAttacking(false);setLoading(false);}
     }
   };
 
@@ -162,8 +167,8 @@ export default function Raid({
         {boss && boss.is_active && (
           <div className="glass-card p-5 mt-auto">
             
-            <h4 className="text-sm font-bold text-slate-300 mb-3">{revealing?'解除偽裝・真身出戰':'準備出擊'}</h4>
-            {selectedMonster&&revealing&&<div className="flex justify-center"><BattleReveal monster={selectedMonster} look={appearance(selectedMonster,vehicleModes[selectedMonster.monster_id])} revealing/></div>}
+            <h4 className="text-sm font-bold text-slate-300 mb-2">{revealing?'解除偽裝・真身出戰':attacking?'真身討伐中':'準備出擊'}</h4>
+            {selectedMonster&&<div className="flex justify-center" data-testid="raid-fighter"><BattleReveal monster={selectedMonster} look={appearance(selectedMonster,appearanceModes[selectedMonster.monster_id])} revealing={revealing} restored={!revealing&&!attacking} size={72}/></div>}
             
             <div className="space-y-4">
               <div>
