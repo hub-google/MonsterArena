@@ -346,6 +346,14 @@ test('skin shop, permanent wardrobe, first-step reveal and vehicle restoration',
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：機器人');
  await page.getByRole('button',{name:'變形：重型坦克'}).click();
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：重型坦克');
+ await page.getByRole('button',{name:'開始戰鬥'}).click();
+ await page.getByRole('button',{name:'挑戰野外失控機甲'}).click();
+ await expect(page.getByTestId('battle-reveal')).toBeVisible();
+ await expect(page.getByRole('status',{name:'勝利'})).toBeVisible({timeout:10000});
+ await expect(page.getByTestId('battle-restored').getByRole('img',{name:'重型坦克'})).toBeVisible();
+ await page.getByRole('button',{name:'離開戰場'}).click();
+ await page.getByRole('button',{name:'養成',exact:true}).click();
+ await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：重型坦克');
  await page.getByRole('button',{name:'恢復偽裝'}).click();
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：哈士奇');
  await page.reload({waitUntil:'domcontentloaded'});
@@ -372,11 +380,14 @@ test('skin shop, permanent wardrobe, first-step reveal and vehicle restoration',
 test('manual tactical duel is playable with timing, energy and no economy writes',async({page})=>{
  await page.setViewportSize({width:360,height:640});
  await page.emulateMedia({reducedMotion:'reduce'});
- const calls=await setupAuthenticatedGame(page,[{...dead,name:'戰術機甲',life_stage:5,is_dead:false,is_sick:false}]);
+ const calls=await setupAuthenticatedGame(page,[{...dead,name:'戰術機甲',life_stage:5,is_dead:false,is_sick:false,skin_id:'skin_husky'}]);
  await page.getByRole('button',{name:'競技',exact:true}).click();
  await page.getByRole('button',{name:'手動戰術對戰'}).click();
  const duel=page.getByTestId('tactical-duel');
  await expect(duel).toBeVisible();
+ await expect(duel.getByTestId('battle-reveal')).toBeVisible();
+ await expect(duel.getByRole('button',{name:'格擋反擊'})).toBeDisabled();
+ await expect(duel.getByRole('button',{name:'格擋反擊'})).toBeEnabled({timeout:5000});
  await expect(duel.getByRole('button',{name:'破防重擊'})).toBeDisabled();
  await expect(duel.getByTestId('tactical-hp-0')).toHaveText('100 / 100');
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/tactical-mobile.png',animations:'disabled'});
@@ -396,7 +407,9 @@ test('manual tactical duel is playable with timing, energy and no economy writes
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/tactical-desktop.png',animations:'disabled'});
  for(let i=0;i<16;i++){const btn=duel.getByRole('button',{name:'蓄能'});if(!(await btn.isVisible()))break;await btn.click();}
  await expect(duel.getByRole('button',{name:'再戰一場'})).toBeVisible();
+ await expect(duel.getByTestId('battle-restored').getByRole('img',{name:'哈士奇'})).toBeVisible();
  await duel.getByRole('button',{name:'再戰一場'}).click();
+ await expect(duel.getByTestId('battle-reveal')).toBeVisible();
  await expect(duel.getByTestId('tactical-hp-0')).toHaveText('100 / 100');
  await duel.getByRole('button',{name:'離開戰術對戰'}).click();
  await expect(page.getByRole('button',{name:'手動戰術對戰'})).toBeVisible();

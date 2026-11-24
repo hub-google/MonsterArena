@@ -7,9 +7,10 @@ import './TacticalDuel.css';
 
 const opponent={name:'競技教練',family:3,life_stage:5,type:2};
 const gradeNames={perfect:'完美',good:'普通',miss:'失誤'};
-export default function TacticalDuel({monster,vehicle,onExit}){
+export default function TacticalDuel({monster,mode,onExit}){
  const [duel,setDuel]=useState(initialDuel);
- const [revealing,setRevealing]=useState(()=>hasDisguise(monster,vehicle));
+ const [look,setLook]=useState(()=>appearance(monster,mode));
+ const [revealing,setRevealing]=useState(()=>hasDisguise(monster,mode));
  const [pending,setPending]=useState(null);
  const [progress,setProgress]=useState(0);
  const [difficulty,setDifficulty]=useState('normal');
@@ -19,7 +20,7 @@ export default function TacticalDuel({monster,vehicle,onExit}){
  const pendingRef=useRef(null);
  const enemy=chooseEnemy(duel);
  const duration=difficulty==='normal'?TIMING_MS:2400;
- useEffect(()=>{if(!revealing)return;const id=setTimeout(()=>setRevealing(false),1000);return()=>clearTimeout(id)},[revealing]);
+ useEffect(()=>{if(!revealing)return;const id=setTimeout(()=>setRevealing(false),1200);return()=>clearTimeout(id)},[revealing]);
  useEffect(()=>()=>{if(clock.current!==null)cancelAnimationFrame(clock.current)},[]);
  function finish(grade){
   if(!pendingRef.current)return;
@@ -48,7 +49,7 @@ export default function TacticalDuel({monster,vehicle,onExit}){
  function restart(){
   if(clock.current!==null)cancelAnimationFrame(clock.current);
   clock.current=null;pendingRef.current=null;locked.current=false;
-  setPending(null);setProgress(0);setDuel(initialDuel());setRevealing(hasDisguise(monster,vehicle));
+  setPending(null);setProgress(0);setDuel(initialDuel());setLook(appearance(monster,mode));setRevealing(hasDisguise(monster,mode));
  }
  const latest=duel.history.at(-1);
  const resultText=duel.result==='win'?'戰鬥勝利':duel.result==='loss'?'戰鬥失敗':'平手';
@@ -57,7 +58,7 @@ export default function TacticalDuel({monster,vehicle,onExit}){
   <div className="tactical-stage">
    {[monster,opponent].map((m,i)=><div key={i} className={'tactical-fighter fighter-'+i}>
     <strong>{m.name}</strong>
-    <div className="tactical-art"><BattleReveal monster={m} look={i===0?appearance(monster,vehicle):{}} revealing={i===0&&revealing} dead={duel.hp[i]===0} size={150}/></div>
+    <div className="tactical-art"><BattleReveal monster={m} look={i===0?look:{}} revealing={i===0&&revealing} restored={Boolean(duel.result)} dead={duel.hp[i]===0} size={150}/></div>
     <div className="tactical-hp-label"><GameIcon name="heart"/><span data-testid={'tactical-hp-'+i}>{duel.hp[i]} / 100</span></div>
     <div className="tactical-hp" role="progressbar" aria-label={i===0?'我方生命':'敵方生命'} aria-valuenow={duel.hp[i]} aria-valuemin={0} aria-valuemax={100}><span style={{width:duel.hp[i]+'%'}}/></div>
     <div className="tactical-energy" aria-label={'能量 '+duel.energy[i]+'/5'}>{Array.from({length:5},(_,n)=><i key={n} className={n<duel.energy[i]?'filled':''}/>)}</div>

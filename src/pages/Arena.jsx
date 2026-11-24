@@ -250,7 +250,7 @@ export default function Arena({
     );
   }
 
-  if(subTab==='tactical'&&getFighter())return <TacticalDuel monster={getFighter()} vehicle={vehicleModes[getFighter().monster_id]} onExit={()=>setSubTab('players')}/>;
+  if(subTab==='tactical'&&getFighter())return <TacticalDuel monster={getFighter()} mode={appearanceModes[getFighter().monster_id]} onExit={()=>setSubTab('players')}/>;
 
   return (
     <div className="h-full flex flex-col gap-4 animate-fade-in">
