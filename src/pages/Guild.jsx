@@ -1,6 +1,6 @@
+import {useGameAction} from '../hooks/useGameAction.js';
 import React, { useState } from 'react';
 import { api } from '../utils/api';
-import { refreshAfterCommit, resourcesForAction } from '../utils/gameRules';
 import { GUILD_SHOP } from '../utils/gameCatalog';
 
 export default function Guild({ 
@@ -12,25 +12,8 @@ export default function Guild({
 }) {
   const [guildName, setGuildName] = useState('');
   const [donationAmount, setDonationAmount] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const {loading,message,setMessage,handleAction}=useGameAction(refreshData);
 
-  const handleAction = async (actionFn, ...args) => {
-    setLoading(true);
-    setMessage('');
-    try {
-      const data = await actionFn(...args);
-      setMessage(data.message || '操作成功！');
-      const warning=await refreshAfterCommit(refreshData,resourcesForAction(api,actionFn));
-      if(warning)setMessage(warning);
-      return true;
-    } catch (err) {
-      setMessage(`❌ ${err.message}`);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreate = async () => {
     if (!guildName) return;

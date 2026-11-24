@@ -1,3 +1,5 @@
+import {useRepairCountdown} from '../hooks/useRepairCountdown.js';
+import {getItemQuantity} from '../utils/inventory.js';
 import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api, GAME_RULES_V2 } from '../utils/api';
@@ -38,14 +40,7 @@ export default function Dashboard({
   const [trainMessage,setTrainMessage]=useState('');
 
   const monster = activeMonster || monsters[0];
-  const [repairClock,setRepairClock]=useState(Date.now);
-  const repairUntil=monster?.repair_until;
-  useEffect(()=>{
-    if(!repairUntil)return;
-    const id=setInterval(()=>setRepairClock(Date.now()),1000);
-    return ()=>clearInterval(id);
-  },[repairUntil]);
-  const repairSeconds=repairUntil?Math.min(1800,Math.max(0,Math.ceil((new Date(repairUntil).getTime()-Math.max(repairClock,Date.now()))/1000))):0;
+  const repairSeconds=useRepairCountdown(monster?.repair_until);
   const preferredMode=appearanceModes[monster?.monster_id];
   const look=appearance(monster,preferredMode);
   const currentMode=appearanceMode(monster,preferredMode);
@@ -110,10 +105,7 @@ export default function Dashboard({
 
   if (!monster) return null;
 
-  const getItemQty = (itemId) => {
-    const item = inventory.find(i => i.item_id === itemId);
-    return item ? item.quantity : 0;
-  };
+  const getItemQty = itemId => getItemQuantity(inventory,itemId);
 
   // The database has a "name" column, but no "custom_name" column.
   // Preserve names chosen by players instead of replacing them with a species name.

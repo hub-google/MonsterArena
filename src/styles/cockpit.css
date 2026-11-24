@@ -1,0 +1,92 @@
+/* Arena cockpit design system — restrained industrial surfaces, readable labels, recognizable symbols. */
+.game-icon{display:inline-block;width:22px;height:22px;flex-shrink:0;vertical-align:middle}
+.game-item-icon{font-size:24px;line-height:1.1;width:auto;height:auto}
+.play-button{--control-accent:#94b5c6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:44px;min-height:60px;padding:7px 6px;border:1px solid #354555;border-radius:10px;background:linear-gradient(155deg,#263847,#182532);color:#eef4f8;font-weight:600;cursor:pointer;touch-action:manipulation;position:relative;box-shadow:0 2px 3px #0003;}
+.play-button:active:not(:disabled){transform:translateY(1px);background:#304653}
+.play-button:hover:not(:disabled){border-color:#6c8999}
+.play-button:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+.play-button:focus-visible,.play-arrow:focus-visible,.play-encounter:focus-visible{outline:2px solid #8cd9ec;outline-offset:2px}
+.play-button[aria-pressed="true"]{border-color:#72cadc;background:#243e4a}
+.play-symbol{color:var(--control-accent);display:grid;place-items:center}
+.play-symbol .game-icon{width:27px;height:27px}
+.play-caption{font-size:13px;line-height:1.25;text-align:center}
+.play-subtext{font-size:11px;color:#b5c2cc;line-height:1.25}
+.play-green{--control-accent:#8fceb0}.play-blue{--control-accent:#8acfe0}.play-red{--control-accent:#efa39f}.play-orange{--control-accent:#e6bd81}.play-purple{--control-accent:#bcb2e9}
+.play-small{min-height:44px;padding:3px 6px;border-color:transparent;background:transparent;box-shadow:none}
+.play-small .play-symbol .game-icon{width:21px;height:21px}.play-small .play-caption{font-size:11px}
+.play-compact{min-height:52px}.play-compact .play-symbol .game-icon{width:22px;height:22px}
+.play-nav{min-height:50px;min-width:0;background:transparent;border-color:transparent;box-shadow:none;padding:4px 1px;color:#9eafbf}
+.play-nav .game-icon{width:23px;height:23px}.play-nav .play-caption{font-size:12px}
+.play-nav[aria-pressed="true"]{background:#203744;border-color:#39616f;color:#e0f9ff;--control-accent:#81d9ea}
+.play-needed:not(:disabled):after{content:'';position:absolute;right:8px;top:8px;width:7px;height:7px;border-radius:50%;background:#ecc179;box-shadow:0 0 0 3px #ecc17918}
+.cockpit-primary:not(:disabled){background:linear-gradient(150deg,#2d5665,#23404f);border-color:#548b9d;--control-accent:#d0f8ff}
+.cockpit-header{height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#111c29;border-bottom:1px solid #2a3b4c}
+.cockpit-brand{display:flex;align-items:center;gap:7px;color:#9cb7c5;font-weight:600;letter-spacing:1.6px;font-size:11px}.cockpit-brand .game-icon{width:19px;height:19px;color:#7dc6d8}.cockpit-brand strong{color:#e6f0f5}
+.cockpit-main{flex:1;min-height:0;overflow:auto;position:relative;padding:10px 12px;background:#0e1722}
+.cockpit-main-home{overflow:hidden}
+.cockpit-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:5px 8px max(5px,env(safe-area-inset-bottom));background:#111c29;border-top:1px solid #334454;flex-shrink:0;z-index:20}
+.arena-shell{width:100%;max-width:400px;height:100dvh;margin:auto;background:#0e1722;color:#e2e8f0;position:relative;display:flex;flex-direction:column;overflow:hidden;border:1px solid #2a3b4c;box-shadow:0 18px 65px #0005}
+.cockpit-home{height:100%;min-height:0;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;gap:7px}
+.cockpit-console{display:flex;flex-direction:column;gap:7px;min-height:0;min-width:0}
+@media(min-width:640px){.arena-shell{width:400px;height:780px;zoom:var(--arena-fit,1);border-radius:18px}}
+
+.cockpit-toolbar{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:44px}
+.cockpit-resources{display:flex;align-items:center;gap:6px;min-width:0;font-size:13px;font-variant-numeric:tabular-nums}
+.cockpit-resources>span{display:flex;align-items:center;gap:3px;background:#1a2937;border:1px solid #314351;border-radius:7px;padding:5px 6px;white-space:nowrap}
+.cockpit-resources .game-icon{width:17px;height:17px;color:#e8bd79}.cockpit-resources>span+span .game-icon{color:#8bd1af}
+.cockpit-tools{display:flex;gap:2px}.cockpit-tools .play-small{padding:3px 4px}
+.play-pet-screen{border:1px solid #405365;border-radius:13px;background:#182634;min-width:0}
+.cockpit-hero{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:3px;min-height:0;padding:8px 8px 6px;position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(ellipse at 50% 58%,#31495a 0%,#213443 43%,#15222e 83%)}
+.cockpit-hero:before{content:'';position:absolute;inset:0;z-index:-1;background:repeating-linear-gradient(0deg,transparent 0 23px,#8ab8d006 23px 24px),repeating-linear-gradient(90deg,transparent 0 23px,#8ab8d006 23px 24px);pointer-events:none}
+.cockpit-identity{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:3px;align-items:center}
+.cockpit-name{display:flex;justify-content:center;align-items:center;gap:3px;min-width:0}
+.cockpit-name h2{font-size:16px;line-height:1.25;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cockpit-edit{display:grid;place-items:center;min-width:32px;min-height:44px;margin-block:-8px;color:#a9c3d0}.cockpit-edit .game-icon{width:15px;height:15px}
+.cockpit-species{display:flex;flex-wrap:wrap;justify-content:center;gap:3px 8px;font-size:11px;color:#c8d7e0;line-height:1.35}
+.cockpit-species>.cockpit-faction{color:var(--faction)}.cockpit-species>.cockpit-model{color:#dcecf3}
+.play-arrow{display:grid;place-items:center;min-width:44px;min-height:44px;font-size:27px;background:#1c2c3a;border:1px solid #374b5b;border-radius:8px;color:#c6dce7;line-height:1}
+.play-arrow:disabled{opacity:.3}
+.cockpit-art{min-height:0;display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);position:relative;padding:0 3px}
+.cockpit-art>.mecha-display{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;justify-items:stretch;justify-content:stretch;align-items:center;align-content:stretch;width:100%;height:100%;min-width:0;min-height:0;max-width:100%}
+.cockpit-art>.mecha-display>svg{grid-row:1;grid-column:1;width:100%;height:100%;min-width:0;min-height:0;max-width:100%;max-height:270px;align-self:center;justify-self:stretch;display:block}
+.cockpit-art>.mecha-display>.mecha-status-list{grid-row:2}
+.cockpit-art:after{content:none}
+.mecha-status-list{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;max-width:100%;margin-top:3px;flex-shrink:0}
+.mecha-status{display:flex;align-items:center;gap:3px;border:1px solid #53616d;border-radius:5px;padding:3px 5px;font-size:11px;line-height:1.3;white-space:nowrap;background:#172532}
+.mecha-status .game-icon{width:14px;height:14px}
+.cockpit-meta{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#aebfca;padding:1px 5px}
+.cockpit-readouts{display:flex;flex-direction:column;gap:6px}
+.cockpit-meters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.play-meter{display:flex;flex-direction:column;gap:4px;min-width:0;background:#182633;border:1px solid #304150;border-radius:8px;padding:6px 7px}
+.meter-heading{display:flex;align-items:center;gap:4px;font-size:12px;color:#c8d5df;white-space:nowrap}.meter-heading .game-icon{width:16px;height:16px;color:#8fbdce}.meter-heading strong{margin-left:auto;color:#e6eff4;font-size:12px;font-variant-numeric:tabular-nums}
+.play-meter-track{height:7px;border-radius:4px;background:#0a131d;overflow:hidden}.play-meter-fill{height:100%;border-radius:3px;transition:width .25s}
+.cockpit-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid #304150;border-radius:8px;background:#182633;overflow:hidden}
+.cockpit-stats>div{display:grid;grid-template-columns:auto auto;align-items:center;justify-content:center;gap:1px 4px;padding:5px 2px;color:#b2c4d1;font-size:11px;border-right:1px solid #304150}
+.cockpit-stats>div:last-child{border:0}.cockpit-stats .game-icon{width:15px;height:15px;color:#92c3d3}
+.cockpit-stats strong{grid-column:1/-1;text-align:center;font-size:16px;line-height:1.15;color:#f3f6f8;font-variant-numeric:tabular-nums}
+.cockpit-record{display:flex;align-items:center;justify-content:space-between;gap:3px;padding:0 2px;font-size:11px;color:#a8bac7}
+.cockpit-record span{display:flex;align-items:center;gap:4px}.cockpit-record .game-icon{width:13px;height:13px}
+.cockpit-actions{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.cockpit-actions>.play-button{grid-column:span 2}.cockpit-actions>.play-button:nth-child(n+4){grid-column:span 3}
+.cockpit-actions .play-button{min-height:54px;gap:3px;padding:5px 3px}.cockpit-actions .play-caption{font-size:13px}
+.cockpit-feedback-slot{min-height:18px;display:flex;justify-content:space-between;align-items:center;gap:4px;font-size:11px;color:#a8bac7}
+.play-feedback{display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.3;min-width:0}.play-feedback .game-icon{width:15px;height:15px}.play-feedback span{overflow-wrap:anywhere}
+.cockpit-link{display:flex;align-items:center;gap:3px;color:#b9d5ff;min-height:24px;white-space:nowrap}.cockpit-link .game-icon{width:16px;height:16px}
+.cockpit-dead{display:flex;justify-content:center;align-items:center;gap:6px;color:#efa39f;font-size:13px}
+.cockpit-overlay{position:absolute;inset:0;z-index:40;background:#050b13c9;display:flex;align-items:center;justify-content:center;padding:12px}
+.cockpit-dialog{width:100%;max-width:360px;max-height:100%;overflow:auto;border:1px solid #486071;border-radius:14px;background:#172633;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 15px 55px #0008}
+.dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:6px}.dialog-heading h2{font-size:17px;font-weight:700}.dialog-heading button{width:44px;height:44px;font-size:26px;color:#bacbd6;border-radius:7px;background:#25394a}
+.play-encounter{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;background:linear-gradient(150deg,#243645,#172632);border:1px solid #405365;border-radius:10px;padding:8px;min-height:64px;min-width:0;color:#eef4f8;touch-action:manipulation}
+.play-encounter:disabled{opacity:.45}.play-encounter:active:not(:disabled){transform:scale(.99)}
+.encounter-cta{display:flex;align-items:center;justify-content:center;gap:4px;background:#2b4a5a;border:1px solid #466d7d;border-radius:7px;width:100%;padding:9px 3px;font-size:13px;color:#d3f3fc}.encounter-cta .game-icon{width:17px;height:17px}
+.battle-result-icon.game-icon{width:48px;height:48px;color:#e7c384}
+.page-controls{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#b4c7d3}
+.catalog-screen{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto;gap:8px}
+.catalog-heading{display:flex;justify-content:space-between;align-items:center}.catalog-heading h2{font-size:20px;font-weight:700}.catalog-heading h2 span{color:#9eb4c5;font-size:12px;font-weight:400}
+.catalog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:7px;min-height:0}
+.catalog-entry{min-height:0;border-top:2px solid var(--entry-accent);padding:4px}.catalog-entry .mecha-display{flex:1;min-height:0;width:100%}.catalog-entry .mecha-display>svg{width:auto;max-width:100%;height:100%;max-height:104px;min-height:0;flex:1 1 auto}
+.catalog-model{font-size:12px;line-height:1.15;min-height:2.3em;display:grid;place-items:center;flex-shrink:0;width:100%;overflow-wrap:anywhere;text-align:center;color:#f4f8fc}.catalog-species{font-size:11px;font-weight:600;color:var(--entry-accent);text-align:center;line-height:1.15;flex-shrink:0}.catalog-classification{font-size:10px;color:#d3e0e7;text-align:center;line-height:1.2;flex-shrink:0}.catalog-transform-label{display:flex;flex-direction:column;align-items:center;line-height:1.15}.catalog-transform-label small{font-size:9px;font-weight:400;overflow-wrap:anywhere}
+@media(max-width:639px) and (max-height:700px){.cockpit-home,.cockpit-console{gap:5px}.cockpit-main{padding:7px 9px}.cockpit-actions .play-button{min-height:49px;padding:3px}.cockpit-actions .game-icon{width:24px;height:24px}.cockpit-stats>div{padding:3px 1px}.cockpit-readouts{gap:4px}.cockpit-toolbar{min-height:40px}.cockpit-hero{padding:5px}.cockpit-record{font-size:11px}.cockpit-feedback-slot{min-height:14px}}
+@media(max-width:360px){.cockpit-main{padding-inline:8px}.cockpit-resources{gap:3px}.cockpit-resources>span{padding:4px}.cockpit-tools .play-small{padding-inline:2px}.cockpit-species{font-size:10px}.mecha-status{font-size:10px;padding:2px 3px}}
+/* Extremely short or zoomed screens remain usable, never clip actions. */
+@media(max-width:639px) and (max-height:575px){.cockpit-main-home{overflow-y:auto}.cockpit-home{height:auto;min-height:510px}.cockpit-art{min-height:160px}}
+

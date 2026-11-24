@@ -16,7 +16,7 @@ Node.js 22：
 ```bash
 npm ci
 npm run dev
-````
+```
 
 本機建置與驗收：
 
@@ -25,7 +25,7 @@ npm run lint
 npm run check:contract
 npm run test:unit
 npm run build
-````
+```
 
 ## 專案目錄
 
@@ -34,7 +34,9 @@ src/                  前端程式
   pages/              各功能頁面
   components/         共用畫面元件
   hooks/              共用 React 狀態與副作用
-  utils/              API、交易、遊戲規則與美術邏輯
+  services/           後端連線與各領域 API
+  styles/             座艙、皮膚與圖鑑樣式
+  utils/              遊戲規則、交易工具與美術邏輯
   assets/             前端打包資源
 public/               靜態資源（機甲、皮膚、圖示）
 supabase/

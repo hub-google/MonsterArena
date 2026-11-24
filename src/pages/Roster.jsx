@@ -1,9 +1,11 @@
+import {getItemQuantity} from '../utils/inventory.js';
+import {useGameAction} from '../hooks/useGameAction.js';
 import React, { useState } from 'react';
 import { api, GAME_RULES_V2 } from '../utils/api';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import {appearance} from '../utils/skins';
 import {PlayButton} from '../components/PlayButton';
-import { refreshAfterCommit, resourcesForAction, getHatchState, canManageMonsterChips } from '../utils/gameRules';
+import { getHatchState, canManageMonsterChips } from '../utils/gameRules';
 
 import { getMecha, displayMonsterName } from '../utils/monsterSprites';
 
@@ -17,8 +19,7 @@ export default function Roster({
   appearanceModes={} 
 }) {
   const [selectedMonsterId, setSelectedMonsterId] = useState(activeMonster?.monster_id || monsters[0]?.monster_id);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const {loading,message,setMessage,handleAction}=useGameAction(refreshData);
   
   // Tab within roster: 'list', 'chips', 'breed', 'shop'
   const [subTab, setSubTab] = useState('list');
@@ -38,22 +39,6 @@ export default function Roster({
   const petPages=Math.max(1,Math.ceil(monsters.length/6));
   const currentPetPage=Math.min(petPage,petPages-1);
 
-  const handleAction = async (actionFn, ...args) => {
-    setLoading(true);
-    setMessage('');
-    try {
-      const data = await actionFn(...args);
-      setMessage(data.message || '操作成功！');
-      const warning=await refreshAfterCommit(refreshData,resourcesForAction(api,actionFn));
-      if(warning)setMessage(warning);
-      return true;
-    } catch (err) {
-      setMessage(`❌ ${err.message}`);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleHatch = async () => {
     await handleAction(api.hatchEgg);
@@ -87,10 +72,7 @@ export default function Roster({
     await handleAction(api.breed, parent1, parent2, useCatalyst);
   };
 
-  const getItemQty = (itemId) => {
-    const item = inventory.find(i => i.item_id === itemId);
-    return item ? item.quantity : 0;
-  };
+  const getItemQty = itemId => getItemQuantity(inventory,itemId);
 
   // Older accounts have chips stored under item_type 1 or 6.
   const chipLabels = { chip_atk:'攻擊晶片', chip_def:'防禦晶片', chip_hp:'耐久晶片', chip_spd:'速度晶片' };

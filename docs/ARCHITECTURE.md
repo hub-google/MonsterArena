@@ -6,14 +6,18 @@
 - `src/hooks/useOnlineStatus.js`：瀏覽器網路狀態。
 - `src/components/TransactionRecoveryDialog.jsx`：交易恢復畫面，不直接操作資料庫。
 - `src/pages/`：養成、倉庫、競技、戰術對戰、世界王、公會、社交與圖鑑。
-- `src/utils/api.js`：唯一前端資料服務入口；`supabaseClient.js` 管理連線，`transactionJournal.js`、`transactionTransport.js` 負責安全交易重送。
+- `src/utils/api.js`：唯一前端資料服務入口（穩定 facade），不再混放所有領域實作。
+- `src/services/`：backend（環境與命名空間）、transactions（交易入口）、account、units、economy、battle、guild、social。`supabaseClient.js` 管理連線，`transactionJournal.js`、`transactionTransport.js` 負責安全交易重送。
+- `src/hooks/useGameAction.js`：倉庫與公會共用交易回饋；`useRepairCountdown.js`：修復倒數；`useBattlePlayback.js`：伺服器戰鬥結果的播放。
+- `src/utils/inventory.js`：共用庫存數量查詢。
+- `src/styles/`：座艙、皮膚、圖鑑樣式依原載入順序分檔。
 - `src/utils/gameRules.js`、`gameCatalog.js`、`tacticalDuel.js`：規則、商品與戰鬥鏡像。
 - `src/utils/monsterSprites.js`、`mechaArt.js`、`mecha3d.js`、`skins.js`：機體名稱、2D/3D 造型與皮膚。
 - `public/mecha/`、`public/skins/`：上架圖片；維持檔案位置與造型，不為整理而覆寫。
 
 ### 維護原則
 
-前端不得另建第二套結算或直接改寫資產。SQL 是交易與戰鬥結算權威。API 對外介面、現行資料表、RPC 及玩家資料應保持相容。高風險頁面（養成、競技、倉庫、社交）下一次功能修改時依領域抽取共用操作；不可只為減少行數改寫已運作的交易。
+前端不得另建第二套結算或直接改寫資產。SQL 是交易與戰鬥結算權威。API 對外介面、現行資料表、RPC 及玩家資料應保持相容。頁面保留各自的特殊交易流程；共用交易回饋、修復倒數及戰鬥播放集中維護。不可只為減少行數改寫已運作的交易。
 
 ## 唯一現行 SQL 程式碼
 

@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { GAME_FUNCTIONS } from '../supabase/schema/manifest.mjs';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
-const api = read('src/utils/api.js');
+const api = [read('src/utils/api.js'), ...readdirSync(new URL('../src/services/', import.meta.url)).filter(name=>name.endsWith('.js')).map(name=>read('src/services/'+name))].join('\n');
 const arena = read('src/pages/Arena.jsx');
 const dashboard = read('src/pages/Dashboard.jsx');
 const roster = read('src/pages/Roster.jsx');
