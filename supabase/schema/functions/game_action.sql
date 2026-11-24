@@ -93,7 +93,7 @@ begin
   if p_action='pvp_list' then
     return jsonb_build_object('season',v_season,'registered',exists(select 1 from arena_internal.pvp_defenders where user_id=v_uid),
       'opponents',coalesce((select jsonb_agg(to_jsonb(q) order by q.points desc,q.user_id) from
-        (select d.user_id,u.username,d.monster_name,d.family,d.stage,d.type,d.hp,d.atk,d.def,d.spd,coalesce(s.points,0) points
+        (select d.user_id,u.username,d.monster_name,d.family,d.stage,d.type,(select m.skin_id from public.monsters m where m.monster_id=d.monster_id and m.user_id=d.user_id) skin_id,d.hp,d.atk,d.def,d.spd,coalesce(s.points,0) points
          from arena_internal.pvp_defenders d join public.users u using(user_id)
          left join arena_internal.pvp_scores s on s.user_id=d.user_id and s.season=v_season
          where d.user_id<>v_uid order by coalesce(s.points,0) desc,d.user_id limit 30) q),'[]'::jsonb),
@@ -113,7 +113,7 @@ begin
     end if;
   end if;
 
-  if p_action in ('hatch','feed','clean','heal','train','evolve','release','lock','equip','unequip','breed','buy','raid','battle','claim','guild_create','guild_join','guild_leave','guild_donate','guild_buy','chat','gift','raid_claim','pvp_register','pvp_unregister') then
+  if p_action in ('hatch','feed','clean','heal','train','evolve','release','lock','equip','unequip','breed','buy','skin_equip','raid','battle','claim','guild_create','guild_join','guild_leave','guild_donate','guild_buy','chat','gift','raid_claim','pvp_register','pvp_unregister') then
     null;
   else
     raise exception '未知遊戲操作';
@@ -140,7 +140,7 @@ begin
     return arena_internal.finish_action(v_uid,v_request,p_action,p_data,jsonb_build_object('message','核心啟動成功！'),v_u.gold);
   end if;
 
-  if p_action in ('feed','clean','heal','train','evolve','release','lock','equip','unequip','raid','battle','pvp_register') then
+  if p_action in ('feed','clean','heal','train','evolve','release','lock','equip','unequip','skin_equip','raid','battle','pvp_register') then
     v_mon_id := nullif(p_data->>'monster_id','')::uuid;
     if v_mon_id is null then raise exception '請選擇怪獸'; end if;
     select * into v_m from public.monsters where monster_id=v_mon_id and user_id=v_uid for update;
@@ -156,6 +156,17 @@ begin
     end if;
   end if;
 
+  if p_action = 'skin_equip' then
+    if coalesce(v_m.life_stage,1)<2 then raise exception '機械核心尚未孵化'; end if;
+    v_item:=nullif(p_data->>'skin_id','');
+    if v_item is not null then
+      if v_item not in ('skin_flerken','skin_husky','skin_dragon','skin_slime','skin_ghost','skin_panda','skin_dino','skin_fox','skin_angel','skin_demon') then raise exception '未知皮膚'; end if;
+      if not exists(select 1 from public.user_inventory where user_id=v_uid and item_id=v_item and quantity>0) then raise exception '尚未收藏此皮膚'; end if;
+    end if;
+    update public.monsters set skin_id=v_item where monster_id=v_mon_id and user_id=v_uid;
+    return arena_internal.finish_action(v_uid,v_request,p_action,p_data,jsonb_build_object('message','造型已更新'),v_u.gold);
+  end if;
+
   if p_action = 'buy' then
     v_item := p_data->>'item_id';
     v_qty := (p_data->>'quantity')::int;
@@ -166,8 +177,13 @@ begin
       when 'ultimate_core' then 1000
       when 'chip_atk' then 300 when 'chip_def' then 300
       when 'chip_hp' then 300 when 'chip_spd' then 300
+      when 'skin_flerken' then 100 when 'skin_husky' then 50 when 'skin_dragon' then 150 when 'skin_slime' then 50 when 'skin_ghost' then 80 when 'skin_panda' then 80 when 'skin_dino' then 200 when 'skin_fox' then 180 when 'skin_angel' then 250 when 'skin_demon' then 300
       else null end;
     if v_price is null then raise exception '未知商品'; end if;
+    if v_item in ('skin_flerken','skin_husky','skin_dragon','skin_slime','skin_ghost','skin_panda','skin_dino','skin_fox','skin_angel','skin_demon') then
+      if v_qty<>1 then raise exception '皮膚每款只需購買一次'; end if;
+      if exists(select 1 from public.user_inventory where user_id=v_uid and item_id=v_item and quantity>0) then raise exception '已收藏此皮膚'; end if;
+    end if;
     v_cost := v_qty*v_price;
     if v_u.gold < v_cost then raise exception '金幣不足'; end if;
     update public.users set gold=gold-v_cost where user_id=v_uid;
@@ -509,7 +525,7 @@ begin
       'message',case when v_won then '對戰勝利！' else '對戰失敗' end,
       'won',v_won,'battleId',v_battle,'events',v_events,
       'ownMaxHp',v_own_max_hp,'enemyMaxHp',v_enemy_max_hp,
-      'enemyName',v_enemy_name,'enemyType',v_enemy_type,'enemyFamily',v_enemy_family,'enemyStage',v_enemy_stage,'reward',v_reward,
+      'enemyName',v_enemy_name,'enemyType',v_enemy_type,'enemyFamily',v_enemy_family,'enemyStage',v_enemy_stage,'enemySkin',case when v_pvp then (select m.skin_id from public.monsters m where m.monster_id=v_defender.monster_id and m.user_id=v_defender.user_id) else null end,'reward',v_reward,
       'enemyAtk',v_enemy_atk,'enemyDef',v_enemy_def,'enemySpd',v_enemy_spd,
       'ownHp',v_own_hp,'enemyHp',v_enemy_hp);
   elsif p_action='chat' then
