@@ -235,7 +235,7 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 DO $registration$
 BEGIN
- IF has_function_privilege(current_user,'arena_internal.resolve_battle(uuid,public.monsters,jsonb)','EXECUTE') THEN RAISE EXCEPTION 'private battle function exposed'; END IF;
+ IF EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='arena_internal' AND p.proname='resolve_battle' AND has_function_privilege(current_user,p.oid,'EXECUTE')) THEN RAISE EXCEPTION 'private battle function exposed'; END IF;
  PERFORM public.game_action('pvp_register','{"monster_id":"00000000-0000-4000-8000-000000000011"}');
  IF NOT (public.game_action('pvp_list')->>'registered')::boolean THEN RAISE EXCEPTION 'registration not visible'; END IF;
  PERFORM public.game_action('release','{"monster_id":"00000000-0000-4000-8000-000000000011"}');
