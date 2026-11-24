@@ -24,6 +24,6 @@ begin
       where user_id=v_uid;
   end if;
   return v_count;
-end; $function$
+end; $function$;
 REVOKE ALL ON FUNCTION public.game_claim_gifts() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_claim_gifts() TO authenticated;

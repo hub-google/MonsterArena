@@ -27,6 +27,6 @@ begin
     on conflict(user_id) do nothing;
   select * into v_profile from public.users where user_id=v_uid;
   return v_profile;
-end; $function$
+end; $function$;
 REVOKE ALL ON FUNCTION public.game_ensure_profile() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_ensure_profile() TO authenticated;

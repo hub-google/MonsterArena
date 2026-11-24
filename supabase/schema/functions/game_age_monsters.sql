@@ -53,6 +53,6 @@ begin
       last_updated_at=now()
     where monster_id=v_m.monster_id and user_id=v_uid;
   end loop;
-end; $function$
+end; $function$;
 REVOKE ALL ON FUNCTION public.game_age_monsters() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_age_monsters() TO authenticated;

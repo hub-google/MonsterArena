@@ -32,6 +32,6 @@ AS $function$
   where s.pet_rank<=3
   order by s.newest desc nulls last,s.user_id,s.pet_rank
   limit 90;
-$function$
+$function$;
 REVOKE ALL ON FUNCTION public.game_plaza_monsters(smallint) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_plaza_monsters(smallint) TO authenticated;

@@ -14,6 +14,6 @@ begin
     where monster_id=p_monster_id and user_id=v_uid;
   if not found then raise exception '無法修改其他玩家的怪獸'; end if;
   return jsonb_build_object('message','怪獸名稱已更新');
-end; $function$
+end; $function$;
 REVOKE ALL ON FUNCTION public.game_rename_monster(uuid,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_rename_monster(uuid,text) TO authenticated;

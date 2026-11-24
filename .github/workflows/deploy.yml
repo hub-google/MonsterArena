@@ -50,9 +50,8 @@ jobs:
           PG_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/fixture.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < supabase/schema/game_rules_v2.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < supabase/schema/functions/game_age_monsters.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < supabase/schema/functions/game_action.sql
+          npm run --silent db:sql > /tmp/arena-current.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-current.sql
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/game-rules-v2.sql
       - name: 檢查 Supabase 驗證服務
         run: node scripts/check-supabase-game.mjs

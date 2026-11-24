@@ -36,7 +36,7 @@ BEGIN
   END;
   PERFORM public.game_action('pvp_register','{"monster_id":"00000000-0000-4000-8000-000000000011"}');
   r:=public.game_action('battle','{"monster_id":"00000000-0000-4000-8000-000000000011","encounter":"wild"}');
-  IF (r->>'enemyMaxHp')::numeric<>60 OR (r->>'enemyAtk')::numeric<>7 THEN RAISE EXCEPTION 'wild stats incorrect'; END IF;
+  IF (r->>'enemyMaxHp')::numeric<>45 OR (r->>'enemyAtk')::numeric<>5 THEN RAISE EXCEPTION 'wild stats incorrect'; END IF;
   PERFORM public.game_age_monsters();
   PERFORM public.game_action('raid_status');
 END $$;
@@ -56,7 +56,7 @@ DO $$
 DECLARE r jsonb;
 BEGIN
  r:=public.game_action('battle','{"monster_id":"00000000-0000-4000-8000-000000000012","encounter":"wild"}');
- IF (r->>'enemyMaxHp')::numeric<>60 OR (r->>'enemyAtk')::numeric<>7 OR NOT (r->>'won')::boolean OR (r->>'reward')::int<>10 THEN RAISE EXCEPTION 'fixed difficulty or clear reward failed'; END IF;
+ IF (r->>'enemyMaxHp')::numeric<>45 OR (r->>'enemyAtk')::numeric<>5 OR NOT (r->>'won')::boolean OR (r->>'reward')::int<>10 THEN RAISE EXCEPTION 'fixed difficulty or clear reward failed'; END IF;
  PERFORM public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000012"}');
  r:=public.game_action('raid_status');
  IF (r->>'current_hp')::int<>0 OR jsonb_array_length(r->'claims')<>1 THEN RAISE EXCEPTION 'daily raid settlement failed'; END IF;

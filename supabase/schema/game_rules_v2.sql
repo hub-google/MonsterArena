@@ -87,7 +87,7 @@ CREATE OR REPLACE FUNCTION arena_internal.encounter(p_name text)
 RETURNS TABLE(name text,kind int,family int,stage int,hp double precision,atk double precision,def double precision,spd double precision,reward int)
 LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
   SELECT v.name,v.kind,v.family,v.stage,v.hp,v.atk,v.def,v.spd,v.reward FROM (VALUES
-    ('wild','野生病毒怪獸',3,3,3,60::double precision,7::double precision,4::double precision,5::double precision,10),
+    ('wild','野生訓練怪獸',0,3,3,45::double precision,5::double precision,2::double precision,4::double precision,10),
     ('stage2','岩甲守衛',2,4,4,120,15,12,8,30),
     ('stage3','疾風獵手',1,5,4,200,27,16,25,60),
     ('stage4','深淵巨獸',3,6,5,340,45,32,30,100),

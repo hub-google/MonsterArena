@@ -583,6 +583,6 @@ begin
     end if;
   end if;
   return arena_internal.finish_action(v_uid,v_request,p_action,p_data,coalesce(v_result,jsonb_build_object('message','操作成功！')),v_u.gold);
-end; $function$
+end; $function$;
 REVOKE ALL ON FUNCTION public.game_action(text,jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_action(text,jsonb) TO authenticated;

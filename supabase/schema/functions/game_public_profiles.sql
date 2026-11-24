@@ -14,6 +14,6 @@ begin
     where (p_user_ids is null or u.user_id=any(p_user_ids))
       and (p_username is null or lower(u.username)=lower(p_username))
     order by u.user_id limit 100;
-end; $function$
+end; $function$;
 REVOKE ALL ON FUNCTION public.game_public_profiles(uuid[],text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_public_profiles(uuid[],text) TO authenticated;

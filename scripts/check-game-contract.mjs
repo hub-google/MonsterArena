@@ -22,6 +22,7 @@ for (const { name, signature } of GAME_FUNCTIONS) {
   assert.deepEqual(declared.map(x => x[1]), [name], 'Only one current function per source file');
   assert.match(source, /security definer/i);
   assert.match(source, /set search_path/i);
+  assert.match(source, /\$function\$;\s*REVOKE/i, 'Function body must end with a SQL statement terminator');
   assert.ok(source.includes('REVOKE ALL ON FUNCTION public.' + name + signature + ' FROM PUBLIC, anon;'));
   assert.ok(source.includes('GRANT EXECUTE ON FUNCTION public.' + name + signature + ' TO authenticated;'));
   sql.set(name, source);

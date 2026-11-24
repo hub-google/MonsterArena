@@ -42,6 +42,6 @@ begin
     return jsonb_build_object('message','好友邀請已接受');
   else raise exception '未知好友操作';
   end if;
-end; $function$
+end; $function$;
 REVOKE ALL ON FUNCTION public.game_friend_action(text,uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_friend_action(text,uuid) TO authenticated;

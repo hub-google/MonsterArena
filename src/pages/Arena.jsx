@@ -275,7 +275,7 @@ export default function Arena({
           <div className="flex flex-col gap-3">
             <p className="text-xs text-slate-300">固定敵人強度，培養怪獸即可挑戰更高難度。各關每日首勝有金幣獎勵。</p>
             {[
-              ['wild','野生病毒怪獸',60,7,4,5,10],
+              ['wild','野生訓練怪獸',45,5,2,4,10],
               ['stage2','岩甲守衛',120,15,12,8,30],
               ['stage3','疾風獵手',200,27,16,25,60],
               ['stage4','深淵巨獸',340,45,32,30,100],
