@@ -27,3 +27,17 @@ test('redesigned vehicles use the original 128px indexed raster and matching fac
   assert.ok(vehicle.flat().includes(''));assert.ok(vehicle.flat().filter(Boolean).length>2000);
  }
 });
+
+test('approved alternate forms remain pixel-identical and robot sprites match preview',async()=>{
+ const {getSpriteGrid}=await import('../src/utils/mechaArt.js');
+ const {createHash}=await import('node:crypto');
+ const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+ const robots=[],vehicles=[];
+ for(const f of FACTIONS)for(const r of [1,2]){
+  for(const stage of [3,4,5,6])robots.push(getSpriteGrid(f.legacy,stage,r,false));
+  const v=getSpriteGrid(f.legacy,5,r,true);vehicles.push(v);
+  for(const stage of [4,6])assert.deepEqual(getSpriteGrid(f.legacy,stage,r,true),v);
+ }
+ assert.equal(digest(vehicles),'ab36bfd1b17b254a50986e8af9cc40148bd30f3b980aec7c7364c51a728c3688');
+ assert.equal(digest(robots),'849ca4b4dbf5926f11a05fe13f3be464824e275af5eb1508341975f2af540961');
+});

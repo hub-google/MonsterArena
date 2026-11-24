@@ -107,15 +107,77 @@ function raster(f,r,s,vehicle){
  }
  return pixels;
  }
- // Eight silhouettes, independently authored rather than recoloring a template.
- if(f===1&&r===1){wheel(6,26,14,14);wheel(44,26,14,14);feet(17,45,13);armor(19,26,26,22);armor(7,29,13,19);armor(44,29,13,19);head(22,12,20,17,1);poly([[19,28],[32,35],[45,28],[40,43],[24,43]],C);core(28,30);if(s>=4){armor(3,40,16,13);armor(45,40,16,13)}if(s>=5){poly([[10,26],[5,15],[17,19],[23,30]],H);poly([[54,26],[59,15],[47,19],[41,30]],H)}if(s===6){gun(5,11,13,5);gun(46,11,13,5);}}
- if(f===1&&r===2){wheel(20,44,11,14);wheel(34,44,11,14);poly([[25,28],[39,28],[38,43],[34,47],[30,47],[26,43]],C);head(23,13,18,15,1);poly([[19,24],[10,14],[15,31],[22,36]],WHITE);poly([[45,24],[54,14],[49,31],[42,36]],WHITE);armor(14,31,8,12);armor(42,31,8,12);core(28,31);if(s>=4){poly([[14,37],[3,51],[8,54],[22,42]],H);poly([[50,37],[61,51],[56,54],[42,42]],H)}if(s>=5){poly([[27,16],[15,5],[20,20]],C);poly([[37,16],[49,5],[44,20]],C)}if(s===6){poly([[19,30],[6,20],[3,24],[14,38]],L);poly([[45,30],[58,20],[61,24],[50,38]],L);}}
- if(f===2&&r===1){feet(15,45,15);armor(17,22,30,27);armor(9,25,12,23);armor(43,25,12,23);head(22,11,20,15);core(28,31);if(s>=4){poly([[3,30],[18,26],[22,32],[20,50],[12,57],[3,50]],C);detail(7,33,3,15,H);poly([[61,30],[46,26],[42,32],[44,50],[52,57],[61,50]],C);detail(54,33,3,15,H)}if(s>=5){rect(11,16,12,8,L);rect(41,16,12,8,L)}if(s===6){armor(3,24,17,8);armor(44,24,17,8);rect(24,39,16,5,STEEL);}}
- if(f===2&&r===2){track(6,43,23,14);track(35,43,23,14);armor(18,32,28,15);armor(22,17,22,18);head(25,11,14,12);gun(7,28,21,8);armor(42,28,10,13);core(29,35);if(s>=4){gun(3,17,24,8)}if(s>=5){armor(40,12,14,17);gun(38,8,20,7)}if(s===6){gun(1,6,32,9);detail(25,44,14,3,A);}}
- if(f===3&&r===1){wing(0,20);wing(1,20);feet(20,45,10);poly([[24,25],[40,25],[44,34],[35,47],[29,47],[20,34]],C);head(23,10,18,17,1);armor(13,31,10,12);armor(41,31,10,12);gun(3,38,41,6);core(28,28);if(s>=4){poly([[22,16],[16,3],[25,9],[30,15]],H);poly([[42,16],[48,3],[39,9],[34,15]],H)}if(s>=5){gun(2,32,33,5);poly([[13,23],[4,10],[7,32]],L);poly([[51,23],[60,10],[57,32]],L)}if(s===6){detail(22,50,3,7,A);detail(39,50,3,7,A);}}
- if(f===3&&r===2){rect(4,12,24,3,DARK);rect(36,12,24,3,DARK);rect(14,14,3,10,STEEL);rect(47,14,3,10,STEEL);feet(18,45,13);armor(19,24,26,23);head(22,14,20,13);armor(5,24,17,19);armor(42,24,17,19);core(28,31);if(s>=4){for(const x of [8,45])for(let y=29;y<=36;y+=4)detail(x,y,8,2,A)}if(s>=5){oct(2,20,18,12,L);oct(44,20,18,12,L);detail(5,24,11,3,H);detail(48,24,11,3,H)}if(s===6){rect(2,7,27,3,STEEL);rect(35,7,27,3,STEEL);gun(5,42,14,5);gun(45,42,14,5);}}
- if(f===4&&r===1){oct(16,19,32,30,C);oct(22,24,20,20,DARK);oct(26,28,12,12,A);oct(29,31,6,6,GLASS);poly([[20,45],[14,55],[21,58],[28,48]],L);poly([[44,45],[50,55],[43,58],[36,48]],L);armor(6,30,12,12);armor(46,30,12,12);if(s>=4){poly([[16,22],[6,10],[1,26],[5,43],[16,48],[16,40],[9,36],[8,23]],H);poly([[48,22],[58,10],[63,26],[59,43],[48,48],[48,40],[55,36],[56,23]],H)}if(s>=5){rect(29,10,6,9,STEEL);oct(26,4,12,8,A)}if(s===6){oct(2,22,12,12,L);oct(50,22,12,12,L);detail(5,25,6,6,A);detail(53,25,6,6,A);}}
- if(f===4&&r===2){feet(21,47,9);oct(17,23,30,27,C);head(20,10,24,19);core(28,32);armor(5,28,13,12);armor(46,28,13,12);rect(8,39,5,11,STEEL);rect(51,39,5,11,STEEL);detail(28,33,8,3,A);detail(30,31,3,8,A);if(s>=4){poly([[20,34],[9,18],[4,20],[8,31],[17,42]],L);poly([[44,34],[55,18],[60,20],[56,31],[47,42]],L);oct(2,15,11,10,C);oct(51,15,11,10,C)}if(s>=5){oct(3,44,13,13,H);oct(48,44,13,13,H);detail(8,46,3,9,A);detail(5,49,9,3,A);detail(53,46,3,9,A);detail(50,49,9,3,A)}if(s===6){poly([[23,19],[17,4],[27,8],[31,17]],L);poly([[41,19],[47,4],[37,8],[33,17]],L);}}
+ // Bipedal robot bodies; alternate forms stay unchanged.
+ const k=(f-1)*2+r-1;
+ const [shoulder,waist,hip,shin,arm]=[[12,10,11,10,9],[11,8,9,7,6],[15,13,13,12,11],[14,12,12,11,10],[12,8,9,8,7],[15,11,11,10,9],[12,9,10,8,8],[13,10,10,9,8]][k];
+ const mirror=pts=>pts.map(([x,y])=>[64-x,y]);
+ const pair=(pts,c,edge=true)=>{poly(pts,c,edge);poly(mirror(pts),c,edge)};
+ const both=(x,y,w,h,c)=>{detail(x,y,w,h,c);detail(64-x-w,y,w,h,c)};
+ const twin=(x,y,w,h)=>{armor(x,y,w,h);armor(64-x-w,y,w,h)};
+ if(k===0){wheel(5,18,13,13);wheel(46,18,13,13);if(s>=5){pair([[12,19],[8,10],[18,14],[23,21]],C);if(s===6){armor(8,8,9,13);armor(47,8,9,13)}}}
+ if(k===1){wheel(13,43,11,11);wheel(40,43,11,11);if(s>=4)pair([[20,22],[9,13],[12,29],[19,34]],WHITE);if(s>=6)pair([[17,25],[6,17],[10,34]],L);}
+ if(k===2){if(s>=4)twin(8,16,12,18);if(s>=5){armor(5,11,13,13);armor(46,11,13,13)}if(s===6)twin(2,22,13,14);}
+ if(k===3){track(6,42,12,15);track(46,42,12,15);if(s>=4){armor(5,12,10,21);rect(6,5,8,14,DARK);detail(8,6,3,10,STEEL);rect(5,3,10,5,OUT)}if(s>=5){armor(48,14,10,18);rect(50,8,7,12,DARK);detail(52,9,3,9,STEEL);rect(49,5,9,5,OUT)}if(s===6){rect(2,10,5,15,DARK);detail(3,12,2,10,STEEL)}}
+ if(k===4){pair([[19,24],[8,9],[5,14],[9,31],[20,37]],C);pair([[11,15],[8,13],[12,27],[17,30]],WHITE,false);if(s>=5)pair([[10,20],[2,14],[4,33],[11,39]],L);if(s===6)both(8,26,3,7,A);}
+ if(k===5){pair([[18,24],[5,9],[3,12],[14,29]],DARK);pair([[14,21],[6,12],[7,16],[16,27]],STEEL,false);if(s>=4)twin(5,20,12,14);if(s===6){pair([[9,22],[2,17],[2,23],[10,31]],C)}}
+ if(k===6){pair([[19,23],[12,10],[5,15],[3,29],[9,39],[14,40],[14,35],[9,28],[12,20]],C);pair([[12,13],[7,17],[5,28],[9,34],[10,22]],H,false);if(s>=5){oct(2,23,10,10,L);oct(52,23,10,10,L);detail(5,26,4,4,A);detail(55,26,4,4,A)}if(s===6){oct(27,3,10,6,A)}}
+ if(k===7){pair([[19,23],[8,12],[4,17],[9,30],[16,34]],C);pair([[10,15],[7,18],[11,25],[14,26]],H,false);if(s>=5){twin(4,17,12,14);both(8,20,3,8,A);both(6,23,7,2,A)}if(s===6)pair([[13,17],[6,7],[10,21]],L);}
+ const lx=32-hip, sx=lx-1;
+ pair([[lx,36],[30,36],[29,44],[lx-1,46],[lx-2,41]],DARK);
+ pair([[lx+1,38],[29,38],[28,43],[lx,43]],C,false);
+ pair([[sx-1,44],[sx+shin,44],[sx+shin+1,52],[sx+shin-1,56],[sx-2,56],[sx-3,52]],C);
+ pair([[sx,46],[sx+shin-1,46],[sx+shin-2,49],[sx-1,49]],H,false);
+ pair([[sx-1,53],[sx+shin,52],[sx+shin-1,56],[sx-2,56]],L,false);
+ both(sx+1,50,Math.max(2,shin-3),2,DARK);
+ pair([[sx-2,54],[sx+shin,54],[sx+shin+1,58],[sx-4,58],[sx-4,56]],DARK);
+ pair([[sx-2,55],[sx+shin-1,55],[sx+shin-1,57],[sx-3,57]],C,false);
+ both(sx-2,57,Math.max(3,shin),1,STEEL);
+ if(s>=4){pair([[sx-1,44],[sx+shin-1,44],[sx+shin-1,48],[sx+1,48]],C);both(sx+1,45,Math.max(2,shin-3),1,H)}
+ if(s>=5)both(sx+2,51,2,3,A);
+ if(s===6){pair([[sx-3,49],[sx-5,53],[sx-4,57],[sx-1,55]],L);}
+ oct(32-hip,33,hip*2,7,C);detail(28,36,8,2,L);rect(27,28,10,8,DARK);
+ const ax=32-shoulder-arm+2;
+ pair([[ax+3,23],[ax+arm+2,23],[ax+arm+3,31],[ax+2,33],[ax,29]],DARK);
+ pair([[ax+2,30],[ax+arm,30],[ax+arm+1,35],[ax+arm-1,41],[ax+1,41],[ax-1,37]],C);
+ pair([[ax+1,31],[ax+arm-1,31],[ax+arm-2,34],[ax,34]],H,false);
+ both(ax+1,37,Math.max(2,arm-3),2,L);
+ oct(ax+1,40,arm-1,6,DARK);oct(64-ax-arm,40,arm-1,6,DARK);both(ax+2,41,Math.max(2,arm-3),2,STEEL);
+ if(k===0||k===4){poly([[32-shoulder,19],[32+shoulder,19],[32+waist,33],[32+5,35],[27,35],[32-waist,33]],C);pair([[32-shoulder+2,21],[31,25],[27,29],[32-waist+1,26]],H,false);pair([[32-waist,28],[31,31],[28,34],[32-waist+2,33]],L,false);}
+ else if(k===2||k===3){armor(32-shoulder+1,19,(shoulder-1)*2,16);pair([[32-shoulder+3,23],[30,23],[28,27],[32-shoulder+3,27]],L,false);both(32-shoulder+3,28,6,2,STEEL);}
+ else if(k===1){poly([[22,19],[42,19],[43,25],[38,33],[26,33],[21,25]],C);pair([[23,21],[30,22],[28,27],[24,26]],H,false);pair([[22,27],[28,30],[28,33],[25,32]],L,false);}
+ else if(k===6){poly([[21,19],[43,19],[46,25],[40,33],[32,36],[24,33],[18,25]],C);oct(26,23,12,12,DARK);pair([[21,21],[25,23],[24,29],[20,26]],H,false);}
+ else {oct(32-shoulder+1,19,(shoulder-1)*2,16,C);pair([[32-shoulder+3,22],[30,22],[29,26],[32-shoulder+3,27]],H,false);both(32-shoulder+3,29,5,2,L);}
+ core(28,25);
+ if(k===7){detail(30,25,3,9,A);detail(27,28,9,3,A)}
+ const bx=32-shoulder-arm+1;
+ if(k===0||k===4){pair([[bx,21],[bx+4,16],[32-shoulder+5,19],[32-shoulder+5,24],[bx+3,27],[bx,25]],C);pair([[bx+3,20],[bx+5,18],[32-shoulder+3,20],[32-shoulder+1,22]],H,false);}
+ else if(k===1){pair([[bx,20],[bx+4,16],[32-shoulder+4,19],[32-shoulder+1,25],[bx+1,26]],WHITE);pair([[bx+2,21],[32-shoulder+2,20],[32-shoulder,23]],C,false);}
+ else if(k===2||k===3||k===5){twin(bx,17,arm+5,11);both(bx+3,19,arm,2,H);if(s>=5)both(bx+2,24,arm,2,A);}
+ else {pair([[bx,19],[bx+4,16],[32-shoulder+4,18],[32-shoulder+5,24],[bx+4,27],[bx,24]],C);pair([[bx+2,19],[bx+5,18],[32-shoulder+2,19],[32-shoulder,22]],H,false);}
+ rect(28,16,8,5,DARK);
+ const hw=k===2||k===3?16:k===1||k===4?12:14,hx=32-hw/2;
+ oct(hx,7,hw,12,C);
+ detail(hx+3,9,hw-6,2,H);
+ poly([[hx+2,12],[hx+hw-2,12],[hx+hw-3,16],[hx+3,16]],DARK);
+ detail(hx+3,13,Math.max(2,hw/2-4),2,GLASS);detail(34,13,Math.max(2,hw/2-4),2,GLASS);
+ detail(29,17,6,1,WHITE);
+ if(k===0){pair([[24,10],[23,5],[28,7],[28,11]],C);detail(31,8,2,3,H)}
+ if(k===1){poly([[29,8],[32,3],[35,8],[32,11]],C);detail(31,9,2,2,A)}
+ if(k===2){rect(23,8,3,9,L);rect(38,8,3,9,L);detail(29,9,6,1,STEEL)}
+ if(k===3){rect(23,8,3,8,L);rect(38,8,3,8,L);detail(27,8,10,2,H)}
+ if(k===4){pair([[26,10],[21,4],[27,6],[29,10]],C);detail(31,8,2,3,H)}
+ if(k===5){oct(23,9,5,8,L);oct(36,9,5,8,L);detail(30,9,4,2,A)}
+ if(k===6){poly([[28,8],[32,4],[36,8],[32,11]],A);detail(30,9,4,1,H)}
+ if(k===7){detail(31,8,2,4,A);detail(29,9,6,2,A)}
+ if(k===0&&s>=4){twin(4,31,10,10);both(7,34,4,2,H);if(s===6){both(7,38,4,2,A)}}
+ if(k===1&&s>=4){pair([[14,33],[8,36],[9,48],[15,42]],C);pair([[10,37],[10,45],[13,40]],H,false);if(s>=5)both(11,35,3,2,A)}
+ if(k===2&&s>=4){poly([[3,28],[15,26],[21,30],[20,43],[12,49],[3,43]],C);poly([[6,30],[14,29],[17,32],[15,35],[6,35]],H,false);poly([[6,42],[12,46],[17,42],[17,39],[6,39]],L,false);oct(9,34,6,6,DARK);detail(11,36,2,2,A);if(s===6){armor(48,31,12,12);detail(51,34,6,2,H)}}
+ if(k===3){armor(2,30,12,11);rect(3,39,6,9,DARK);detail(5,40,2,6,STEEL);rect(2,46,8,4,OUT);if(s>=5)detail(5,34,6,2,H);if(s===6)both(10,30,3,4,A)}
+ if(k===4&&s>=4){rect(6,22,5,21,DARK);detail(8,24,2,15,STEEL);rect(5,20,7,5,OUT);armor(6,35,8,9);if(s>=5){rect(6,11,5,11,DARK);detail(8,12,2,7,STEEL)}if(s===6)detail(7,29,3,3,A);}
+ if(k===5&&s>=4){twin(4,25,13,10);for(const x of [7,11,49,53]){detail(x,27,2,2,A);detail(x,31,2,2,A)}if(s===6){both(5,35,8,2,STEEL)}}
+ if(k===6&&s>=4){oct(7,31,9,9,L);oct(48,31,9,9,L);oct(9,33,5,5,A);oct(50,33,5,5,A);if(s===6)both(10,35,3,2,GLASS)}
+ if(k===7&&s>=4){twin(6,31,12,11);both(11,33,3,7,A);both(8,36,9,2,A);if(s>=5){both(8,40,7,1,WHITE)}if(s===6){oct(7,44,7,5,GLASS);oct(50,44,7,5,GLASS)}}
+
  return pixels;
 }
 export function getSpriteGrid(family,stage,type,vehicle=false){const m=getMecha(family,stage,type);return raster(m.faction,m.type,m.stage,vehicle&&m.stage>=4);}
