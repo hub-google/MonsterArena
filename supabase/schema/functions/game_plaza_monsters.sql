@@ -11,7 +11,7 @@ AS $function$
     from public.monsters m
     where (select auth.uid()) is not null
       and m.is_dead=false
-      and (p_type is null or (case coalesce(m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)=p_type)
+      and (p_type is null or ((p_type between 11 and 14 and (case coalesce(m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)=p_type-10) or (p_type between 0 and 3 and m.type=p_type)))
     group by m.user_id
     order by newest desc nulls last,m.user_id
     limit 30
@@ -25,7 +25,7 @@ AS $function$
     from recent_players p
     join public.monsters m on m.user_id=p.user_id
     where m.is_dead=false
-      and (p_type is null or (case coalesce(m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)=p_type)
+      and (p_type is null or ((p_type between 11 and 14 and (case coalesce(m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)=p_type-10) or (p_type between 0 and 3 and m.type=p_type)))
   )
   select s.user_id,s.monster_id,s.name,s.family,s.type,s.life_stage,s.is_dead
   from top_pets s

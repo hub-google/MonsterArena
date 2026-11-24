@@ -41,7 +41,7 @@ function json(route, body, status = 200) {
   });
 }
 
-async function setupAuthenticatedGame(page) {
+async function setupAuthenticatedGame(page, initialPets=[dead]) {
   const now = Math.floor(Date.now() / 1000);
   const payload = Buffer.from(JSON.stringify({
     sub: uid, aud: 'authenticated', role: 'authenticated',
@@ -57,7 +57,7 @@ async function setupAuthenticatedGame(page) {
     },
   });
 
-  let pets = [dead];
+  let pets = initialPets;
   const calls = [];
   await page.route(gameHost + '/**', async route => {
     const request = route.request();
@@ -118,4 +118,15 @@ test('authenticated all-dead account can claim the rescue egg once', async ({ pa
   await expect(page.getByText('核心啟動成功！')).toBeVisible();
   await expect(page.getByRole('button', { name: '啟動新機械核心 (-100G)' })).toBeDisabled();
   expect(calls.filter(path => path === '/rest/v1/rpc/game_action')).toHaveLength(1);
+});
+
+test('existing stage-six legacy type-three unit retains custom name and converts to matching robot and vehicle',async({page})=>{
+ await setupAuthenticatedGame(page,[{...dead,name:'老玩家收藏',family:4,type:3,life_stage:6,is_dead:false,is_sick:false}]);
+ await expect(page.getByRole('heading',{name:'老玩家收藏'})).toBeVisible();
+ await expect(page.getByText('鋼鐵族・重砲型',{exact:true})).toBeVisible();
+ await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'})).toBeVisible();
+ await page.getByRole('button',{name:'變形：重型坦克'}).click();
+ await expect(page.getByRole('img',{name:'重型坦克'})).toBeVisible();
+ await page.getByRole('button',{name:'切換機器人'}).click();
+ await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'})).toBeVisible();
 });

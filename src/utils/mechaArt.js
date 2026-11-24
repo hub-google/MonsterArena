@@ -17,7 +17,7 @@ function raster(f,r,s,vehicle){
  function line(a,b,c,w=1){let [x,y]=a;const [xx,yy]=b,dx=Math.abs(xx-x),dy=-Math.abs(yy-y),sx=x<xx?1:-1,sy=y<yy?1:-1;let err=dx+dy;for(;;){for(let v=-w;v<=w;v++)for(let u=-w;u<=w;u++)put(x+u,y+v,c);if(x===xx&&y===yy)break;const e=err*2;if(e>=dy){err+=dy;x+=sx}if(e<=dx){err+=dx;y+=sy}}}
  function poly(coords,c,edge=true){const a=coords.map(P);const minY=Math.min(...a.map(p=>p[1])),maxY=Math.max(...a.map(p=>p[1]));for(let y=minY;y<=maxY;y++){const intersections=[];for(let i=0,j=a.length-1;i<a.length;j=i++){const [x1,y1]=a[j],[x2,y2]=a[i];if((y1<=y&&y2>y)||(y2<=y&&y1>y))intersections.push(x1+(y-y1)*(x2-x1)/(y2-y1));}intersections.sort((x,y)=>x-y);for(let i=0;i+1<intersections.length;i+=2)for(let x=Math.ceil(intersections[i]);x<=Math.floor(intersections[i+1]);x++)put(x,y,c)}if(edge)for(let i=0;i<a.length;i++)line(a[i],a[(i+1)%a.length],OUT,1)}
  const rect=(x,y,w,h,c,edge=true)=>poly([[x,y],[x+w,y],[x+w,y+h],[x,y+h]],c,edge);
- const oct=(x,y,w,h,c,edge=true)=>poly([[x+3,y],[x+w-3,y],[x+w,y+3],[x+w,y+h-3],[x+w-3,y+h],[x+3,y+h],[x,y+h-3],[x,y+3]],c,edge);
+ const oct=(x,y,w,h,c,edge=true)=>{const q=Math.max(1,Math.min(3,Math.floor(Math.min(w,h)/3)));poly([[x+q,y],[x+w-q,y],[x+w,y+q],[x+w,y+h-q],[x+w-q,y+h],[x+q,y+h],[x,y+h-q],[x,y+q]],c,edge);};
  const detail=(x,y,w,h,c)=>rect(x,y,w,h,c,false);
  const wheel=(x,y,w=12,h=12)=>{oct(x,y,w,h,OUT);oct(x+2,y+2,w-4,h-4,DARK);detail(x+4,y+4,w-8,h-8,STEEL)};
  const armor=(x,y,w,h)=>{oct(x,y,w,h,C);detail(x+2,y+2,w-4,2,H);detail(x+2,y+h-4,w-4,2,L)};
@@ -51,6 +51,7 @@ function raster(f,r,s,vehicle){
  if(f===4&&r===2){feet(21,47,9);oct(17,23,30,27,C);head(20,10,24,19);core(28,32);armor(5,28,13,12);armor(46,28,13,12);rect(8,39,5,11,STEEL);rect(51,39,5,11,STEEL);detail(28,33,8,3,A);detail(30,31,3,8,A);if(s>=4){poly([[20,34],[9,18],[4,20],[8,31],[17,42]],L);poly([[44,34],[55,18],[60,20],[56,31],[47,42]],L);oct(2,15,11,10,C);oct(51,15,11,10,C)}if(s>=5){oct(3,44,13,13,H);oct(48,44,13,13,H);detail(8,46,3,9,A);detail(5,49,9,3,A);detail(53,46,3,9,A);detail(50,49,9,3,A)}if(s===6){poly([[23,19],[17,4],[27,8],[31,17]],L);poly([[41,19],[47,4],[37,8],[33,17]],L);}}
  return pixels;
 }
+export function getSpriteGrid(family,stage,type,vehicle=false){const m=getMecha(family,stage,type);return raster(m.faction,m.type,m.stage,vehicle&&m.stage>=4);}
 export function spritePaths(family,stage,type,vehicle=false){
  const m=getMecha(family,stage,type),key=m.key+(vehicle&&m.stage>=4?'_v':'');
  if(cache.has(key))return cache.get(key);

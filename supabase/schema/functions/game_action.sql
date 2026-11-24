@@ -50,6 +50,10 @@ declare
   v_own_hp double precision;
   v_own_max_hp double precision;
   v_damage_a integer;
+  v_own_faction integer;
+  v_enemy_faction integer;
+  v_own_role integer;
+  v_enemy_role integer;
   v_damage_b integer;
   v_round integer;
   v_step integer;
@@ -424,24 +428,51 @@ begin
       v_enemy_max_hp:=v_enc.hp;v_enemy_atk:=v_enc.atk;v_enemy_def:=v_enc.def;v_enemy_spd:=v_enc.spd;
     end if;
     v_enemy_hp:=v_enemy_max_hp;
+    v_own_faction:=(case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end);
+    v_enemy_faction:=(case coalesce(v_enemy_family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end);
+    v_own_role:=case when coalesce(v_m.life_stage,1)<3 then 0 else (v_own_faction-1)*2+case when v_m.type=1 then 1 else 2 end end;
+    v_enemy_role:=case when coalesce(v_enemy_stage,1)<3 then 0 else (v_enemy_faction-1)*2+case when v_enemy_type=1 then 1 else 2 end end;
     v_player_first:=coalesce(v_m.combat_spd,1)>=v_enemy_spd;
     for v_round in 1..100 loop
       for v_step in 1..2 loop
         if (v_step=1 and v_player_first) or (v_step=2 and not v_player_first) then
-          v_damage_a:=greatest(1,floor(greatest(1,coalesce(v_m.combat_atk,1)) *
-            (case when v_m.life_stage<3 then 1 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=1 and mod(v_round,3)=1 then 1.25 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=2 and mod(v_round,2)=0 then 1.15 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=4 and mod(v_round,3)=0 then 1.35 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=5 then 1.08 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=6 and mod(v_round,3)=0 then 1.30 else 1 end) *
-            (case when (case coalesce(v_enemy_family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end) = mod((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end),4)+1 then 1.2 else 1 end) *
-            (0.9+random()*0.2) - v_enemy_def*0.5)::int);
+          v_damage_a:=greatest(1,floor(
+            greatest(1,(greatest(1,coalesce(v_m.combat_atk,1))) *
+              (case when v_enemy_role=7 and mod(v_round,3)=0 then 1
+                    when v_own_role=1 and mod(v_round,3)=1 then 1.25
+                    when v_own_role=2 and mod(v_round,2)=0 then 1.15
+                    when v_own_role=4 and mod(v_round,3)=0 then 1.20
+                    when v_own_role=5 then 1.08
+                    when v_own_role=6 and mod(v_round,3)=0 then 1.30 else 1 end) *
+              (case when v_own_role=5 then 1 else 0.9+random()*0.2 end)
+              - (v_enemy_def)*0.5*(case when v_own_role=4 and mod(v_round,3)=0 and not (v_enemy_role=7 and mod(v_round,3)=0) then 0.60 else 1 end))
+            * (case when v_enemy_faction=mod(v_own_faction,4)+1 then 1.2 else 1 end)
+            * (case when v_enemy_role=3 then 0.88 when v_enemy_role=7 and mod(v_round,3)=0 then 0.85 else 1 end)
+          )::int);
           v_enemy_hp:=greatest(0,v_enemy_hp-v_damage_a);
-          if v_m.life_stage>=3 and ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=8 and mod(v_round,3)=0 then v_own_hp:=least(v_own_max_hp,v_own_hp+greatest(1,floor(v_own_max_hp*0.04))); end if;
+          if v_own_role=8 and mod(v_round,3)=0 and not (v_enemy_role=7 and mod(v_round,3)=0) then
+            v_own_hp:=least(v_own_max_hp,v_own_hp+greatest(1,floor(v_own_max_hp*0.04)));
+          end if;
           v_events:=v_events||jsonb_build_array(jsonb_build_object(
             'attacker','A','damage',v_damage_a,'ownHp',v_own_hp,'enemyHp',v_enemy_hp));
         else
-          v_damage_b:=greatest(1,floor(v_enemy_atk *
-            (case when v_m.life_stage<3 then 1 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=3 then 0.88 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=7 and mod(v_round,3)=0 then 0.72 else 1 end) *
-            (case when (case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end) = mod((case coalesce(v_enemy_family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end),4)+1 then 1.2 else 1 end) *
-            (0.9+random()*0.2) - coalesce(v_m.combat_def,0)*0.5)::int);
+          v_damage_b:=greatest(1,floor(
+            greatest(1,(v_enemy_atk) *
+              (case when v_own_role=7 and mod(v_round,3)=0 then 1
+                    when v_enemy_role=1 and mod(v_round,3)=1 then 1.25
+                    when v_enemy_role=2 and mod(v_round,2)=0 then 1.15
+                    when v_enemy_role=4 and mod(v_round,3)=0 then 1.20
+                    when v_enemy_role=5 then 1.08
+                    when v_enemy_role=6 and mod(v_round,3)=0 then 1.30 else 1 end) *
+              (case when v_enemy_role=5 then 1 else 0.9+random()*0.2 end)
+              - (coalesce(v_m.combat_def,0))*0.5*(case when v_enemy_role=4 and mod(v_round,3)=0 and not (v_own_role=7 and mod(v_round,3)=0) then 0.60 else 1 end))
+            * (case when v_own_faction=mod(v_enemy_faction,4)+1 then 1.2 else 1 end)
+            * (case when v_own_role=3 then 0.88 when v_own_role=7 and mod(v_round,3)=0 then 0.85 else 1 end)
+          )::int);
           v_own_hp:=greatest(0,v_own_hp-v_damage_b);
+          if v_enemy_role=8 and mod(v_round,3)=0 and not (v_own_role=7 and mod(v_round,3)=0) then
+            v_enemy_hp:=least(v_enemy_max_hp,v_enemy_hp+greatest(1,floor(v_enemy_max_hp*0.04)));
+          end if;
           v_events:=v_events||jsonb_build_array(jsonb_build_object(
             'attacker','B','damage',v_damage_b,'ownHp',v_own_hp,'enemyHp',v_enemy_hp));
         end if;

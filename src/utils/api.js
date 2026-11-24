@@ -169,7 +169,7 @@ export const api = {
   searchPlayers: async typeFilter => {
     // Public plaza exposes only a safe projection, never other players' private genes/stats.
     const { data, error } = await supabase.rpc('game_plaza_monsters', {
-      p_type: typeFilter ? Number(typeFilter) : null
+      p_type: typeFilter ? 10 + Number(typeFilter) : null
     });
     throwIfError(error);
     const grouped = new Map();
