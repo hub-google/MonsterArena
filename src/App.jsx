@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import MobileLayout from './components/MobileLayout';
 import Login from './pages/Login';
+import PasswordReset from './pages/PasswordReset';
 import TransactionRecoveryDialog from './components/TransactionRecoveryDialog';
 import {useOnlineStatus} from './hooks/useOnlineStatus.js';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -11,10 +12,11 @@ const Raid = lazy(() => import('./pages/Raid'));
 const Social = lazy(() => import('./pages/Social'));
 const Pokedex = lazy(() => import('./pages/Pokedex'));
 import { api } from './utils/api';
-import { supabase } from './utils/supabaseClient';
+import { supabase, getRecoveryUid, recoveryLinkOpened } from './utils/supabaseClient';
 
 export default function App() {
   const [user,setUser]=useState(null);
+  const [passwordRecovery,setPasswordRecovery]=useState(()=>getRecoveryUid() || (recoveryLinkOpened ? 'pending' : null));
   const [monsters,setMonsters]=useState([]);
   const [inventory,setInventory]=useState([]);
   const [friends,setFriends]=useState([]);
@@ -105,6 +107,17 @@ export default function App() {
     const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
       if(!ready)return;
       const nextUid=session?.user?.id??null;
+      const resetUid=_event==='PASSWORD_RECOVERY' ? nextUid : getRecoveryUid();
+      if(resetUid && nextUid===resetUid){
+        setPasswordRecovery(resetUid);
+        setLoading(false);
+        return;
+      }
+      if(recoveryLinkOpened && _event==='INITIAL_SESSION'){
+        setPasswordRecovery('invalid');
+        setLoading(false);
+        return;
+      }
       if(!nextUid){
         previousAuthId=null;
         authUidRef.current=null;
@@ -194,6 +207,10 @@ export default function App() {
     const uid=authUidRef.current;
     try{await loadUserData();api.discardExpiredTransaction(uid);setRecoveryError('');}catch(error){setRecoveryError(error.message);}
   };
+  if(passwordRecovery)return <PasswordReset recoveryUid={passwordRecovery} onDone={()=>{
+    // Reload without the recovery fragment so the regular login flow starts cleanly.
+    window.location.replace(window.location.origin+window.location.pathname);
+  }}/>;
   if(loading)return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-cyan-400">
     <span className="text-4xl">🤖</span><span className="mt-4">載入遊戲數據中...</span>
   </div>;

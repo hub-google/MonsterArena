@@ -44,6 +44,24 @@ export const accountApi = {
     throwIfError(error);
     return { user: data.user };
   },
+  requestPasswordReset: async (email) => {
+    const address = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) || /@monsterarena\.app$/i.test(address)) {
+      throw new Error('請輸入可收信的註冊 Email');
+    }
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await supabase.auth.resetPasswordForEmail(address, { redirectTo });
+    if (error) {
+      if (error.status === 429) throw new Error('寄信次數過多，請稍後重試');
+      throw new Error('暫時無法寄出重設信，請稍後重試');
+    }
+  },
+  resetPassword: async (password, recoveryUid) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user || user.id !== recoveryUid) throw new Error('驗證已失效，請重新申請重設密碼');
+    const { error } = await supabase.auth.updateUser({ password });
+    throwIfError(error);
+  },
   logout: async () => {
     const { error } = await supabase.auth.signOut();
     throwIfError(error);

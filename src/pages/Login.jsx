@@ -9,6 +9,7 @@ import { api } from '../utils/api';
  */
 export default function Login({ onLoginSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
+  const [forgot, setForgot] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +24,10 @@ export default function Login({ onLoginSuccess }) {
     setLoading(true);
 
     try {
-      if (isRegister) {
+      if (forgot) {
+        await api.requestPasswordReset(username);
+        setNotice('若此信箱已註冊，將收到密碼重設信。請檢查收件匣及垃圾郵件。');
+      } else if (isRegister) {
         const data = await api.register(username, email, password);
         if (data.requiresEmailConfirmation) {
           setIsRegister(false);
@@ -67,7 +71,7 @@ export default function Login({ onLoginSuccess }) {
         <div className="w-full flex bg-slate-900/60 rounded-xl p-1.5 mb-8 border border-slate-700/50">
           <button
             type="button"
-            onClick={() => { setIsRegister(false); setError(''); }}
+            onClick={() => { setIsRegister(false); setForgot(false); setNotice(''); setError(''); }}
             className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 ${
               !isRegister ? 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(8,145,178,0.5)]' : 'text-slate-400 hover:text-white'
             }`}
@@ -76,7 +80,7 @@ export default function Login({ onLoginSuccess }) {
           </button>
           <button
             type="button"
-            onClick={() => { setIsRegister(true); setError(''); }}
+            onClick={() => { setIsRegister(true); setForgot(false); setNotice(''); setError(''); }}
             className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 ${
               isRegister ? 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(8,145,178,0.5)]' : 'text-slate-400 hover:text-white'
             }`}
@@ -90,10 +94,10 @@ export default function Login({ onLoginSuccess }) {
           
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-cyan-500 mb-2 pl-1">
-              {isRegister ? '使用者名稱 (Username)' : '註冊 Email（舊版帳號亦可輸入帳號）'}
+              {forgot ? '註冊 Email' : isRegister ? '使用者名稱 (Username)' : '註冊 Email（舊版帳號亦可輸入帳號）'}
             </label>
             <input
-              type="text"
+              type={forgot ? "email" : "text"}
               autoComplete={isRegister ? "username" : "email"}
               required
               value={username}
@@ -119,7 +123,7 @@ export default function Login({ onLoginSuccess }) {
             </div>
           )}
 
-          <div>
+          {!forgot && <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-cyan-500 mb-2 pl-1">
               密碼 (Password)
             </label>
@@ -131,7 +135,12 @@ export default function Login({ onLoginSuccess }) {
               placeholder="••••••••"
               className="w-full bg-slate-900/80 border border-slate-700 focus:border-cyan-500 focus:shadow-[0_0_10px_rgba(8,145,178,0.2)] rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none transition-all"
             />
-          </div>
+          </div>}
+          {!isRegister && <button type="button" disabled={loading}
+            onClick={() => {setForgot(!forgot); setError(''); setNotice(''); setPassword('');}}
+            className="self-end text-sm text-cyan-300 underline">
+            {forgot ? '返回登入' : '忘記密碼？'}
+          </button>}
 
           {notice && <p role="status" className="text-emerald-300 text-xs text-center">{notice}</p>}
           {error && (
@@ -145,7 +154,7 @@ export default function Login({ onLoginSuccess }) {
             disabled={loading}
             className="w-full neon-button neon-button-primary py-4 mt-4 font-bold text-lg"
           >
-            {loading ? '連線中...' : isRegister ? '建立帳號並登入' : '進入大廳'}
+            {loading ? '連線中...' : forgot ? '寄送密碼重設信' : isRegister ? '建立帳號並登入' : '進入大廳'}
           </button>
         </form>
 
