@@ -114,7 +114,7 @@ begin
     if v_m.repair_until is not null and v_m.repair_until<=now() then
       update public.monsters set is_sick=false,sick_time_start=null,repair_until=null where monster_id=v_mon_id returning * into v_m;
     end if;
-    if v_m.repair_until is not null and p_action in ('train','battle','raid','pvp_register','evolve') then
+    if v_m.repair_until is not null and p_action in ('train','battle','raid','pvp_register','evolve') and not (p_action='train' and coalesce(p_data->>'stat','')='allocate') then
       raise exception '緊急修復中，請等待修復完成';
     end if;
     -- Match disabled egg actions in the UI, even when a player calls the RPC directly.

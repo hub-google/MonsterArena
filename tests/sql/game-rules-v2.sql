@@ -21,7 +21,7 @@ VALUES
  ('00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000001','弱怪',3,1,1,50,1,5,5,1,100,now()-interval '15 minutes'),
  ('00000000-0000-4000-8000-000000000012','00000000-0000-4000-8000-000000000002','強怪',5,2,2,5000,1000,500,100,10,100,now()-interval '40 days');
 -- Legacy death flags cannot be reintroduced by any update, even with elevated privileges.
-DO $
+DO $immortal_test$
 BEGIN
   BEGIN
     UPDATE public.monsters SET is_dead=true WHERE monster_id='00000000-0000-4000-8000-000000000011';
@@ -33,7 +33,7 @@ BEGIN
     RAISE EXCEPTION 'null death state accepted';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
-END $;
+END $immortal_test$;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 DO $$
@@ -86,7 +86,7 @@ BEGIN
  PERFORM public.game_action('raid_claim',jsonb_build_object('boss_id',r->>'id'));
  PERFORM public.game_age_monsters();
  IF EXISTS(SELECT 1 FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000012' AND (is_dead IS DISTINCT FROM false OR fullness<>0)) THEN RAISE EXCEPTION 'long absence must not kill unit'; END IF;
-END $;
+END $$;
 RESET ROLE;
 UPDATE public.battle_records SET created_at=clock_timestamp()-interval '10 seconds';
 SET LOCAL ROLE authenticated;

@@ -61,11 +61,17 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
  expect(ownPet().training_hp).toBe(0);
  await expect(train).toContainText('可分配 1 點');
  const staminaAfterTrain=profile().stamina;
+ db("UPDATE public.monsters SET is_sick=true,repair_until=now()+interval '30 minutes' WHERE monster_id="+literal(pet));
+ await page.reload({waitUntil:'domcontentloaded'});
+ await page.getByRole('button',{name:'訓練',exact:true}).click();
+ await expect(train.getByRole('button',{name:'開始訓練'})).toBeDisabled();
  await train.getByRole('button',{name:'耐久 +1',exact:true}).click();
  await expect.poll(()=>ownPet().training_hp).toBe(1);
  expect(ownPet().training_unspent).toBe(0);expect(profile().stamina).toBe(staminaAfterTrain);
  await expect(train).toContainText('已分配 1/60');
  await train.getByRole('button',{name:'關閉訓練'}).click();
+ db('UPDATE public.monsters SET is_sick=false,repair_until=null WHERE monster_id='+literal(pet));
+ await page.reload({waitUntil:'domcontentloaded'});
  const beforeFeed=profile().gold,energyBefore=ownPet().fullness;
  await page.getByRole('button',{name:'補充能源',exact:true}).click();
  await page.getByRole('button',{name:'標準電池',exact:true}).click();
