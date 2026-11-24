@@ -6,7 +6,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://hub-google.github.io/monster-arena-web/',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://hub-google.github.io/MonsterArena/',
     trace: 'on-first-retry',
   },
   projects: [

@@ -6,8 +6,8 @@ import react from '@vitejs/plugin-react'
 const base = process.env.VITE_DEPLOY_TARGET === 'cloudflare'
   ? '/'
   : process.env.VITE_PREVIEW === 'true'
-    ? '/monster-arena-web/preview/'
-    : '/monster-arena-web/'
+    ? '/MonsterArena/preview/'
+    : '/MonsterArena/'
 
 export default defineConfig({
   plugins: [react()],
