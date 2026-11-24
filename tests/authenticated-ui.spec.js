@@ -250,7 +250,8 @@ test('cockpit shows readable labels, all main metrics and five actions within on
  await setupAuthenticatedGame(page,[{...dead,name:'機甲測試',family:4,type:3,life_stage:6,is_dead:false,is_sick:true,fullness:20,cleanliness:20}]);
  const main=page.getByTestId('game-main'),home=page.getByTestId('cockpit-home'),actions=page.getByTestId('care-actions');
  await expect(home.getByRole('heading',{name:'機甲測試'})).toBeVisible();
- await expect(home.getByText('鋼鐵族・重砲型',{exact:true})).toBeVisible();
+ await expect(home.locator('.cockpit-faction')).toHaveText('鋼鐵族');
+ await expect(home.locator('.cockpit-species')).toContainText('重砲型・終極機');
  await expect(home.getByText('能源',{exact:true})).toBeVisible();
  await expect(home.getByText('機體維護',{exact:true})).toBeVisible();
  await expect(home.getByTestId('combat-readouts')).toBeVisible();
