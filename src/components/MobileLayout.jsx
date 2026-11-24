@@ -7,7 +7,7 @@ export default function MobileLayout({children,page,setPage,isConnected,onRefres
  const [arenaFit,setArenaFit]=useState(fit);
  useEffect(()=>{const resize=()=>setArenaFit(fit());window.addEventListener('resize',resize);resize();return()=>window.removeEventListener('resize',resize)},[]);
  const tabs=[['dashboard','home','養成','家'],['roster','roster','倉庫','包'],['arena','battle','競技','打'],['pokedex','pokedex','圖鑑','圖']];
- const extras=[['raid','raid','世界王','王'],['guild','guild','公會','隊'],['social','social','社交','友']];
+ const extras=[['raid','raid','機甲首領','王'],['guild','guild','公會','隊'],['social','social','社交','友']];
  useEffect(()=>setMore(false),[page]);
  const go=id=>{setMore(false);setPage(id)};
  return <div data-testid="game-shell" className="arena-shell" style={{'--arena-fit':arenaFit}}>

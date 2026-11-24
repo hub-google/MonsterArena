@@ -93,7 +93,7 @@ export default function Roster({
   };
 
   // Older accounts have chips stored under item_type 1 or 6.
-  const chipLabels = { chip_atk:'攻擊晶片', chip_def:'防禦晶片', chip_hp:'生命晶片', chip_spd:'速度晶片' };
+  const chipLabels = { chip_atk:'攻擊晶片', chip_def:'防禦晶片', chip_hp:'耐久晶片', chip_spd:'速度晶片' };
   const chipsInInventory = inventory.filter(i =>
     Object.hasOwn(chipLabels,i.item_id) && Number(i.quantity) > 0);
 
@@ -106,7 +106,7 @@ export default function Roster({
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        {[['list','🤖','機體清單','機體'],['chips','🔧','裝備晶片','裝備'],['breed','🧬','繁衍','融合']].map(([id,icon,label,short])=><PlayButton key={id} icon={icon} label={label} short={short} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
+        {[['list','🤖','機體清單','機體'],['chips','🔧','裝備晶片','裝備'],['breed','⚙️','核心融合','融合']].map(([id,icon,label,short])=><PlayButton key={id} icon={icon} label={label} short={short} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
       </div>
 
       {/* Main SubTab Content Area (Scrollable) */}
@@ -124,11 +124,11 @@ export default function Roster({
           {selectedMonster&&<>
            <details className="glass-card p-3"><summary className="cursor-pointer text-sm">機體管理 · {selectedMonster.name}</summary>
             <div className="text-xs text-slate-400 my-2">{getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).name}・G{selectedMonster.generation}</div>
-            {selectedMonster.is_rescue&&<div className="text-xs text-cyan-300">免費救援機體（放生無金幣獎勵）</div>}
+            {selectedMonster.is_rescue&&<div className="text-xs text-cyan-300">免費救援機體（拆解無金幣獎勵）</div>}
             <div className="grid grid-cols-4 gap-2 my-3">{[['❤️',selectedMonster.combat_hp],['⚔️',selectedMonster.combat_atk],['🛡️',selectedMonster.combat_def],['⚡',selectedMonster.combat_spd]].map(([icon,val])=><div key={icon} className="text-center">{icon}<div>{Math.round(val)}</div></div>)}</div>
             <div className="grid grid-cols-2 gap-2">
               <PlayButton icon={selectedMonster.is_locked?'🔓':'🔒'} label={selectedMonster.is_locked?'解除鎖定':'鎖定保護'} short="保護" disabled={loading} onClick={()=>handleAction(api.toggleLock,selectedMonster.monster_id)}/>
-              <PlayButton icon="🗑️" label="永久放生" short="放生" tone="red" disabled={loading||selectedMonster.is_locked} onClick={()=>{if(window.confirm('確定永久放生「'+selectedMonster.name+'」？放生後無法恢復。'+(selectedMonster.is_rescue?'免費救援機體不會獲得金幣。':'')))handleAction(api.release,selectedMonster.monster_id)}}/>
+              <PlayButton icon="🗑️" label="永久拆解" short="拆解" tone="red" disabled={loading||selectedMonster.is_locked} onClick={()=>{if(window.confirm('確定永久拆解「'+selectedMonster.name+'」？拆解後無法恢復。'+(selectedMonster.is_rescue?'免費救援機體不會獲得金幣。':'')))handleAction(api.release,selectedMonster.monster_id)}}/>
             </div>
            </details>
           </>}
@@ -138,13 +138,13 @@ export default function Roster({
           <div className="flex flex-col gap-4">
             <div className="glass-card p-5">
               <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
-                <span className="text-2xl">🔧</span> 晶片鑲嵌面板
+                <span className="text-2xl">🔧</span> 晶片安裝面板
               </h3>
               
               {!canManageMonsterChips(selectedMonster) && (
-                <p role="status" className="mb-4 text-sm text-rose-300">此怪獸已死亡，無法鑲嵌或拆除晶片。請切換其他怪獸。</p>
+                <p role="status" className="mb-4 text-sm text-rose-300">此機體核心已失效，無法安裝或拆除晶片。請切換其他怪獸。</p>
               )}
-              <details className="text-xs text-slate-400 mb-4"><summary>ℹ️</summary>新晶片基本加成 +5。舊版強化晶片拆除後會保留原本加成，同種類下次鑲嵌優先恢復強化晶片。</details>
+              <details className="text-xs text-slate-400 mb-4"><summary>ℹ️</summary>新晶片基本加成 +5。舊版強化晶片拆除後會保留原本加成，同種類下次安裝優先恢復強化晶片。</details>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-between min-h-[120px]">
                   <span className="text-xs text-slate-400">插槽 1 (戰鬥機)</span>
@@ -180,7 +180,7 @@ export default function Roster({
 
               <div className="space-y-4 pt-4 border-t border-slate-700/50">
                 <div>
-                  <label className="text-xs text-slate-400 mb-1 block">鑲嵌位置</label>
+                  <label className="text-xs text-slate-400 mb-1 block">安裝位置</label>
                   <select value={equipSlot} onChange={(e) => setEquipSlot(parseInt(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none">
                     <option value={1}>插槽 1</option>
                     <option value={2}>插槽 2</option>
@@ -204,7 +204,7 @@ export default function Roster({
                   disabled={loading || !canManageMonsterChips(selectedMonster) || !selectedChipId || selectedMonster.life_stage < (equipSlot===1 ? 4 : 5)}
                   className="w-full neon-button neon-button-primary py-3 mt-2"
                 >
-                  確認鑲嵌 (覆蓋將損毀舊晶片)
+                  確認安裝 (覆蓋將損毀舊晶片)
                 </button>
               </div>
             </div>
@@ -214,15 +214,15 @@ export default function Roster({
         {subTab === 'breed' && (
           <div className="glass-card p-5 border-fuchsia-500/30">
             <h3 className="text-lg font-bold text-fuchsia-400 mb-1 flex items-center gap-2">
-              <span className="text-2xl">🧬</span> 基因繁衍實驗室
+              <span className="text-2xl">⚙️</span> 機體核心融合工坊
             </h3>
-            <p className="text-xs text-slate-400 mb-6">將兩隻戰鬥機以上的怪獸基因融合，產生更強大的後代。</p>
+            <p className="text-xs text-slate-400 mb-6">將兩具戰鬥機以上的機體核心資料融合，組裝新一代機甲。</p>
             
             <div className="space-y-4">
               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                <label className="text-xs text-fuchsia-300 font-bold mb-2 block">父親親代 (P1)</label>
+                <label className="text-xs text-fuchsia-300 font-bold mb-2 block">來源機體 A (P1)</label>
                 <select value={parent1} onChange={(e) => setParent1(e.target.value)} className="w-full bg-slate-950 border border-slate-600 rounded-lg p-3 text-white outline-none focus:border-fuchsia-500">
-                  <option value="">--請選擇怪獸--</option>
+                  <option value="">--請選擇機體--</option>
                   {monsters.filter(m => m.life_stage >= 4 && !m.is_dead).map(m => (
                     <option key={m.monster_id} value={m.monster_id}>{m.name} (G{m.generation})</option>
                   ))}
@@ -230,9 +230,9 @@ export default function Roster({
               </div>
 
               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                <label className="text-xs text-fuchsia-300 font-bold mb-2 block">母親親代 (P2)</label>
+                <label className="text-xs text-fuchsia-300 font-bold mb-2 block">來源機體 B (P2)</label>
                 <select value={parent2} onChange={(e) => setParent2(e.target.value)} className="w-full bg-slate-950 border border-slate-600 rounded-lg p-3 text-white outline-none focus:border-fuchsia-500">
-                  <option value="">--請選擇怪獸--</option>
+                  <option value="">--請選擇機體--</option>
                   {monsters.filter(m => m.life_stage >= 4 && !m.is_dead).map(m => (
                     <option key={m.monster_id} value={m.monster_id}>{m.name} (G{m.generation})</option>
                   ))}
@@ -244,8 +244,8 @@ export default function Roster({
                   {useCatalyst && <span className="text-white">✓</span>}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-white">使用繁衍催化劑</span>
-                  <span className="text-xs text-fuchsia-300">突變機率翻倍 (庫存: {getItemQty('breed_catalyst')})</span>
+                  <span className="text-sm font-bold text-white">使用核心融合增幅器</span>
+                  <span className="text-xs text-fuchsia-300">變異機率翻倍 (庫存: {getItemQty('breed_catalyst')})</span>
                 </div>
               </div>
 
@@ -254,7 +254,7 @@ export default function Roster({
                 disabled={loading || !parent1 || !parent2 || parent1 === parent2 || (useCatalyst && getItemQty('breed_catalyst') < 1) || user.gold < 200}
                 className="w-full py-4 font-bold rounded-xl text-white mt-4 bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 shadow-lg shadow-fuchsia-500/30 transform active:scale-95 transition-all disabled:opacity-50 disabled:transform-none"
               >
-                融合繁衍一代 (-200G)
+                組裝新一代機甲 (-200G)
               </button>
             </div>
           </div>

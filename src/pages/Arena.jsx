@@ -64,7 +64,7 @@ export default function Arena({
     ||monsters.find(m=>!m.is_dead&&Number(m.life_stage)>=2&&!m.is_frozen);
   const changePvpRegistration=async register=>{
     const monster=getFighter();
-    if(register&&!monster){setMessage('請先選擇已孵化且未凍結的怪獸');return;}
+    if(register&&!monster){setMessage('請先選擇已啟動且未停機的機體');return;}
     setLoading(true);setMessage('');
     try{const result=register?await api.registerPvp(monster.monster_id):await api.unregisterPvp();setMessage(result.message);await reloadPvp();}
     catch(err){setMessage(err.message);}finally{setLoading(false);}
@@ -73,7 +73,7 @@ export default function Arena({
     if (challengePending.current) return;
     const monster = monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen)
       || monsters.find(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen);
-    if (!monster) return setMessage('請先選擇一隻非凍結、已孵化的怪獸出戰！');
+    if (!monster) return setMessage('請先選擇一隻未停機、已啟動的機體出戰！');
     encounter=encounter==='mock'?'wild':encounter==='mock_boss'?'boss':encounter;
     const isBoss=encounter==='boss';
     challengePending.current=true;
@@ -82,7 +82,7 @@ export default function Arena({
     try {
       const result=await api.startBattle(monster.monster_id,encounter,opponentId);
       const enemy={
-        name:result.enemyName,
+        name:encounter==='pvp'?result.enemyName:({wild:'失控巡邏機',stage2:'重裝防衛機',stage3:'高速突擊機',stage4:'深淵重型戰機',boss:'終極機甲首領'}[encounter]||result.enemyName),
         // Opponent artwork must not reuse the player's own species or stage.
         family:result.enemyFamily??(isBoss?7:3),
         life_stage:result.enemyStage??(isBoss?6:Math.max(3,Math.min(5,Number(monster.life_stage)||3))),
@@ -133,7 +133,7 @@ export default function Arena({
               <div className="w-full space-y-2">
                 <div>
                   <div className="flex justify-between text-[10px] mb-1">
-                    <span className="text-emerald-400 font-bold" aria-label="生命">❤️</span>
+                    <span className="text-emerald-400 font-bold" aria-label="耐久"><GameIcon name="guild"/></span>
                     <span className="text-white">{Math.round(battleState.mA_HP)}/{Math.round(battleState.mA_MaxHP)}</span>
                   </div>
                   <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
@@ -163,7 +163,7 @@ export default function Arena({
               <div className="w-full space-y-2">
                 <div>
                   <div className="flex justify-between text-[10px] mb-1">
-                    <span className="text-emerald-400 font-bold" aria-label="生命">❤️</span>
+                    <span className="text-emerald-400 font-bold" aria-label="耐久"><GameIcon name="guild"/></span>
                     <span className="text-white">{Math.round(battleState.mB_HP)}/{Math.round(battleState.mB_MaxHP)}</span>
                   </div>
                   <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
@@ -217,7 +217,7 @@ export default function Arena({
         {getFighter()?<><MonsterPixelArt family={getFighter().family} stage={getFighter().life_stage} type={getFighter().type} {...appearance(getFighter(),appearanceModes[getFighter().monster_id])} displaySize={64}/><span className="font-bold text-cyan-300 text-sm truncate">{getFighter().name}</span></>:<p className="text-sm text-slate-400 text-center">請先在養成頁選擇可出戰機甲。</p>}
       </div>
       {GAME_RULES_V2&&<div className="grid grid-cols-2 gap-2">
-       {([['players','battle','野生挑戰'],['pvp','🏆','玩家對戰']]).map(([id,icon,label])=><PlayButton key={id} icon={icon} label={label} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
+       {([['players','battle','失控機甲挑戰'],['pvp','🏆','玩家對戰']]).map(([id,icon,label])=><PlayButton key={id} icon={icon} label={label} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
       </div>}
       {subTab==='players'&&<PlayButton icon="guild" label="手動戰術對戰" subtext="格擋反擊・精準暴擊・公平競技" tone="blue" disabled={!getFighter()||loading} onClick={()=>{setMessage('');setSubTab('tactical')}} className="play-compact"/>}
       <div className="flex-1 overflow-y-auto">
@@ -225,10 +225,10 @@ export default function Arena({
           <div className="flex flex-col gap-3">
             <details className="text-xs text-slate-300"><summary>挑戰說明</summary>固定敵人強度，各關每日首勝有金幣獎勵。</details>
             {[
-              ['wild','野生訓練怪獸',45,5,2,4,10],
-              ['stage2','岩甲守衛',120,15,12,8,30],
-              ['stage3','疾風獵手',200,27,16,25,60],
-              ['stage4','深淵巨獸',340,45,32,30,100],
+              ['wild','失控巡邏機',45,5,2,4,10],
+              ['stage2','重裝防衛機',120,15,12,8,30],
+              ['stage3','高速突擊機',200,27,16,25,60],
+              ['stage4','深淵重型戰機',340,45,32,30,100],
               ['boss','終極機甲首領',550,70,48,50,200]
             ].map(([id,name,hp,atk,def,spd,reward],i)=>(
               <div className="glass-card p-3 flex justify-between items-center gap-2" key={id}>
@@ -242,7 +242,7 @@ export default function Arena({
         )}
         {subTab==='players'&&!GAME_RULES_V2&&(
           <div className="grid grid-cols-2 gap-3" data-testid="wild-challenges">
-            {[['wild','野外失控機甲',3,4,1,'⭐','普通'],['boss','終極機甲首領',4,6,2,'⭐⭐⭐','首領']].map(([encounter,label,family,stage,type,stars,short])=>
+            {[['wild','失控巡邏機',3,4,1,'⭐','普通'],['boss','終極機甲首領',4,6,2,'⭐⭐⭐','首領']].map(([encounter,label,family,stage,type,stars,short])=>
              <button key={encounter} type="button" aria-label={'挑戰'+label} disabled={loading||!getFighter()} onClick={()=>handleChallenge(encounter)} className={'play-encounter '+(encounter==='boss'?'border-purple-500/60':'border-emerald-500/60')}>
                <span className="text-xl" aria-hidden="true">{stars}</span>
                <MonsterPixelArt family={family} stage={stage} type={type} displaySize={136}/>
@@ -255,8 +255,8 @@ export default function Arena({
           <div className="flex flex-col gap-3">
             <div className="glass-card p-3 space-y-2">
               <h3 className="font-bold text-amber-300">非即時玩家競技場</h3>
-              <p className="text-xs text-slate-300">登記目前選擇的怪獸為防守快照。每天可挑戰 5 位不同玩家；勝利 +3 分，失敗 +1 分。</p>
-              <button disabled={loading} onClick={()=>changePvpRegistration(true)} className="neon-button px-3 py-2">{pvp?.registered?'更新防守怪獸':'登記防守怪獸'}</button>
+              <p className="text-xs text-slate-300">登記目前選擇的機甲為防守快照。每天可挑戰 5 位不同玩家；勝利 +3 分，失敗 +1 分。</p>
+              <button disabled={loading} onClick={()=>changePvpRegistration(true)} className="neon-button px-3 py-2">{pvp?.registered?'更新防守機甲':'登記防守機甲'}</button>
               {pvp?.registered&&<button disabled={loading} onClick={()=>changePvpRegistration(false)} className="neon-button ml-2 px-3 py-2">取消登記</button>}
               <button disabled={loading} onClick={reloadPvp} className="ml-2 text-xs underline">重新整理</button>
               {pvpError&&<p role="alert" className="text-xs text-rose-300">{pvpError}</p>}

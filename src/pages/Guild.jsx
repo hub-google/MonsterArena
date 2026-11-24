@@ -128,7 +128,7 @@ export default function Guild({
                     <span className="text-2xl">🔧</span>
                     <div className="flex flex-col">
                       <span className="font-bold text-white text-sm">晶片提取器</span>
-                      <span className="text-xs text-slate-400">安全拔除已鑲嵌的晶片</span>
+                      <span className="text-xs text-slate-400">安全拔除已安裝的晶片</span>
                     </div>
                   </div>
                   <button 
@@ -142,10 +142,10 @@ export default function Guild({
 
                 <div className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center hover:border-indigo-500/30 transition-colors">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🧪</span>
+                    <span className="text-2xl">⚙️</span>
                     <div className="flex flex-col">
-                      <span className="font-bold text-white text-sm">繁衍催化劑</span>
-                      <span className="text-xs text-slate-400">繁衍時突變機率翻倍</span>
+                      <span className="font-bold text-white text-sm">核心融合增幅器</span>
+                      <span className="text-xs text-slate-400">核心融合時變異機率翻倍</span>
                     </div>
                   </div>
                   <button 
@@ -161,8 +161,8 @@ export default function Guild({
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">🔮</span>
                     <div className="flex flex-col">
-                      <span className="font-bold text-white text-sm">究極進化核心</span>
-                      <span className="text-xs text-slate-400">完全體進化究極體的必備材料</span>
+                      <span className="font-bold text-white text-sm">終極升級核心</span>
+                      <span className="text-xs text-slate-400">超限機升級終極機甲的必備材料</span>
                     </div>
                   </div>
                   <button 

@@ -30,7 +30,7 @@ export default function Raid({
       setBossError('');
     } catch (err) {
       if(version!==requestRef.current)return;
-      setBossError(err.message || '世界王資料讀取失敗');
+      setBossError(err.message || '巨型機甲首領資料讀取失敗');
     }
   };
 
@@ -64,11 +64,11 @@ export default function Raid({
   const handleAttack = async () => {
     if(attackPending.current)return;
     if (!selectedMonster || selectedMonster.is_dead) {
-      setMessage('❌ 請選擇已孵化且未凍結的怪獸！');
+      setMessage('❌ 請選擇已啟動且未停機的機體！');
       return;
     }
     if (user.stamina < 15) {
-      setMessage('❌ 體力不足！需要 15 點體力。');
+      setMessage('❌ 行動電力不足！需要 15 點行動電力。');
       return;
     }
 
@@ -96,7 +96,7 @@ export default function Raid({
 
       {/* Header bar */}
       <div className="glass-card p-4 flex justify-between items-center text-sm font-bold border-red-900/30">
-        <span className="text-rose-400">世界王共鬥討伐</span>
+        <span className="text-rose-400">巨型機甲首領共鬥討伐</span>
         <span className="text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]">🔋 {user.stamina} / {user.max_stamina ?? 100}</span>
       </div>
 
@@ -133,34 +133,34 @@ export default function Raid({
 
             {/* Status indicators */}
             <div className={`px-4 py-2 rounded-full text-sm font-bold w-full ${boss.is_active ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
-              {boss.is_active ? '🔴 全服共鬥進行中' : '🏆 世界王已遭全服討伐成功！'}
+              {boss.is_active ? '🔴 全服共鬥進行中' : '🏆 巨型機甲首領已遭全服討伐成功！'}
             </div>
           </div>
         ) : (
           <div className="glass-card p-10 flex flex-col items-center justify-center h-64 border-slate-700/50 gap-4">
             {bossError ? (
               <>
-                <span role="alert" className="text-rose-400 text-center text-sm">世界王資料讀取失敗：{bossError}</span>
+                <span role="alert" className="text-rose-400 text-center text-sm">巨型機甲首領資料讀取失敗：{bossError}</span>
                 <button type="button" onClick={fetchBossStatus} className="neon-button neon-button-primary px-4 py-2">重新載入</button>
               </>
             ) : (
               <>
                 <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <span className="text-slate-400">正在載入世界王數據...</span>
+                <span className="text-slate-400">正在載入巨型機甲首領數據...</span>
               </>
             )}
           </div>
         )}
         {boss && bossError && (
           <div role="alert" className="glass-card p-3 text-amber-300 text-sm">
-            世界王狀態更新失敗：{bossError}
+            巨型機甲首領狀態更新失敗：{bossError}
             <button type="button" onClick={fetchBossStatus} className="ml-3 underline">重試</button>
           </div>
         )}
 
         {GAME_RULES_V2&&boss&&<div className="glass-card p-3 space-y-2">
           <div className="text-sm font-bold text-amber-300">今日傷害貢獻：{Number(boss.my_damage||0).toLocaleString()}</div>
-          <p className="text-xs text-slate-300">每天台灣時間更新世界王；成功討伐後按有效傷害分配 5,000G，不再只獎勵最後一擊。</p>
+          <p className="text-xs text-slate-300">每天台灣時間更新巨型機甲首領；成功討伐後按有效傷害分配 5,000G，不再只獎勵最後一擊。</p>
           {(boss.claims||[]).map(c=><button key={c.boss_id} disabled={loading} onClick={()=>handleClaim(c.boss_id)} className="w-full neon-button neon-button-success px-3 py-2">領取 {c.boss_id.replace('daily:','')} 貢獻獎勵 {c.reward}G</button>)}
         </div>}
         {/* Monster selector & Attack triggers */}
@@ -172,7 +172,7 @@ export default function Raid({
             
             <div className="space-y-4">
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">選擇出戰怪獸</label>
+                <label className="text-xs text-slate-400 mb-1 block">選擇出戰機甲</label>
                 <select 
                   disabled={loading} value={selectedMonster?.monster_id || ''}
                   onChange={(e) => setSelectedMonsterId(e.target.value)}
@@ -192,7 +192,7 @@ export default function Raid({
                 className="w-full neon-button neon-button-danger py-4 text-lg font-bold flex items-center justify-center gap-2"
               >
                 <span>💥 發動討伐突襲</span>
-                <span className="text-xs bg-black/30 px-2 py-1 rounded">-15 體力</span>
+                <span className="text-xs bg-black/30 px-2 py-1 rounded">-15 行動電力</span>
               </button>
             </div>
           </div>
