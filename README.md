@@ -4,8 +4,8 @@
 
 | 環境 | 分支 | 網址 |
 | --- | --- | --- |
-| 測試 | `main` | [GitHub Pages](https://hub-google.github.io/monster-arena-web/) |
-| 正式 | `release` | [Monster Arena](https://pets.monsterport.com/) |
+| 測試 | `main` | [GitHub Pages](https://hub-google.github.io/MonsterArena/) |
+| 正式 | `release` | [Monster Arena](https://arena.monsterport.com/) |
 
 前端使用 React / Vite，後端使用 Supabase Game。測試站與正式站的遊戲資料隔離，不會自動互相同步。只有明確要求上正式時才推進 release。
 
