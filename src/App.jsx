@@ -140,7 +140,7 @@ export default function App() {
   };
 
   if(loading)return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-cyan-400">
-    <span className="text-4xl">👾</span><span className="mt-4">載入遊戲數據中...</span>
+    <span className="text-4xl">🤖</span><span className="mt-4">載入遊戲數據中...</span>
   </div>;
 
   if(loadError)return <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-950 text-white p-6 text-center">

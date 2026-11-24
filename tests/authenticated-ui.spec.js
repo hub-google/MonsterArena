@@ -72,6 +72,7 @@ async function setupAuthenticatedGame(page, initialPets=[dead], profileOverrides
     if (path === '/rest/v1/rpc/game_age_monsters') return json(route, null);
     if (path === '/rest/v1/monsters') return json(route, pets);
     if (path === '/rest/v1/user_inventory') return json(route, currentInventory);
+    if (path === '/rest/v1/daily_quests') return json(route,{feed_count:0,clean_count:0,train_count:0,battle_count:0,claimed:[]});
     if (path === '/rest/v1/friends') return json(route, []);
     if (path === '/rest/v1/rpc/game_plaza_monsters') return json(route,pets.filter(m=>!m.is_dead).map(({user_id,monster_id,name,family,type,life_stage,is_dead,skin_id})=>({user_id,monster_id,name,family,type,life_stage,is_dead,skin_id})));
     if (path === '/rest/v1/rpc/game_public_profiles') return json(route,[{user_id:uid,username:currentProfile.username}]);
@@ -92,6 +93,13 @@ async function setupAuthenticatedGame(page, initialPets=[dead], profileOverrides
       if(['feed','clean','heal','train'].includes(args.p_action)){
         pets=pets.map(p=>p.monster_id===args.p_data.monster_id?{...p,fullness:args.p_action==='feed'?70:p.fullness,cleanliness:args.p_action==='clean'?100:p.cleanliness,is_sick:args.p_action==='heal'?false:p.is_sick}:p);
         return json(route,{message:'操作成功！'});
+      }
+      if(args.p_action==='buy'&&args.p_data.item_id==='meat_basic'){
+        if(currentProfile.gold<10)return json(route,{message:'金幣不足'},400);
+        currentProfile={...currentProfile,gold:currentProfile.gold-10};
+        const existing=currentInventory.find(i=>i.item_id==='meat_basic');
+        if(existing)existing.quantity++;else currentInventory.push({user_id:uid,item_id:'meat_basic',quantity:1});
+        return json(route,{message:'購買成功，花費 10G'});
       }
       if(args.p_action==='buy'&&args.p_data.item_id==='skin_husky'){currentProfile={...currentProfile,gold:currentProfile.gold-50};currentInventory.push({user_id:uid,item_id:'skin_husky',quantity:1});return json(route,{message:'購買成功，花費 50G'});}
       if(args.p_action==='skin_equip'){pets=pets.map(m=>m.monster_id===args.p_data.monster_id?{...m,skin_id:args.p_data.skin_id}:m);return json(route,{message:'造型已更新'});}
@@ -461,4 +469,30 @@ test('single feature entrances and independent catalog transformation previews',
  await expect(page.getByRole('dialog').getByRole('img',{name:'重型坦克'})).toBeVisible();
  await page.getByRole('button',{name:'關閉圖鑑詳情'}).click();
  expect(calls).not.toContain('/rest/v1/rpc/game_action');
+});
+
+ test('zero stock opens checkout without visiting the store and buying updates stock',async({page})=>{
+ const calls=await setupAuthenticatedGame(page,[{...dead,name:'補給測試機',is_dead:false,is_sick:false}],{gold:50});
+ await page.getByRole('button',{name:'補充能源'}).click();
+ await page.getByRole('button',{name:'標準電池',exact:true}).click();
+ const checkout=page.getByRole('dialog',{name:'購買確認'});
+ await expect(checkout).toBeVisible();
+ await expect(checkout.getByText('10G',{exact:true})).toBeVisible();
+ expect(calls.filter(x=>x==='/rest/v1/rpc/game_action')).toHaveLength(0);
+ await checkout.getByRole('button',{name:'確認購買 10G'}).click();
+ await expect(checkout).toHaveCount(0);
+ const menu=page.getByTestId('item-menu');
+ await expect(menu.getByRole('button',{name:'標準電池',exact:true})).toContainText('庫存 1');
+ expect(calls.filter(x=>x==='/rest/v1/rpc/game_action')).toHaveLength(1);
+});
+test('zero gold checkout explains deficit without charging',async({page})=>{
+ const calls=await setupAuthenticatedGame(page,[{...dead,name:'補給測試機',is_dead:false,is_sick:false}]);
+ await page.getByRole('button',{name:'補充能源'}).click();
+ await page.getByRole('button',{name:'標準電池',exact:true}).click();
+ const checkout=page.getByRole('dialog',{name:'購買確認'});
+ await expect(checkout.getByText('金幣不足，還需 10G')).toBeVisible();
+ await expect(checkout.getByRole('button',{name:'確認購買 10G'})).toBeDisabled();
+ await checkout.getByRole('button',{name:'取消',exact:true}).click();
+ await expect(page.getByTestId('item-menu')).toBeVisible();
+ expect(calls.filter(x=>x==='/rest/v1/rpc/game_action')).toHaveLength(0);
 });

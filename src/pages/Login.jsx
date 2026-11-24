@@ -53,14 +53,14 @@ export default function Login({ onLoginSuccess }) {
         
         {/* Retro Gameboy Icon / Logo */}
         <div className="w-20 h-20 bg-slate-900/50 border border-cyan-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_15px_rgba(8,145,178,0.3)]">
-          <span className="text-4xl animate-bounce">👾</span>
+          <span className="text-4xl animate-bounce">🤖</span>
         </div>
 
         <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-wider mb-2">
           MONSTER ARENA
         </h1>
         <p className="text-sm text-cyan-200/60 mb-8 font-medium tracking-widest">
-          次世代怪獸養成對戰平台
+          次世代機甲養成對戰平台
         </p>
 
         {/* Tab Selection */}

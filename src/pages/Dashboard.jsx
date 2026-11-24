@@ -135,7 +135,7 @@ export default function Dashboard({
   const choice=id=>{const i=ITEM_BY_ID[id];return [id,i.icon,i.name,getItemQty(id),i.tone];};
   const foodChoices=[['feed_basic','feed','免費基礎充能','免費','green'],...['meat_basic','meat_premium','energy_drink'].map(choice)];
   const healingChoices=[choice('medicine_standard'),['heal_basic','tools','緊急修復程序，扣減20%耐久','免費','orange']];
-  const openCheckout=id=>{setCheckoutMessage('');setCheckout(ITEM_BY_ID[id]);};
+  const openCheckout=id=>{setMessage('');setCheckoutMessage('');setCheckout(ITEM_BY_ID[id]);};
   const buyMissing=async()=>{
     if(loading||!checkout||Number(user.gold)<checkout.price)return;
     setLoading(true);setCheckoutMessage('');
@@ -214,7 +214,7 @@ export default function Dashboard({
      <section className="cockpit-dialog" data-testid="item-menu">
       <div className="dialog-heading"><h2>{showFeedMenu?'選擇補給':'選擇修復道具'}</h2><button onClick={closeItems} aria-label="取消返回">×</button></div>
       <div className="grid grid-cols-2 gap-2">{(showFeedMenu?foodChoices:healingChoices).map(([id,icon,label,count,tone])=><PlayButton key={id} icon={icon} label={label} caption={id==='heal_basic'?'緊急修復':label} subtext={id==='heal_basic'?'免費 · 耐久 -20%':count===0?'庫存 0 · '+ITEM_BY_ID[id].price+'G 購買':typeof count==='number'?'庫存 '+count:count} tone={tone} onClick={()=>count===0?openCheckout(id):doItem(showFeedMenu?api.feed:api.heal,id)} disabled={loading||(showFeedMenu?!care:!canHealMonster(monster))}/>)}</div>
-      <p className="text-xs text-slate-400">庫存不足時，直接點選道具即可購買。</p>
+      <p className="text-xs text-slate-400">庫存不足時，直接點選道具即可購買。</p>{message&&<ActionFeedback message={message}/>}
      </section>
     </div>}
     {checkout&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="購買確認">
