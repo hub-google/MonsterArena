@@ -19,11 +19,11 @@ BEGIN
   IF has_schema_privilege(current_user,'arena_internal','USAGE') THEN RAISE EXCEPTION 'private schema exposed'; END IF;
   r:=public.game_action('capabilities');
   IF (r->>'version')::int<>2 THEN RAISE EXCEPTION 'missing capabilities'; END IF;
-  r:=public.game_action('buy','{"item_id":"feed_basic","quantity":1,"request_id":"00000000-0000-4000-8000-000000000099"}');
-  s:=public.game_action('buy','{"item_id":"feed_basic","quantity":1,"request_id":"00000000-0000-4000-8000-000000000099"}');
+  r:=public.game_action('buy','{"item_id":"meat_basic","quantity":1,"request_id":"00000000-0000-4000-8000-000000000099"}');
+  s:=public.game_action('buy','{"item_id":"meat_basic","quantity":1,"request_id":"00000000-0000-4000-8000-000000000099"}');
   IF r<>s THEN RAISE EXCEPTION 'retry must return same result'; END IF;
   BEGIN
-    PERFORM public.game_action('buy','{"item_id":"feed_basic","quantity":2,"request_id":"00000000-0000-4000-8000-000000000099"}');
+    PERFORM public.game_action('buy','{"item_id":"meat_basic","quantity":2,"request_id":"00000000-0000-4000-8000-000000000099"}');
     RAISE EXCEPTION 'payload reuse accepted';
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM NOT LIKE '%交易識別碼%' THEN RAISE; END IF;
@@ -43,7 +43,7 @@ END $$;
 RESET ROLE;
 DO $$
 BEGIN
- IF (SELECT quantity FROM public.user_inventory WHERE user_id='00000000-0000-4000-8000-000000000001' AND item_id='feed_basic')<>1 THEN RAISE EXCEPTION 'duplicate inventory credit'; END IF;
+ IF (SELECT quantity FROM public.user_inventory WHERE user_id='00000000-0000-4000-8000-000000000001' AND item_id='meat_basic')<>1 THEN RAISE EXCEPTION 'duplicate inventory credit'; END IF;
  IF (SELECT count(*) FROM arena_internal.gold_ledger WHERE user_id='00000000-0000-4000-8000-000000000001' AND action='buy')<>1 THEN RAISE EXCEPTION 'duplicate ledger'; END IF;
  IF (SELECT cleanliness FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011')<>99 THEN RAISE EXCEPTION 'elapsed cleanliness failed'; END IF;
 END $$;
