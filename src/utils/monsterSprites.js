@@ -19,6 +19,41 @@ const FINAL_DESIGNS=Object.freeze({
  '4_1':{name:'帝王暴龍',vehicle:'霸氣恐龍戰車',asset:'emperor-rex'},
  '4_2':{name:'帝王暴龍 闇黑限定版',vehicle:'闇黑暴龍型態',asset:'dark-emperor'},
 });
+// Each non-final evolution has its own canonical model name. Names never determine stats or sprites.
+const EVOLUTION_NAMES=Object.freeze({
+  "1_1_0": "疾風晶核",
+  "1_2_0": "赤翼幼機",
+  "1_3_1": "雷牙先鋒",
+  "1_4_1": "雷牙戰將",
+  "1_5_1": "雷霆戰鎧",
+  "1_3_2": "疾影斥候",
+  "1_4_2": "疾光騎兵",
+  "1_5_2": "閃電疾影",
+  "2_1_0": "鋼鐵晶核",
+  "2_2_0": "鐵盾幼機",
+  "2_3_1": "鋼盾鐵衛",
+  "2_4_1": "鋼盾戰衛",
+  "2_5_1": "重裝鐵衛",
+  "2_3_2": "砲火先鋒",
+  "2_4_2": "重砲戰將",
+  "2_5_2": "巨砲金剛",
+  "3_1_0": "蒼空晶核",
+  "3_2_0": "飛翼幼機",
+  "3_3_1": "翔翼斥候",
+  "3_4_1": "蒼翼射手",
+  "3_5_1": "天穹獵鷹",
+  "3_3_2": "旋翼先鋒",
+  "3_4_2": "風暴轟擊者",
+  "3_5_2": "天雷飛將",
+  "4_1_0": "星輝晶核",
+  "4_2_0": "星輝幼機",
+  "4_3_1": "星波斥候",
+  "4_4_1": "星界幻影",
+  "4_5_1": "量子帝衛",
+  "4_3_2": "星光醫衛",
+  "4_4_2": "星盾修復者",
+  "4_5_2": "闇星守護者"
+});
 export function getMecha(family,stage,type){
  const f=FACTIONS[factionOf(family)-1],s=Math.max(1,Math.min(6,Math.trunc(Number(stage)||1))),r=roleOf(type,s);
  const role=f.roles[r-1];
@@ -26,7 +61,9 @@ export function getMecha(family,stage,type){
  const tyranno=f.id===2&&s===6&&r===2;
  const design=s===6?FINAL_DESIGNS[f.id+'_'+r]:null;
  const legacyName=f.name+(role?'・'+role.name:'')+'・'+STAGE_NAMES[s];
- return {faction:f.id,family:f.legacy,stage:s,type:r,factionName:f.name,roleName:role?.name||'尚未分化',stageName:STAGE_NAMES[s],name:design?.name||legacyName,modelName:tyranno?'暴龍戰炫王':design?.name||null,legacyName,vehicle:tyranno?'暴龍型態':design?.vehicle||role?.vehicle,spriteAsset:tyranno?{robot:'mecha/tyranno-robot.png',vehicle:'mecha/tyranno-rex.png'}:design?{robot:'mecha/'+design.asset+'-robot.png',vehicle:'mecha/'+design.asset+'-vehicle.png'}:null,skill:role?.skill,key:f.id+'_'+s+'_'+r};
+ const key=f.id+'_'+s+'_'+r;
+ const modelName=tyranno?'暴龍戰炫王':design?.name||EVOLUTION_NAMES[key];
+ return {faction:f.id,family:f.legacy,stage:s,type:r,factionName:f.name,roleName:role?.name||'尚未分化',stageName:STAGE_NAMES[s],name:modelName,modelName,legacyName,vehicle:tyranno?'暴龍型態':design?.vehicle||role?.vehicle,spriteAsset:tyranno?{robot:'mecha/tyranno-robot.png',vehicle:'mecha/tyranno-rex.png'}:design?{robot:'mecha/'+design.asset+'-robot.png',vehicle:'mecha/'+design.asset+'-vehicle.png'}:null,skill:role?.skill,key};
 }
 // Default database names are presentation aliases, not player nicknames.
 export function displayMonsterName(monster){

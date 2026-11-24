@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api, GAME_RULES_V2 } from '../utils/api';
 import { resourcesForAction, getHatchState, canCareForMonster, canHealMonster, refreshAfterCommit } from '../utils/gameRules';
-import { STAGE_NAMES, FACTIONS, getMecha, displayMonsterName } from '../utils/monsterSprites';
+import { FACTIONS, getMecha, displayMonsterName } from '../utils/monsterSprites';
 import {ITEM_BY_ID as LEGACY_ITEMS,BALANCED_ITEM_BY_ID} from '../utils/mechaVocabulary';
 import ShopModal from '../components/ShopModal';
 import QuestModal from '../components/QuestModal';
@@ -118,9 +118,8 @@ export default function Dashboard({
   // The database has a "name" column, but no "custom_name" column.
   // Preserve names chosen by players instead of replacing them with a species name.
   const mecha = getMecha(monster.family, monster.life_stage, monster.type);
-  const isDefaultEggName = ['數位蛋','新生基因蛋','機械核心','新生機械核心'].includes(monster.name);
-  const speciesName = mecha.modelName||mecha.name;
-  const displayName = isDefaultEggName ? speciesName : displayMonsterName(monster);
+  const speciesName = mecha.modelName;
+  const displayName = displayMonsterName(monster);
 
   const handleRename = async () => {
     const newName = prompt('請輸入新的機體名稱（最多30字）：', displayName);
@@ -214,8 +213,8 @@ export default function Dashboard({
       <div className="cockpit-identity">
         <button aria-label="上一隻機甲" title="上一隻機甲" className="play-arrow" disabled={monsters.length<2} onClick={()=>choosePet(-1)}>‹</button>
         <div className="min-w-0 text-center">
-          <div className="cockpit-name"><h2 title={displayName} aria-label={displayName}>{displayName===speciesName&&!mecha.modelName?(mecha.type?mecha.roleName+'・'+mecha.stageName:mecha.stageName):displayName}</h2><button className="cockpit-edit" aria-label="改名" title="改名" disabled={loading} onClick={handleRename}><GameIcon name="edit"/></button></div>
-          <div className="cockpit-species"><span>{mecha.modelName&&displayName!==speciesName?mecha.modelName:mecha.factionName}{!mecha.modelName&&displayName!==speciesName?'・'+mecha.roleName:''}</span><span>G{monster.generation}{displayName!==speciesName?' '+STAGE_NAMES[monster.life_stage]:''}</span></div>
+          <div className="cockpit-name"><h2 title={displayName} aria-label={displayName}>{displayName}</h2><button className="cockpit-edit" aria-label="改名" title="改名" disabled={loading} onClick={handleRename}><GameIcon name="edit"/></button></div>
+          <div className="cockpit-species">{displayName!==speciesName&&<span className="cockpit-model">{speciesName}</span>}<span className="cockpit-faction">{mecha.factionName}</span><span>{mecha.roleName}・{mecha.stageName}・G{monster.generation}</span></div>
         </div>
         <button aria-label="下一隻機甲" title="下一隻機甲" className="play-arrow" disabled={monsters.length<2} onClick={()=>choosePet(1)}>›</button>
       </div>

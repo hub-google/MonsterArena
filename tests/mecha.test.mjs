@@ -50,7 +50,7 @@ test('steel artillery final and super stages are distinct across legacy type cod
   assert.deepEqual(final.spriteAsset,{robot:'mecha/tyranno-robot.png',vehicle:'mecha/tyranno-rex.png'});
   assert.equal(superUnit.vehicle,'重型坦克');
   assert.equal(superUnit.spriteAsset,null);
-  assert.equal(superUnit.modelName,null);
+  assert.equal(superUnit.modelName,'巨砲金剛');
  }
  assert.equal(getMecha(4,4,3).spriteAsset,null);
  assert.equal(getMecha(4,5,1).spriteAsset,null);
@@ -76,4 +76,9 @@ test('seven final model overrides are cosmetic, eight named final models, preser
  assert.equal(new Set(models.map(m=>m.spriteAsset.robot)).size,8);
  assert.equal(new Set(models.map(m=>m.spriteAsset.vehicle)).size,8);
  for(const f of FACTIONS)for(const type of [1,2])assert.equal(getMecha(f.legacy,5,type).spriteAsset,null);
+});
+
+test('all forty models have distinct canonical names; legacy defaults map without replacing player nicknames',()=>{
+ const models=Object.values(MONSTER_SPRITES);assert.equal(new Set(models.map(m=>m.modelName)).size,40);
+ for(const m of models){assert.ok(m.modelName);assert.equal(m.name,m.modelName);assert.equal(displayMonsterName({family:m.family,life_stage:m.stage,type:m.type,name:m.legacyName}),m.modelName);assert.equal(displayMonsterName({family:m.family,life_stage:m.stage,type:m.type,name:'數位蛋'}),m.modelName);assert.equal(displayMonsterName({family:m.family,life_stage:m.stage,type:m.type,name:'玩家自訂'}),'玩家自訂');}
 });

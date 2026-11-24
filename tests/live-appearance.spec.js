@@ -53,7 +53,7 @@ test('published site renders different robots and transformations for stage 5 an
   await page.getByRole('button',{name:'下一隻機甲'}).click();
   await expect(page.getByRole('heading',{name:'超限機驗收'})).toBeVisible();
   await expect(art.locator('image')).toHaveCount(0);
-  await expect(art).toHaveAttribute('aria-label','鋼鐵族・重砲型・超限機');
+  await expect(art).toHaveAttribute('aria-label','巨砲金剛');
   const superRobot=await art.innerHTML();
   expect(superRobot).toContain('<path');
   await shell.screenshot({path:'test-results/ui-visual/super-robot-'+width+'.png',animations:'disabled'});
@@ -65,6 +65,27 @@ test('published site renders different robots and transformations for stage 5 an
   await page.getByRole('button',{name:'切換機器人'}).click();
   await page.getByRole('button',{name:'上一隻機甲'}).click();
  }
+ // All 40 model names and separate classification rows must appear on the published catalog.
+ const {MONSTER_SPRITES}=await import('../src/utils/monsterSprites.js');
+ await page.getByRole('button',{name:'圖鑑',exact:true}).click();
+ const seen=new Set();
+ for(let faction=1;faction<=4;faction++){
+  const entries=Object.values(MONSTER_SPRITES).filter(m=>m.faction===faction);
+  await page.getByRole('button',{name:entries[0].factionName,exact:true}).click();
+  for(let n=0;n<2;n++){
+   if(n)await page.getByRole('button',{name:'下一頁圖鑑'}).click();
+   for(const m of entries.slice(n*6,n*6+6)){
+    const card=page.getByTestId('catalog-'+m.key);
+    await expect(card.locator('.catalog-model')).toHaveText(m.modelName);
+    await expect(card.locator('.catalog-species')).toHaveText(m.factionName);
+    await expect(card.locator('.catalog-classification')).toHaveText(m.roleName+'・'+m.stageName);
+    const order=await card.evaluate(el=>{const name=el.querySelector('.catalog-model').getBoundingClientRect(),art=el.querySelector('.mecha-display').getBoundingClientRect(),species=el.querySelector('.catalog-species').getBoundingClientRect();return name.bottom<=art.top+1&&art.bottom<=species.top+1;});
+    expect(order).toBe(true);seen.add(m.modelName);
+   }
+   await shell.screenshot({path:'test-results/ui-visual/named-faction-'+faction+'-page-'+n+'.png',animations:'disabled'});
+  }
+ }
+ expect(seen.size).toBe(40);
  // Exercise every newly replaced species in the actual published catalog.
  const models=[
   [1,1,'雷霆暴龍','重裝戰車','thunder-rex'],
@@ -94,6 +115,8 @@ test('published site renders different robots and transformations for stage 5 an
     };
     await check(pic.locator('image'));
     await card.getByRole('button',{name:'變身：'+name,exact:true}).click();
+    await expect(card.locator('.catalog-model')).toHaveText(name);
+    await expect(card.locator('.catalog-classification')).toContainText('終極機');
     const alternate=card.getByRole('img',{name:vehicle,exact:true});
     await expect(alternate.locator('image')).toHaveAttribute('href',new RegExp(file+'-vehicle[.]png'+String.fromCharCode(36)));
     await check(alternate.locator('image'));

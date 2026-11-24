@@ -7,7 +7,7 @@
 3. Maintain the eight current Supabase Game RPC sources only in `supabase/schema/functions/`. Historical `supabase/migrations/` files are immutable audit history, never the source for a new change and never to be blindly replayed against production.
 4. For an unavoidable database change: edit the canonical SQL first; create one documented, timestamped migration from that source as required by Supabase; verify live definitions and user data after deployment. A migration is not a substitute for updating the canonical source.
 5. Keep `main` as the sole source branch and use GitHub Pages artifacts for testing. Do not recreate legacy or release branches or deploy Cloudflare formal/Workers unless explicitly requested. Avoid touching other projects sharing Supabase.
-6. Add meaningful regression tests for the confirmed defect and verify the affected feature in the published browser. The automatic deployment workflow only builds, publishes, checks the live version and performs a small post-publication smoke/appearance check. Run complete database, concurrency, long-term economy, legacy browser and unit suites manually when relevant; unrelated test failures must not prevent publishing. Do not claim all authenticated E2E flows passed when they have not.
+6. Add meaningful regression tests for the confirmed defect and verify the affected feature in the published browser. The automatic deployment workflow only builds and publishes. Perform the live version and focused browser verification separately for the requested change. Run complete database, concurrency, long-term economy, legacy browser and unit suites manually when relevant; unrelated test failures must not prevent publishing. Do not claim all authenticated E2E flows passed when they have not.
 7. Report exact root cause, edited files, test outcomes and any remaining limitations. No fabricated BUGs or hiding failures behind retries.
 
 **Project scope:** This file governs Arena. For the same rule across *all* projects, add it to account-wide ChatGPT Custom Instructions or to each Project's instructions.
@@ -25,3 +25,5 @@
 - main 的 V2 僅部署 `arena_preview_*` 隔離資料表／RPC、`arena_preview_internal` 私有 schema；不得替換原始 Game 表或 RPC，不變更共用 API 設定。使用 `npm run db:sql -- --preview` 從同一 canonical source 生成，bootstrap 僅第一次執行。正式站資料與測試快照不得自動互相覆寫。
 
 - 不得僅因種族與職業相同就合併不同進化階段的機體造型。暴龍戰炫王僅對應鋼鐵族重砲型終極機；超限機保留原機器人及重型坦克。驗收使用不同 stage 的實際瀏覽器圖片，不以舊版光柵雜湊取代已上架圖片。
+
+- 40 種機體名稱由 monsterSprites.js 統一管理；名稱與種族、職業、進化階段、玩家暱稱分開。圖鑑變形時機體名稱與分類不變，不改資料庫數值或造型。

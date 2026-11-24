@@ -166,8 +166,8 @@ test('existing stage-six legacy type-three unit retains custom name and uses Tyr
  await page.getByRole('button',{name:'機體詳細資料'}).click();
  await expect(page.getByTestId('mecha-details').getByText('鋼鐵族・重砲型',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'關閉詳細資料'}).click();
- await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・'+stageName})).toBeVisible();
- await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・'+stageName}).locator('image')).toHaveAttribute('href',/tyranno-robot\.png$/);
+ await expect(page.getByRole('img',{name:'暴龍戰炫王'})).toBeVisible();
+ await expect(page.getByRole('img',{name:'暴龍戰炫王'}).locator('image')).toHaveAttribute('href',/tyranno-robot\.png$/);
  await page.getByRole('button',{name:'變形：暴龍型態'}).click();
  await expect(page.getByRole('img',{name:'暴龍型態'})).toBeVisible();
  await expect(page.getByRole('img',{name:'暴龍型態'}).locator('image')).toHaveAttribute('href',/tyranno-rex\.png$/);
@@ -177,7 +177,7 @@ test('existing stage-six legacy type-three unit retains custom name and uses Tyr
  }
  await page.getByTestId('game-shell').screenshot({path:`test-results/ui-visual/tyranno-rex-stage-${stage}.png`,animations:'disabled'});
  await page.getByRole('button',{name:'切換機器人'}).click();
- await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・'+stageName})).toBeVisible();
+ await expect(page.getByRole('img',{name:'暴龍戰炫王'})).toBeVisible();
 });
 
 test('three simultaneous status warnings stay separate from each other and the machine on mobile',async({page})=>{
@@ -208,13 +208,13 @@ test('three simultaneous status warnings stay separate from each other and the m
   expect(art.width).toBeGreaterThan(140);
   expect(await sprite.evaluate(el=>getComputedStyle(el).filter)).toBe('none');
  };
- await assertLayout('鋼鐵族・重砲型・終極機');
+ await assertLayout('暴龍戰炫王');
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：機器人');
  await page.getByRole('button',{name:'變形：暴龍型態'}).click();
  await assertLayout('暴龍型態');
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：暴龍型態');
  await page.getByRole('button',{name:'切換機器人'}).click();
- await assertLayout('鋼鐵族・重砲型・終極機');
+ await assertLayout('暴龍戰炫王');
  expect(calls).not.toContain('/rest/v1/rpc/game_action');
 });
 
@@ -299,7 +299,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
   }
   expect(await main.evaluate(el=>el.scrollHeight-el.clientHeight)).toBeLessThanOrEqual(2);
  };
- await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
+ await expect(home.getByRole('heading',{name:'巨砲金剛'})).toBeVisible();
  await assertVisiblePaint(90);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop.png',animations:'disabled'});
  const shell=page.getByTestId('game-shell');
@@ -308,10 +308,10 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  expect(portrait.height).toBeGreaterThan(portrait.width);
  const assertSingleColumn=async()=>{await expect.poll(()=>home.evaluate(el=>{const hero=el.querySelector('.cockpit-hero').getBoundingClientRect(),panel=el.querySelector('.cockpit-console').getBoundingClientRect();return Math.max(Math.abs(hero.x-panel.x),Math.abs(hero.width-panel.width),hero.bottom-panel.top)})).toBeLessThanOrEqual(1)};
  await assertSingleColumn();
- await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
+ await expect(home.getByRole('heading',{name:'巨砲金剛'})).toBeVisible();
  await expect(home.locator('.cockpit-species')).toContainText('鋼鐵族');
- await expect(home.locator('.cockpit-species')).not.toContainText('重砲型');
- await expect(home.locator('.cockpit-species')).not.toContainText('超限機');
+ await expect(home.locator('.cockpit-species')).toContainText('重砲型');
+ await expect(home.locator('.cockpit-species')).toContainText('超限機');
  await actions.getByRole('button',{name:'變形：重型坦克'}).click();
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop-vehicle.png',animations:'disabled'});
  await assertVisiblePaint(90);
@@ -339,7 +339,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  await page.setViewportSize({width:360,height:640});
  await expect.poll(()=>shell.evaluate(el=>el.getBoundingClientRect().width)).toBeCloseTo(360,0);
  await assertSingleColumn();
- await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
+ await expect(home.getByRole('heading',{name:'巨砲金剛'})).toBeVisible();
  expect(await home.locator('.cockpit-name h2').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/mobile.png',animations:'disabled'});
  await assertVisiblePaint(85);
@@ -493,15 +493,15 @@ test('single feature entrances and independent catalog transformation previews',
  await page.getByRole('button',{name:'鋼鐵族',exact:true}).click();
  const first=page.getByTestId('catalog-2_4_1'),second=page.getByTestId('catalog-2_4_2'),early=page.getByTestId('catalog-2_3_1');
  await expect(early.locator('.catalog-transform')).toHaveCount(0);
- await expect(first.getByRole('img',{name:'鋼鐵族・堡壘型・戰鬥機'})).toBeVisible();
- await expect(second.getByRole('img',{name:'鋼鐵族・重砲型・戰鬥機'})).toBeVisible();
- await first.getByRole('button',{name:'變身：鋼鐵族・堡壘型・戰鬥機'}).click();
+ await expect(first.getByRole('img',{name:'鋼盾戰衛'})).toBeVisible();
+ await expect(second.getByRole('img',{name:'重砲戰將'})).toBeVisible();
+ await first.getByRole('button',{name:'變身：鋼盾戰衛'}).click();
  await expect(first.getByRole('img',{name:'裝甲運輸車'})).toBeVisible();
- await expect(second.getByRole('img',{name:'鋼鐵族・重砲型・戰鬥機'})).toBeVisible();
- await second.getByRole('button',{name:'變身：鋼鐵族・重砲型・戰鬥機'}).click();
+ await expect(second.getByRole('img',{name:'重砲戰將'})).toBeVisible();
+ await second.getByRole('button',{name:'變身：重砲戰將'}).click();
  await expect(second.getByRole('img',{name:'重型坦克'})).toBeVisible();
- await first.getByRole('button',{name:'還原：鋼鐵族・堡壘型・戰鬥機'}).click();
- await expect(first.getByRole('img',{name:'鋼鐵族・堡壘型・戰鬥機'})).toBeVisible();
+ await first.getByRole('button',{name:'還原：鋼盾戰衛'}).click();
+ await expect(first.getByRole('img',{name:'鋼盾戰衛'})).toBeVisible();
  await expect(second.getByRole('img',{name:'重型坦克'})).toBeVisible();
  const bounds=await main.boundingBox();
  for(const btn of await main.locator('.catalog-transform').all()){const b=await btn.boundingBox();expect(b.height).toBeGreaterThanOrEqual(44);expect(b.y+b.height).toBeLessThanOrEqual(bounds.y+bounds.height+1);}
@@ -510,7 +510,7 @@ test('single feature entrances and independent catalog transformation previews',
  await page.setViewportSize({width:1280,height:800});
  await expect.poll(()=>page.getByTestId('game-shell').evaluate(el=>el.getBoundingClientRect().width)).toBeCloseTo(400,0);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/catalog-desktop.png',animations:'disabled'});
- await second.getByRole('button',{name:'鋼鐵族・重砲型・戰鬥機',exact:true}).click();
+ await second.getByRole('button',{name:'重砲戰將',exact:true}).click();
  await expect(page.getByRole('dialog').getByRole('img',{name:'重型坦克'})).toBeVisible();
  await page.getByRole('button',{name:'關閉圖鑑詳情'}).click();
  expect(calls).not.toContain('/rest/v1/rpc/game_action');

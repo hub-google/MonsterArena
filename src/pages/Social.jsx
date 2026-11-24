@@ -184,9 +184,9 @@ export default function Social({ user }) {
                           <MonsterPixelArt family={m.family} stage={m.life_stage} type={m.type} skin={wornSkin(m)?.id} displaySize={64} />
                         </div>
                         <span className="text-[10px] text-slate-300 text-center max-w-[60px] truncate">
-                          {wornSkin(m)?.name||displayMonsterName(m)}
+                          {displayMonsterName(m)}
                         </span>
-                        <span className="text-[9px] text-slate-500">{wornSkin(m)?'偽裝造型':getMecha(m.family,m.life_stage,m.type).modelName||getMecha(m.family,m.life_stage,m.type).factionName+'・'+getMecha(m.family,m.life_stage,m.type).roleName}</span>
+                        <span className="text-[9px] text-slate-500">{getMecha(m.family,m.life_stage,m.type).factionName}・{wornSkin(m)?'偽裝：'+wornSkin(m).name:getMecha(m.family,m.life_stage,m.type).modelName}</span>
                       </div>
                     ))}
                   </div>
