@@ -111,7 +111,7 @@ UPDATE public.monsters SET is_sick=true,repair_until=null WHERE monster_id='0000
 INSERT INTO public.user_inventory(user_id,item_id,item_type,quantity) VALUES('00000000-0000-4000-8000-000000000001','medicine_standard',2,1) ON CONFLICT(user_id,item_id) DO UPDATE SET quantity=1;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
-DO $
+DO $repair_test$
 DECLARE before_hp numeric; mid uuid:='00000000-0000-4000-8000-000000000011'; deadline timestamptz;
 BEGIN
  SELECT combat_hp INTO before_hp FROM public.monsters WHERE monster_id=mid;
@@ -122,11 +122,11 @@ BEGIN
  BEGIN PERFORM public.game_action('battle',jsonb_build_object('monster_id',mid,'encounter','wild')); RAISE EXCEPTION 'repairing unit battled'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%緊急修復中%' THEN RAISE; END IF; END;
  PERFORM public.game_action('heal',jsonb_build_object('monster_id',mid,'item_id','medicine_standard'));
  IF NOT EXISTS(SELECT 1 FROM public.monsters WHERE monster_id=mid AND NOT is_sick AND repair_until IS NULL AND combat_hp=before_hp) THEN RAISE EXCEPTION 'standard repair damaged HP or did not clear timer'; END IF;
-END $;
+END $repair_test$;
 RESET ROLE;
 UPDATE public.monsters SET is_sick=true,repair_until=now()-interval '1 second',last_updated_at=now() WHERE monster_id='00000000-0000-4000-8000-000000000011';
 SET LOCAL ROLE authenticated;
 SELECT public.game_age_monsters();
-DO $ BEGIN IF EXISTS(SELECT 1 FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011' AND (is_sick OR repair_until IS NOT NULL)) THEN RAISE EXCEPTION 'repair did not complete automatically'; END IF; END $;
+DO $repair_test$ BEGIN IF EXISTS(SELECT 1 FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011' AND (is_sick OR repair_until IS NOT NULL)) THEN RAISE EXCEPTION 'repair did not complete automatically'; END IF; END $repair_test$;
 RESET ROLE;
 ROLLBACK;
