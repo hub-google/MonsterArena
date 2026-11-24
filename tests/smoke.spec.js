@@ -4,6 +4,8 @@ test('production build boots to login and registration without runtime exception
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('./', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveTitle('怪獸競技場 | Monster Arena');
+  await expect(page.getByText('怪獸競技場', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'MONSTER ARENA' })).toBeVisible({ timeout: 20000 });
   await expect(page.getByRole('button', { name: '登入帳號' })).toBeVisible();
   await expect(page.getByRole('button', { name: '註冊新戶' })).toBeVisible();

@@ -60,7 +60,7 @@ export default function Login({ onLoginSuccess }) {
           MONSTER ARENA
         </h1>
         <p className="text-sm text-cyan-200/60 mb-8 font-medium tracking-widest">
-          次世代機甲養成對戰平台
+          怪獸競技場
         </p>
 
         {/* Tab Selection */}
