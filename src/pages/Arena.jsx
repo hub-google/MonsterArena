@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import BattleReveal from '../components/BattleReveal';
+import TacticalDuel from './TacticalDuel';
 import {appearance,hasDisguise,getSkin} from '../utils/skins';
 import { api, GAME_RULES_V2 } from '../utils/api';
 import {PlayButton,GameIcon} from '../components/PlayButton';
@@ -249,6 +250,8 @@ export default function Arena({
     );
   }
 
+  if(subTab==='tactical'&&getFighter())return <TacticalDuel monster={getFighter()} vehicle={vehicleModes[getFighter().monster_id]} onExit={()=>setSubTab('players')}/>;
+
   return (
     <div className="h-full flex flex-col gap-4 animate-fade-in">
       <div className="flex justify-center items-center gap-2">
@@ -258,6 +261,7 @@ export default function Arena({
        {([['players','battle','野生挑戰','打'],...(GAME_RULES_V2?[['pvp','🏆','玩家對戰','賽']]:[]),['friends','social','好友名單','友'],['chat','💬','世界聊天','聊']]).map(([id,icon,label,short])=><PlayButton key={id} icon={icon} label={label} short={short} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
       </div>
 
+      {subTab==='players'&&<PlayButton icon="guild" label="手動戰術對戰" subtext="格擋反擊・精準暴擊・公平競技" tone="blue" disabled={!getFighter()||loading} onClick={()=>{setMessage('');setSubTab('tactical')}} className="play-compact"/>}
       <div className="flex-1 overflow-y-auto">
         {subTab === 'chat' && (
           <div className="flex flex-col h-full gap-4">
