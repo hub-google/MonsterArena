@@ -75,6 +75,8 @@ declare
   v_fighter record;
   v_tactical jsonb;
   v_attempts int;
+  v_points int;
+  v_allocated int;
 begin
   if v_uid is null then raise exception '請先登入'; end if;
   select * into v_u from public.users where user_id=v_uid for update;
@@ -181,8 +183,8 @@ begin
     v_qty := (p_data->>'quantity')::int;
     if v_qty is null or v_qty<1 or v_qty>99 then raise exception '數量需為 1～99'; end if;
     v_price := case v_item
-      when 'meat_basic' then 10 when 'meat_premium' then 50 when 'energy_drink' then 100
-      when 'medicine_standard' then 200 when 'vitamin' then 50 when 'breed_catalyst' then 500
+      when 'meat_basic' then 10 when 'meat_premium' then 25 when 'energy_drink' then 50
+      when 'medicine_standard' then 80 when 'vitamin' then 30 when 'breed_catalyst' then 300
       when 'ultimate_core' then 1000
       when 'chip_atk' then 300 when 'chip_def' then 300
       when 'chip_hp' then 300 when 'chip_spd' then 300
@@ -242,34 +244,37 @@ begin
   elsif p_action = 'train' then
     if v_u.stamina<10 then raise exception '體力不足，需要 10 點'; end if;
     if v_m.is_sick or coalesce(v_m.fullness,0)<20 then raise exception '怪獸太餓或生病，無法訓練'; end if;
-    v_stat := (array['combat_hp','combat_atk','combat_def','combat_spd'])[1+floor(random()*4)::int];
-    v_value := case when v_stat='combat_hp' then 10 else 2 end;
-    -- A vitamin is automatically consumed during training and improves the stat gain by 10%.
-    select * into v_inv from public.user_inventory
-      where user_id=v_uid and item_id='vitamin' and quantity>0 for update;
-    if found then
-      update public.user_inventory set quantity=quantity-1 where inventory_id=v_inv.inventory_id;
-      v_value := v_value*1.1;
-    end if;
-    update public.users set stamina=stamina-10 where user_id=v_uid;
-    update public.monsters set combat_hp=combat_hp+case when v_stat='combat_hp' then v_value else 0 end,
-      combat_atk=combat_atk+case when v_stat='combat_atk' then v_value else 0 end,
-      combat_def=combat_def+case when v_stat='combat_def' then v_value else 0 end,
-      combat_spd=combat_spd+case when v_stat='combat_spd' then v_value else 0 end,
-      fullness=greatest(0,fullness-10),train_count=coalesce(train_count,0)+1 where monster_id=v_mon_id;
+    v_stat:=coalesce(p_data->>'stat','atk');
+    IF v_stat NOT IN ('hp','atk','def','spd') THEN RAISE EXCEPTION '無效訓練項目'; END IF;
+    v_allocated:=v_m.training_hp+v_m.training_atk+v_m.training_def+v_m.training_spd;
+    v_count:=CASE v_stat WHEN 'hp' THEN v_m.training_hp WHEN 'atk' THEN v_m.training_atk WHEN 'def' THEN v_m.training_def ELSE v_m.training_spd END;
+    v_points:=least(1,60-v_allocated,30-v_count);
+    IF v_points<=0 THEN RAISE EXCEPTION '訓練配點已達上限'; END IF;
+    IF coalesce((p_data->>'boost')::boolean,false) AND v_allocated<59 AND v_count<29 THEN
+      SELECT * INTO v_inv FROM public.user_inventory WHERE user_id=v_uid AND item_id='vitamin' AND quantity>0 FOR UPDATE;
+      IF NOT FOUND THEN RAISE EXCEPTION '效能增幅器不足'; END IF;
+      UPDATE public.user_inventory SET quantity=quantity-1 WHERE inventory_id=v_inv.inventory_id; v_points:=2;
+    END IF;
+    UPDATE public.users SET stamina=stamina-10 WHERE user_id=v_uid;
+    UPDATE public.monsters SET training_hp=training_hp+CASE WHEN v_stat='hp' THEN v_points ELSE 0 END,
+      training_atk=training_atk+CASE WHEN v_stat='atk' THEN v_points ELSE 0 END,
+      training_def=training_def+CASE WHEN v_stat='def' THEN v_points ELSE 0 END,
+      training_spd=training_spd+CASE WHEN v_stat='spd' THEN v_points ELSE 0 END,fullness=greatest(0,fullness-10),train_count=coalesce(train_count,0)+1 WHERE monster_id=v_mon_id;
+    PERFORM arena_internal.refresh_unit(v_mon_id);
+    v_result:=jsonb_build_object('message','訓練完成，配點 +'||v_points);
     v_key:='train_count';
   elsif p_action='evolve' then
     if v_m.life_stage<>5 or coalesce(v_m.battles,0)<50 or (coalesce(v_m.wins,0)::numeric/nullif(v_m.battles,0))<0.7 then
       raise exception '究極進化需要完全體、50 戰及 70%% 勝率'; end if;
     update public.user_inventory set quantity=quantity-1 where inventory_id=v_inv.inventory_id;
-    update public.monsters set life_stage=6, combat_hp=combat_hp*1.5,
-      combat_atk=combat_atk*1.5,combat_def=combat_def*1.5,combat_spd=combat_spd*1.5 where monster_id=v_mon_id;
+    update public.monsters set life_stage=6 where monster_id=v_mon_id;
+    PERFORM arena_internal.refresh_unit(v_mon_id);
   elsif p_action='lock' then
     update public.monsters set is_locked=not coalesce(is_locked,false) where monster_id=v_mon_id;
   elsif p_action='release' then
     if v_m.is_locked then raise exception '怪獸已鎖定'; end if;
     v_reward := case when coalesce(v_m.is_rescue,false) then 0
-                 else greatest(0,coalesce(v_m.life_stage,1)*50) end;
+                 else least(80,greatest(0,coalesce(v_m.life_stage,1)*15)) end;
     -- Dead pets may always be cleared to recover warehouse capacity. Only
     -- the final living pet must leave enough gold for a new hatch.
     if not coalesce(v_m.is_dead,false)
@@ -292,35 +297,12 @@ begin
     v_text:=case when v_slot=1 then v_m.chip_slot_1 else v_m.chip_slot_2 end;
     v_old:=case when v_slot=1 then coalesce(v_m.chip_slot_1_val,0)
                 else coalesce(v_m.chip_slot_2_val,0) end;
-    -- Previously installed enhanced chips keep their individual potency when extracted.
-    -- New shop chips are +5. The reserve belongs to the item, not the monster.
-    select r.bonus into v_bonus from public.game_chip_reserves r
-      where r.user_id=v_uid and r.item_id=v_item and r.quantity>0
-      order by r.bonus desc limit 1 for update;
-    if found then
-      update public.game_chip_reserves set quantity=quantity-1
-        where user_id=v_uid and item_id=v_item and bonus=v_bonus;
-    else
-      v_bonus:=5;
-    end if;
-    update public.user_inventory set quantity=quantity-1 where inventory_id=v_inv.inventory_id;
-    if v_slot=1 then
-      update public.monsters set
-        chip_slot_1=v_item,chip_slot_1_val=v_bonus,
-        combat_hp=greatest(1,coalesce(combat_hp,1)-case when v_text='chip_hp' then v_old else 0 end + case when v_item='chip_hp' then v_bonus else 0 end),
-        combat_atk=greatest(0,coalesce(combat_atk,0)-case when v_text='chip_atk' then v_old else 0 end + case when v_item='chip_atk' then v_bonus else 0 end),
-        combat_def=greatest(0,coalesce(combat_def,0)-case when v_text='chip_def' then v_old else 0 end + case when v_item='chip_def' then v_bonus else 0 end),
-        combat_spd=greatest(0,coalesce(combat_spd,0)-case when v_text='chip_spd' then v_old else 0 end + case when v_item='chip_spd' then v_bonus else 0 end)
-      where monster_id=v_mon_id;
-    else
-      update public.monsters set
-        chip_slot_2=v_item,chip_slot_2_val=v_bonus,
-        combat_hp=greatest(1,coalesce(combat_hp,1)-case when v_text='chip_hp' then v_old else 0 end + case when v_item='chip_hp' then v_bonus else 0 end),
-        combat_atk=greatest(0,coalesce(combat_atk,0)-case when v_text='chip_atk' then v_old else 0 end + case when v_item='chip_atk' then v_bonus else 0 end),
-        combat_def=greatest(0,coalesce(combat_def,0)-case when v_text='chip_def' then v_old else 0 end + case when v_item='chip_def' then v_bonus else 0 end),
-        combat_spd=greatest(0,coalesce(combat_spd,0)-case when v_text='chip_spd' then v_old else 0 end + case when v_item='chip_spd' then v_bonus else 0 end)
-      where monster_id=v_mon_id;
-    end if;
+    SELECT r.bonus INTO v_bonus FROM public.game_chip_reserves r WHERE r.user_id=v_uid AND r.item_id=v_item AND r.quantity>0 ORDER BY r.bonus DESC LIMIT 1 FOR UPDATE;
+    IF FOUND THEN UPDATE public.game_chip_reserves SET quantity=quantity-1 WHERE user_id=v_uid AND item_id=v_item AND bonus=v_bonus; ELSE v_bonus:=5; END IF;
+    UPDATE public.user_inventory SET quantity=quantity-1 WHERE inventory_id=v_inv.inventory_id;
+    IF v_slot=1 THEN UPDATE public.monsters SET chip_slot_1=v_item,chip_slot_1_val=v_bonus WHERE monster_id=v_mon_id;
+    ELSE UPDATE public.monsters SET chip_slot_2=v_item,chip_slot_2_val=v_bonus WHERE monster_id=v_mon_id; END IF;
+    PERFORM arena_internal.refresh_unit(v_mon_id);
   elsif p_action='unequip' then
     v_slot:=(p_data->>'slot')::int;
     if v_slot is null or v_slot not in (1,2) then raise exception '無效插槽'; end if;
@@ -340,23 +322,9 @@ begin
     insert into public.user_inventory(user_id,item_id,item_type,quantity)
       values(v_uid,v_text,4,1)
       on conflict(user_id,item_id) do update set quantity=public.user_inventory.quantity+1;
-    if v_slot=1 then
-      update public.monsters set
-        chip_slot_1=null,chip_slot_1_val=0,
-        combat_hp=greatest(1,coalesce(combat_hp,1)-case when v_text='chip_hp' then v_old else 0 end),
-        combat_atk=greatest(0,coalesce(combat_atk,0)-case when v_text='chip_atk' then v_old else 0 end),
-        combat_def=greatest(0,coalesce(combat_def,0)-case when v_text='chip_def' then v_old else 0 end),
-        combat_spd=greatest(0,coalesce(combat_spd,0)-case when v_text='chip_spd' then v_old else 0 end)
-      where monster_id=v_mon_id;
-    else
-      update public.monsters set
-        chip_slot_2=null,chip_slot_2_val=0,
-        combat_hp=greatest(1,coalesce(combat_hp,1)-case when v_text='chip_hp' then v_old else 0 end),
-        combat_atk=greatest(0,coalesce(combat_atk,0)-case when v_text='chip_atk' then v_old else 0 end),
-        combat_def=greatest(0,coalesce(combat_def,0)-case when v_text='chip_def' then v_old else 0 end),
-        combat_spd=greatest(0,coalesce(combat_spd,0)-case when v_text='chip_spd' then v_old else 0 end)
-      where monster_id=v_mon_id;
-    end if;
+    IF v_slot=1 THEN UPDATE public.monsters SET chip_slot_1=null,chip_slot_1_val=0 WHERE monster_id=v_mon_id;
+    ELSE UPDATE public.monsters SET chip_slot_2=null,chip_slot_2_val=0 WHERE monster_id=v_mon_id; END IF;
+    PERFORM arena_internal.refresh_unit(v_mon_id);
   elsif p_action='breed' then
     v_mon_id:=(p_data->>'parent1')::uuid;
     v_mon2_id:=(p_data->>'parent2')::uuid;
@@ -375,21 +343,14 @@ begin
       update public.user_inventory set quantity=quantity-1 where inventory_id=v_inv.inventory_id;
     end if;
     update public.users set gold=gold-200 where user_id=v_uid;
-    v_bonus:=case when random() < (case when v_catalyst then 0.12 else 0.06 end) then 1.25 else 1.1 end;
+    v_bonus:=least(5,greatest(0,round((v_m.core_quality+v_m2.core_quality)/2.0)::int+CASE WHEN random()<(CASE WHEN v_catalyst THEN .12 ELSE .06 END) THEN 1 ELSE 0 END));
     insert into public.monsters(user_id,parent_1_id,parent_2_id,name,generation,life_stage,type,family,age_days,fullness,cleanliness,
-      is_sick,is_dead,gene_hp,gene_atk,gene_def,gene_spd,combat_hp,combat_atk,combat_def,combat_spd,battles,wins,is_locked,last_updated_at)
-    values(v_uid,v_mon_id,v_mon2_id,'新生基因蛋',
+      is_sick,is_dead,gene_hp,gene_atk,gene_def,gene_spd,combat_hp,combat_atk,combat_def,combat_spd,battles,wins,is_locked,last_updated_at,core_quality)
+    values(v_uid,v_mon_id,v_mon2_id,'新生機械核心',
       greatest(coalesce(v_m.generation,1),coalesce(v_m2.generation,1))+1,1,0,v_m.family,0,100,100,
-      false,false,(v_m.combat_hp+v_m2.combat_hp)/2*v_bonus,
-      (v_m.combat_atk+v_m2.combat_atk)/2*v_bonus,
-      (v_m.combat_def+v_m2.combat_def)/2*v_bonus,
-      (v_m.combat_spd+v_m2.combat_spd)/2*v_bonus,
-      (v_m.combat_hp+v_m2.combat_hp)/2*v_bonus,
-      (v_m.combat_atk+v_m2.combat_atk)/2*v_bonus,
-      (v_m.combat_def+v_m2.combat_def)/2*v_bonus,
-      (v_m.combat_spd+v_m2.combat_spd)/2*v_bonus,0,0,false,now());
+      false,false,50,5,5,5,50,5,5,5,0,0,false,now(),v_bonus::int);
   elsif p_action='pvp_register' then
-    SELECT * INTO v_fighter FROM arena_internal.fighter_stats(v_m.life_stage,v_m.combat_hp,v_m.combat_atk,v_m.combat_def,v_m.combat_spd);
+    SELECT * INTO v_fighter FROM arena_internal.unit_stats(v_m);
     insert into arena_internal.pvp_defenders(user_id,monster_id,monster_name,family,stage,type,hp,atk,def,spd)
       values(v_uid,v_mon_id,coalesce(v_m.name,'怪獸'),coalesce(v_m.family,1),v_m.life_stage,coalesce(v_m.type,0),
       v_fighter.hp,v_fighter.atk,v_fighter.def,v_fighter.spd)
@@ -416,7 +377,7 @@ begin
     if not coalesce(v_boss.is_active,false) then raise exception '今日世界王已被討伐'; end if;
     SELECT coalesce(attempts,0) INTO v_attempts FROM arena_internal.raid_contributions WHERE boss_id=v_boss.id AND user_id=v_uid;
     IF coalesce(v_attempts,0)>=3 THEN RAISE EXCEPTION '今日世界王已達三次挑戰上限'; END IF;
-    SELECT * INTO v_fighter FROM arena_internal.fighter_stats(v_m.life_stage,v_m.combat_hp,v_m.combat_atk,v_m.combat_def,v_m.combat_spd);
+    SELECT * INTO v_fighter FROM arena_internal.unit_stats(v_m);
     -- Ten-turn contribution, endurance and speed matter as well as attack.
     v_damage:=least(v_boss.current_hp,greatest(1,floor(10*v_fighter.atk*100/(100+30)
       *(0.8+least(0.4,(v_fighter.hp/240+v_fighter.def/36)/5))
@@ -441,7 +402,7 @@ begin
     select count(*) into v_count from public.battle_records where user_id=v_uid
       and created_at>=date_trunc('day',now() at time zone 'Asia/Taipei') at time zone 'Asia/Taipei';
     if v_count>=30 then raise exception '今日已達 30 場挑戰上限'; end if;
-    SELECT * INTO v_fighter FROM arena_internal.fighter_stats(v_m.life_stage,v_m.combat_hp,v_m.combat_atk,v_m.combat_def,v_m.combat_spd);
+    SELECT * INTO v_fighter FROM arena_internal.unit_stats(v_m);
     v_own_max_hp:=v_fighter.hp;
     v_own_hp:=v_own_max_hp;
     v_pvp:=v_encounter='pvp';
@@ -466,7 +427,7 @@ begin
     v_enemy_hp:=v_enemy_max_hp;
     IF v_encounter='boss' AND NOT (p_data ? 'moves') THEN RAISE EXCEPTION '首領挑戰需要戰術指令'; END IF;
     IF v_encounter='boss' THEN
-      v_tactical:=arena_internal.boss_tactics(v_m.life_stage,v_m.combat_hp,v_m.combat_atk,v_m.combat_def,v_m.combat_spd,p_data->'moves');
+      v_tactical:=arena_internal.boss_tactics(v_m.life_stage,v_fighter.hp,v_fighter.atk,v_fighter.def,v_fighter.spd,p_data->'moves');
       v_own_hp:=(v_tactical->>'ownHp')::double precision; v_enemy_hp:=(v_tactical->>'enemyHp')::double precision;
       v_won:=(v_tactical->>'won')::boolean; v_events:=v_tactical->'events';
     ELSE
@@ -474,26 +435,26 @@ begin
     v_enemy_faction:=(case coalesce(v_enemy_family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end);
     v_own_role:=case when coalesce(v_m.life_stage,1)<3 then 0 else (v_own_faction-1)*2+case when v_m.type=1 then 1 else 2 end end;
     v_enemy_role:=case when coalesce(v_enemy_stage,1)<3 then 0 else (v_enemy_faction-1)*2+case when v_enemy_type=1 then 1 else 2 end end;
-    v_player_first:=v_fighter.spd>v_enemy_spd OR (v_fighter.spd=v_enemy_spd AND random()<0.5);
-    for v_round in 1..100 loop
+    for v_round in 1..25 loop
+      v_player_first:=random()<0.5+0.4*(v_fighter.spd-v_enemy_spd)/greatest(1,v_fighter.spd+v_enemy_spd);
       for v_step in 1..2 loop
         if (v_step=1 and v_player_first) or (v_step=2 and not v_player_first) then
           v_damage_a:=greatest(1,floor(
             greatest(1,(v_fighter.atk) *
               (case when v_enemy_role=7 and mod(v_round,3)=0 then 1
-                    when v_own_role=1 and mod(v_round,3)=1 then 1.25
-                    when v_own_role=2 and mod(v_round,2)=0 then 1.15
-                    when v_own_role=4 and mod(v_round,3)=0 then 1.20
-                    when v_own_role=5 then 1.08
-                    when v_own_role=6 and mod(v_round,3)=0 then 1.30 else 1 end) *
-              (case when v_own_role=5 then 1 else 0.9+random()*0.2 end)
-              *100/(100+v_enemy_def*(case when v_own_role=4 and mod(v_round,3)=0 and not (v_enemy_role=7 and mod(v_round,3)=0) then 0.60 else 1 end)))
-            * (case when v_enemy_faction=mod(v_own_faction,4)+1 then 1.2 else 1 end)
-            * (case when v_enemy_role=3 then 0.88 when v_enemy_role=7 and mod(v_round,3)=0 then 0.85 else 1 end)
+                    when v_own_role=1 and mod(v_round,3)=1 then 1.12
+                    when v_own_role=2 and mod(v_round,2)=0 then 1.10
+                    when v_own_role=4 and mod(v_round,3)=0 then 1.10
+                    when v_own_role=5 then 1.04
+                    when v_own_role=6 and mod(v_round,3)=0 then 1.16 else 1 end) *
+              (case when v_own_role=5 then 0.88+random()*0.24 else 0.85+random()*0.30 end)
+              *100/(100+v_enemy_def*(case when v_own_role=4 and mod(v_round,3)=0 and not (v_enemy_role=7 and mod(v_round,3)=0) then 0.85 else 1 end)))
+            * (case when v_enemy_faction=mod(v_own_faction,4)+1 then 1.01 else 1 end)
+            * (case when v_enemy_role=3 then 0.95 when v_enemy_role=7 and mod(v_round,3)=0 then 0.93 else 1 end)
           )::int);
           v_enemy_hp:=greatest(0,v_enemy_hp-v_damage_a);
           if v_own_role=8 and mod(v_round,3)=0 and not (v_enemy_role=7 and mod(v_round,3)=0) then
-            v_own_hp:=least(v_own_max_hp,v_own_hp+greatest(1,floor(v_own_max_hp*0.04)));
+            v_own_hp:=least(v_own_max_hp,v_own_hp+greatest(1,floor(v_own_max_hp*0.025)));
           end if;
           v_events:=v_events||jsonb_build_array(jsonb_build_object(
             'attacker','A','damage',v_damage_a,'ownHp',v_own_hp,'enemyHp',v_enemy_hp));
@@ -501,19 +462,19 @@ begin
           v_damage_b:=greatest(1,floor(
             greatest(1,(v_enemy_atk) *
               (case when v_own_role=7 and mod(v_round,3)=0 then 1
-                    when v_enemy_role=1 and mod(v_round,3)=1 then 1.25
-                    when v_enemy_role=2 and mod(v_round,2)=0 then 1.15
-                    when v_enemy_role=4 and mod(v_round,3)=0 then 1.20
-                    when v_enemy_role=5 then 1.08
-                    when v_enemy_role=6 and mod(v_round,3)=0 then 1.30 else 1 end) *
-              (case when v_enemy_role=5 then 1 else 0.9+random()*0.2 end)
-              *100/(100+v_fighter.def*(case when v_enemy_role=4 and mod(v_round,3)=0 and not (v_own_role=7 and mod(v_round,3)=0) then 0.60 else 1 end)))
-            * (case when v_own_faction=mod(v_enemy_faction,4)+1 then 1.2 else 1 end)
-            * (case when v_own_role=3 then 0.88 when v_own_role=7 and mod(v_round,3)=0 then 0.85 else 1 end)
+                    when v_enemy_role=1 and mod(v_round,3)=1 then 1.12
+                    when v_enemy_role=2 and mod(v_round,2)=0 then 1.10
+                    when v_enemy_role=4 and mod(v_round,3)=0 then 1.10
+                    when v_enemy_role=5 then 1.04
+                    when v_enemy_role=6 and mod(v_round,3)=0 then 1.16 else 1 end) *
+              (case when v_enemy_role=5 then 0.88+random()*0.24 else 0.85+random()*0.30 end)
+              *100/(100+v_fighter.def*(case when v_enemy_role=4 and mod(v_round,3)=0 and not (v_own_role=7 and mod(v_round,3)=0) then 0.85 else 1 end)))
+            * (case when v_own_faction=mod(v_enemy_faction,4)+1 then 1.01 else 1 end)
+            * (case when v_own_role=3 then 0.95 when v_own_role=7 and mod(v_round,3)=0 then 0.93 else 1 end)
           )::int);
           v_own_hp:=greatest(0,v_own_hp-v_damage_b);
           if v_enemy_role=8 and mod(v_round,3)=0 and not (v_own_role=7 and mod(v_round,3)=0) then
-            v_enemy_hp:=least(v_enemy_max_hp,v_enemy_hp+greatest(1,floor(v_enemy_max_hp*0.04)));
+            v_enemy_hp:=least(v_enemy_max_hp,v_enemy_hp+greatest(1,floor(v_enemy_max_hp*0.025)));
           end if;
           v_events:=v_events||jsonb_build_array(jsonb_build_object(
             'attacker','B','damage',v_damage_b,'ownHp',v_own_hp,'enemyHp',v_enemy_hp));
@@ -568,8 +529,8 @@ begin
       when 'train_2' then 'train_count' when 'battle_2' then 'battle_count' else null end;
     v_required:=case v_text when 'feed_3' then 3 when 'clean_1' then 1
       when 'train_2' then 2 when 'battle_2' then 2 end;
-    v_reward:=case v_text when 'feed_3' then 100 when 'clean_1' then 50
-      when 'train_2' then 150 when 'battle_2' then 150 end;
+    v_reward:=case v_text when 'feed_3' then 50 when 'clean_1' then 30
+      when 'train_2' then 70 when 'battle_2' then 100 end;
     if v_key is null then raise exception '未知任務'; end if;
     insert into public.daily_quests(quest_id,user_id,date) values(v_uid::text||'_'||v_date,v_uid,v_date)
       on conflict(quest_id) do nothing;

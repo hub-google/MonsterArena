@@ -1,6 +1,14 @@
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS repair_until timestamptz;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS skin_id text;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS repair_until timestamptz;
+ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_hp int NOT NULL DEFAULT 0 CHECK(training_hp BETWEEN 0 AND 30);
+ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_atk int NOT NULL DEFAULT 0 CHECK(training_atk BETWEEN 0 AND 30);
+ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_def int NOT NULL DEFAULT 0 CHECK(training_def BETWEEN 0 AND 30);
+ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_spd int NOT NULL DEFAULT 0 CHECK(training_spd BETWEEN 0 AND 30);
+ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS core_quality int NOT NULL DEFAULT 0 CHECK(core_quality BETWEEN 0 AND 5);
+ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS legacy_combat jsonb;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='arena_training_budget' AND conrelid='public.monsters'::regclass) THEN ALTER TABLE public.monsters ADD CONSTRAINT arena_training_budget CHECK(training_hp+training_atk+training_def+training_spd<=60); END IF; END $$;
+UPDATE public.monsters SET legacy_combat=jsonb_build_object('hp',combat_hp,'atk',combat_atk,'def',combat_def,'spd',combat_spd,'train_count',train_count) WHERE legacy_combat IS NULL;
 -- Arena next game rules. Private tables are never exposed via PostgREST.
 -- Compose before canonical RPCs; deploy only through a reviewed, isolated migration.
 CREATE SCHEMA IF NOT EXISTS arena_internal;
@@ -92,14 +100,33 @@ RETURNS TABLE(name text,kind int,family int,stage int,hp double precision,atk do
 LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
   SELECT v.name,v.kind,v.family,v.stage,v.hp,v.atk,v.def,v.spd,v.reward FROM (VALUES
     ('wild','廢棄機械兵',0,3,2,80::double precision,16::double precision,12::double precision,12::double precision,10),
-    ('stage2','失控巡邏機',2,4,3,115,23,18,18,30),
-    ('stage3','重裝守衛',2,4,4,180,26,38,18,60),
-    ('stage4','疾風獵手',1,5,5,175,38,22,42,100),
-    ('boss','終極機甲首領',1,7,6,300,52,40,35,200)
+    ('stage2','失控巡邏機',2,4,3,115,23,18,18,20),
+    ('stage3','重裝守衛',2,4,4,180,26,38,18,40),
+    ('stage4','疾風獵手',1,5,5,175,38,22,42,60),
+    ('stage5','深淵機甲',2,7,6,230,44,35,32,100),
+    ('boss','終極機甲首領',1,7,6,300,52,40,35,120)
   ) AS v(id,name,kind,family,stage,hp,atk,def,spd,reward)
   WHERE v.id=p_name;
 $$;
 REVOKE ALL ON FUNCTION arena_internal.encounter(text) FROM PUBLIC, anon, authenticated;
+
+
+CREATE OR REPLACE FUNCTION arena_internal.unit_stats(m public.monsters)
+RETURNS TABLE(hp double precision,atk double precision,def double precision,spd double precision)
+LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
+ WITH role AS (SELECT CASE WHEN coalesce(m.life_stage,1)<3 OR coalesce(m.type,0)=0 THEN 0 ELSE (CASE m.family WHEN 1 THEN 0 WHEN 2 THEN 0 WHEN 4 THEN 2 WHEN 5 THEN 2 WHEN 6 THEN 4 WHEN 7 THEN 4 WHEN 3 THEN 6 WHEN 8 THEN 6 ELSE 0 END)+CASE WHEN m.type=1 THEN 1 ELSE 2 END END id),
+ base AS (SELECT v.hp,v.atk,v.def,v.spd,CASE greatest(2,least(6,coalesce(m.life_stage,2))) WHEN 2 THEN .5 WHEN 3 THEN .625 WHEN 4 THEN .8 WHEN 5 THEN 1 ELSE 1.2 END scale FROM (VALUES (0,200,40,30,30),(1,187,42,27,30),(2,198,39,28,34),(3,216,34,37,25),(4,192,40,29,32),(5,197,39,30,30),(6,193,40,28,32),(7,207,37,30,33),(8,216,35,32,28)) v(id,hp,atk,def,spd) JOIN role r USING(id))
+ SELECT floor(hp*scale*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_hp,0)*2+hp*scale*.05*((CASE WHEN m.chip_slot_1='chip_hp' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_hp' THEN 1 ELSE 0 END))),
+ floor(atk*scale*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_atk,0)*0.5+atk*scale*.05*((CASE WHEN m.chip_slot_1='chip_atk' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_atk' THEN 1 ELSE 0 END))),
+ floor(def*scale*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_def,0)*0.5+def*scale*.05*((CASE WHEN m.chip_slot_1='chip_def' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_def' THEN 1 ELSE 0 END))),
+ floor(spd*scale*(1+coalesce(m.core_quality,0)/100.0)+coalesce(m.training_spd,0)*0.5+spd*scale*.05*((CASE WHEN m.chip_slot_1='chip_spd' THEN 1 ELSE 0 END)+(CASE WHEN m.chip_slot_2='chip_spd' THEN 1 ELSE 0 END))) FROM base;
+$$;
+REVOKE ALL ON FUNCTION arena_internal.unit_stats(public.monsters) FROM PUBLIC, anon, authenticated;
+CREATE OR REPLACE FUNCTION arena_internal.refresh_unit(p_id uuid)
+RETURNS void LANGUAGE sql SET search_path TO pg_catalog,pg_temp AS $$
+ UPDATE public.monsters m SET combat_hp=f.hp,combat_atk=f.atk,combat_def=f.def,combat_spd=f.spd FROM public.monsters source CROSS JOIN LATERAL arena_internal.unit_stats(source) f WHERE m.monster_id=p_id AND source.monster_id=m.monster_id AND m.life_stage>=2;
+$$;
+REVOKE ALL ON FUNCTION arena_internal.refresh_unit(uuid) FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION arena_internal.ensure_raid(p_day text)
 RETURNS text LANGUAGE plpgsql SET search_path TO pg_catalog,pg_temp AS $$
@@ -139,7 +166,7 @@ DECLARE f record; own_hp int; enemy_hp int:=300; en int:=0; phase text:='attack'
  result text; events jsonb:='[]'::jsonb;
 BEGIN
  IF jsonb_typeof(p_moves) IS DISTINCT FROM 'array' OR jsonb_array_length(p_moves) NOT BETWEEN 1 AND 20 THEN RAISE EXCEPTION '戰術指令數量錯誤'; END IF;
- SELECT * INTO f FROM arena_internal.fighter_stats(p_stage,p_hp,p_atk,p_def,p_spd);
+ SELECT p_hp AS hp,p_atk AS atk,p_def AS def,p_spd AS spd INTO f;
  own_hp:=f.hp; hit:=greatest(1,floor(f.atk*100/140)); enemy_hit:=greatest(1,floor(52*100/(100+f.def)));
  FOR move IN SELECT jsonb_array_elements_text(p_moves) LOOP
   IF result IS NOT NULL THEN RAISE EXCEPTION '戰鬥已結束，不可追加指令'; END IF;

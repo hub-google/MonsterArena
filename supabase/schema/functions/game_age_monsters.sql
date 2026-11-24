@@ -47,6 +47,7 @@ begin
       last_updated_at=now()
     where monster_id=v_m.monster_id and user_id=v_uid;
   end loop;
+  PERFORM arena_internal.refresh_unit(m.monster_id) FROM public.monsters m WHERE m.user_id=v_uid AND m.life_stage>=2 AND NOT coalesce(m.is_dead,false);
   update public.monsters set is_sick=false,sick_time_start=null,repair_until=null
     where user_id=v_uid and is_dead=false and repair_until<=now();
 end; $function$;

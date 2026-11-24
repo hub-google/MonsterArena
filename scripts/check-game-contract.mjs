@@ -32,7 +32,7 @@ assert.match(current, /p_action\s*=\s*'hatch'/i);
 assert.match(current, /p_action\s*=\s*'battle'/i);
 assert.match(current, /gen_random_uuid\(\)::text/);
 assert.doesNotMatch(current, /v_won\s*:=\s*\(p_data->>'won'\)/);
-assert.match(current, /v_value\s*:=\s*v_value\s*\*\s*1\.1/);
+assert.match(current, /v_points:=least\(1,60-v_allocated,30-v_count\)/);
 assert.match(current, /if p_action in \('feed','clean','train'\)/);
 assert.match(current, /created_at\s*>\s*clock_timestamp\(\)\s*-\s*interval '5 seconds'/);
 assert.match(current, /v_slot is null or v_slot not in \(1,2\)/);

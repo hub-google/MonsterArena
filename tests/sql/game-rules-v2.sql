@@ -56,7 +56,7 @@ BEGIN
  IF (SELECT count(*) FROM arena_internal.gold_ledger WHERE user_id='00000000-0000-4000-8000-000000000001' AND action='buy')<>1 THEN RAISE EXCEPTION 'duplicate ledger'; END IF;
  IF (SELECT cleanliness FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011')<>99 THEN RAISE EXCEPTION 'elapsed cleanliness failed'; END IF;
 END $$;
-UPDATE public.raid_boss SET current_hp=500,max_hp=500 WHERE id LIKE 'daily:%';
+UPDATE public.raid_boss SET current_hp=400,max_hp=400 WHERE id LIKE 'daily:%';
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SELECT public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000011"}');
@@ -96,7 +96,7 @@ END $$;
 RESET ROLE;
 DO $$
 BEGIN
- IF (SELECT sum(damage) FROM arena_internal.raid_contributions)<>500 THEN RAISE EXCEPTION 'overkill damage counted'; END IF;
+ IF (SELECT sum(damage) FROM arena_internal.raid_contributions)<>400 THEN RAISE EXCEPTION 'overkill damage counted'; END IF;
  IF (SELECT sum(amount) FROM arena_internal.gold_ledger WHERE action='raid_claim')>5000 THEN RAISE EXCEPTION 'reward pool overflow'; END IF;
  IF (SELECT age_days FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000012')<49.99 THEN RAISE EXCEPTION 'offline age lost'; END IF;
 END $$;
