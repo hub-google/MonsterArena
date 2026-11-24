@@ -42,15 +42,18 @@ test('approved alternate forms remain pixel-identical and robot sprites match pr
  assert.equal(digest(robots),'849ca4b4dbf5926f11a05fe13f3be464824e275af5eb1508341975f2af540961');
 });
 
-test('advanced steel artillery shares the approved Tyranno sprite and alternate form across legacy type codes',()=>{
- for(const family of [4,5])for(const type of [2,3])for(const stage of [5,6]){
-  const m=getMecha(family,stage,type);
-  assert.equal(m.vehicle,'暴龍型態');
-  assert.deepEqual(m.spriteAsset,{robot:'mecha/tyranno-robot.png',vehicle:'mecha/tyranno-rex.png'});
+test('steel artillery final and super stages are distinct across legacy type codes',()=>{
+ for(const family of [4,5])for(const type of [2,3]){
+  const final=getMecha(family,6,type),superUnit=getMecha(family,5,type);
+  assert.notEqual(final.key,superUnit.key);
+  assert.equal(final.vehicle,'暴龍型態');
+  assert.deepEqual(final.spriteAsset,{robot:'mecha/tyranno-robot.png',vehicle:'mecha/tyranno-rex.png'});
+  assert.equal(superUnit.vehicle,'重型坦克');
+  assert.equal(superUnit.spriteAsset,null);
+  assert.equal(superUnit.modelName,null);
  }
  assert.equal(getMecha(4,4,3).spriteAsset,null);
  assert.equal(getMecha(4,5,1).spriteAsset,null);
- assert.equal(getMecha(1,5,2).spriteAsset,null);
 });
 
 test('seven final model overrides are cosmetic, eight named final models, preserve Tyranno and player nicknames',async()=>{
@@ -71,5 +74,5 @@ test('seven final model overrides are cosmetic, eight named final models, preser
  }
  assert.equal(new Set(models.map(m=>m.spriteAsset.robot)).size,8);
  assert.equal(new Set(models.map(m=>m.spriteAsset.vehicle)).size,8);
- for(const f of FACTIONS)for(const type of [1,2])if(f.id!==2||type!==2)assert.equal(getMecha(f.legacy,5,type).spriteAsset,null);
+ for(const f of FACTIONS)for(const type of [1,2])assert.equal(getMecha(f.legacy,5,type).spriteAsset,null);
 });

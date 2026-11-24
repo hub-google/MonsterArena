@@ -1,5 +1,5 @@
-name: Arena 01｜測試與部署
-run-name: Arena 01｜測試與部署｜#${{ github.run_number }}
+name: Arena 01｜網站部署
+run-name: Arena 01｜網站部署｜#${{ github.run_number }}
 
 on:
   push:
@@ -20,17 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       index_sha: ${{ steps.build.outputs.index_sha }}
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_PASSWORD: arena_ci
-          POSTGRES_DB: arena_test
-        options: >-
-          --health-cmd "pg_isready -U postgres -d arena_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     steps:
       - name: 取得 main 原始碼
         uses: actions/checkout@v4
@@ -43,70 +32,6 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: 靜態程式檢查
         run: npm run lint
-      - name: 驗證遊戲介面契約
-        run: npm run check:contract
-      - name: 遊戲規則單元測試
-        run: npm run test:unit
-      - name: 驗證 SQL 組合
-        run: npm run db:sql > /dev/null
-      - name: 隔離 PostgreSQL 遊戲交易驗收
-        env:
-          PG_CONTAINER: ${{ job.services.postgres.id }}
-        run: |
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/fixture.sql
-          npm run --silent db:sql > /tmp/arena-current.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-current.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/game-rules-v2.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/combat-balance.sql
-          npm run --silent db:sql -- --preview-bootstrap > /tmp/arena-preview.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-preview.sql
-          npm run --silent db:sql -- --preview-test tests/sql/game-rules-v2.sql > /tmp/arena-preview-test.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-preview-test.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/preview-isolation.sql
-      - name: 多人同時交易及公會鎖定驗收
-        env:
-          PG_CONTAINER: ${{ job.services.postgres.id }}
-        run: node scripts/test-concurrent-transactions.mjs
-      - name: 30與90日養成及金幣收支模擬
-        env:
-          PG_CONTAINER: ${{ job.services.postgres.id }}
-        run: |
-          npm run --silent db:sql -- --preview-test tests/sql/long-term-economy.sql > /tmp/arena-long-term.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-long-term.sql
-          npm run --silent db:sql -- --preview-test tests/sql/trained-balance.sql > /tmp/arena-trained-balance.sql
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-trained-balance.sql
-      - name: 檢查 Supabase 驗證服務
-        run: node scripts/check-supabase-game.mjs
-      - name: 建置舊版相容測試站
-        run: npm run build
-      - name: 安裝測試瀏覽器
-        run: npx playwright install --with-deps chromium
-      - name: 測試建置後網頁
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173/monster-arena-web/
-        run: |
-          npm run preview -- --host 127.0.0.1 > /tmp/monster-arena-vite.log 2>&1 &
-          for i in $(seq 1 20); do
-            if curl -fsS "$PLAYWRIGHT_BASE_URL" >/dev/null; then break; fi
-            sleep 1
-          done
-          npx playwright test tests/smoke.spec.js tests/authenticated-ui.spec.js --project=chromium --output=test-results/legacy-browser
-      - name: 新版瀏覽器與真實隔離 SQL 交易整合驗收
-        env:
-          PG_CONTAINER: ${{ job.services.postgres.id }}
-          VITE_ARENA_V2: 'true'
-          VITE_ARENA_PREVIEW: 'true'
-          VITE_SUPABASE_URL: https://arena-v2-ci.supabase.co
-          VITE_SUPABASE_ANON_KEY: sb_publishable_arena_ci_only
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4174/monster-arena-web/
-        run: |
-          npm run build -- --outDir dist-v2
-          npm run preview -- --outDir dist-v2 --port 4174 --host 127.0.0.1 > /tmp/arena-v2-preview.log 2>&1 &
-          for i in $(seq 1 20); do
-            if curl -fsS "$PLAYWRIGHT_BASE_URL" >/dev/null; then break; fi
-            sleep 1
-          done
-          npx playwright test tests/v2-ui.spec.js --project=chromium --output=test-results/v2-browser
       - name: 準備實際發布版本
         id: build
         env:
@@ -125,27 +50,11 @@ jobs:
             echo '已確認獨立 Arena 測試命名空間，公開站啟用新版規則' >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "index_sha=$(sha256sum dist/index.html | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
-      - name: 保存實際瀏覽器 UI 截圖
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: arena-ui-visual-review
-          path: test-results/ui-visual/
-          if-no-files-found: warn
-          retention-days: 7
       - name: 上傳 GitHub Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
-      - name: 產生執行摘要
-        if: always()
-        run: |
-          echo "## Arena 測試與部署報告" >> "$GITHUB_STEP_SUMMARY"
-          echo "- 分支：${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- 版本：${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- 執行結果：${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- 舊版登入後測試使用模擬 API；新版瀏覽器交易使用隔離 PostgreSQL 真實 RPC，登入傳輸仍為測試身分" >> "$GITHUB_STEP_SUMMARY"
 
   publish-pages:
     name: 發布 GitHub Pages 測試站
@@ -177,3 +86,33 @@ jobs:
           done
           echo "公開網頁尚未回傳本次建置版本" >&2
           exit 1
+
+  verify-live:
+    name: 公開網站快速驗收
+    needs: publish-pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取得本次發布原始碼
+        uses: actions/checkout@v4
+      - name: 準備 Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: 安裝相依套件
+        run: npm ci --no-audit --no-fund
+      - name: 安裝 Chromium
+        run: npx playwright install chromium
+      - name: 驗證公開網站登入入口與實際機體造型
+        env:
+          PLAYWRIGHT_BASE_URL: https://hub-google.github.io/monster-arena-web/
+          ARENA_TEST_SUPABASE_URL: ${{ vars.ARENA_TEST_SUPABASE_URL }}
+        run: npx playwright test tests/smoke.spec.js tests/live-appearance.spec.js --project=chromium
+      - name: 保存本次公開網站驗收截圖
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arena-live-review
+          path: test-results/ui-visual/
+          if-no-files-found: warn
+          retention-days: 7

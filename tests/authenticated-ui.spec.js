@@ -158,7 +158,8 @@ test('authenticated all-dead account can claim the rescue egg once', async ({ pa
   expect(calls.filter(path => path === '/rest/v1/rpc/game_action')).toHaveLength(1);
 });
 
-for(const [stage,stageName] of [[5,'超限機'],[6,'終極機']])test(`existing stage-${stage} legacy type-three unit retains custom name and uses shared Tyranno forms`,async({page})=>{
+test('existing stage-six legacy type-three unit retains custom name and uses Tyranno forms',async({page})=>{
+ const stage=6,stageName='終極機';
  await setupAuthenticatedGame(page,[{...dead,name:'老玩家收藏',family:4,type:3,life_stage:stage,is_dead:false,is_sick:false}]);
  await expect(page.getByRole('heading',{name:'老玩家收藏'})).toBeVisible();
  await expect(page.getByTestId('mecha-details')).toHaveCount(0);
@@ -311,7 +312,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  await expect(home.locator('.cockpit-species')).toContainText('鋼鐵族');
  await expect(home.locator('.cockpit-species')).not.toContainText('重砲型');
  await expect(home.locator('.cockpit-species')).not.toContainText('超限機');
- await actions.getByRole('button',{name:'變形：暴龍型態'}).click();
+ await actions.getByRole('button',{name:'變形：重型坦克'}).click();
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop-vehicle.png',animations:'disabled'});
  await assertVisiblePaint(90);
  await actions.getByRole('button',{name:'切換機器人'}).click();
@@ -342,7 +343,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  expect(await home.locator('.cockpit-name h2').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/mobile.png',animations:'disabled'});
  await assertVisiblePaint(85);
- await actions.getByRole('button',{name:'變形：暴龍型態'}).click();
+ await actions.getByRole('button',{name:'變形：重型坦克'}).click();
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/mobile-vehicle.png',animations:'disabled'});
  await assertVisiblePaint(85);
 });

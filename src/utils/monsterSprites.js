@@ -22,8 +22,8 @@ const FINAL_DESIGNS=Object.freeze({
 export function getMecha(family,stage,type){
  const f=FACTIONS[factionOf(family)-1],s=Math.max(1,Math.min(6,Math.trunc(Number(stage)||1))),r=roleOf(type,s);
  const role=f.roles[r-1];
- // The approved Tyranno design is shared by the two advanced stages of this role.
- const tyranno=f.id===2&&s>=5&&r===2;
+ // Tyranno is a final-stage model; earlier stages retain their own artwork and vehicle.
+ const tyranno=f.id===2&&s===6&&r===2;
  const design=s===6?FINAL_DESIGNS[f.id+'_'+r]:null;
  const legacyName=f.name+(role?'・'+role.name:'')+'・'+STAGE_NAMES[s];
  return {faction:f.id,family:f.legacy,stage:s,type:r,factionName:f.name,roleName:role?.name||'尚未分化',stageName:STAGE_NAMES[s],name:design?.name||legacyName,modelName:tyranno?'暴龍戰炫王':design?.name||null,legacyName,vehicle:tyranno?'暴龍型態':design?.vehicle||role?.vehicle,spriteAsset:tyranno?{robot:'mecha/tyranno-robot.png',vehicle:'mecha/tyranno-rex.png'}:design?{robot:'mecha/'+design.asset+'-robot.png',vehicle:'mecha/'+design.asset+'-vehicle.png'}:null,skill:role?.skill,key:f.id+'_'+s+'_'+r};
