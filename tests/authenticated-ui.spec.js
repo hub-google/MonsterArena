@@ -205,7 +205,7 @@ test('mobile pictogram controls perform care, form selection, battle and navigat
  await actions.getByRole('button',{name:'保養'}).click();
  await expect(page.getByRole('progressbar',{name:'機體維護'})).toHaveAttribute('aria-valuenow','100');
  await actions.getByRole('button',{name:'修復'}).click();
- await expect(page.getByRole('button',{name:'緊急修復程序，扣減20%耐久'})).toBeEnabled();
+ await expect(page.getByRole('button',{name:'緊急修復'})).toBeEnabled();
  await page.getByRole('button',{name:'取消返回'}).click();
  await actions.getByRole('button',{name:'訓練'}).click();
  await expect.poll(()=>calls.filter(x=>x==='/rest/v1/rpc/game_action').length).toBe(3);

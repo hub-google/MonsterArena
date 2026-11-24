@@ -1,3 +1,4 @@
+ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS repair_until timestamptz;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS skin_id text;
 -- Arena next game rules. Private tables are never exposed via PostgREST.
 -- Compose before canonical RPCs; deploy only through a reviewed, isolated migration.

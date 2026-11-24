@@ -12,7 +12,7 @@ export default function Raid({
 }) {
   const [boss, setBoss] = useState(null);
   const [bossError, setBossError] = useState('');
-  const aliveMonsters = monsters.filter(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen);
+  const aliveMonsters = monsters.filter(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen && !m.repair_until);
   const [selectedMonsterId, setSelectedMonsterId] = useState(
     () => aliveMonsters.find(m => m.monster_id === activeMonster?.monster_id)?.monster_id || aliveMonsters[0]?.monster_id || ''
   );

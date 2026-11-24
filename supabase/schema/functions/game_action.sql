@@ -146,6 +146,12 @@ begin
     select * into v_m from public.monsters where monster_id=v_mon_id and user_id=v_uid for update;
     if not found then raise exception '怪獸不存在或不屬於您'; end if;
     if v_m.is_dead and p_action not in ('release','lock') then raise exception '已死亡的怪獸無法執行此操作'; end if;
+    if v_m.repair_until is not null and v_m.repair_until<=now() then
+      update public.monsters set is_sick=false,sick_time_start=null,repair_until=null where monster_id=v_mon_id returning * into v_m;
+    end if;
+    if v_m.repair_until is not null and p_action in ('train','battle','raid','pvp_register','evolve') then
+      raise exception '緊急修復中，請等待修復完成';
+    end if;
     -- Match disabled egg actions in the UI, even when a player calls the RPC directly.
     if p_action in ('feed','clean','train') and coalesce(v_m.life_stage,1)=1 then
       raise exception '機械核心尚不能補充能源、保養或訓練';
@@ -221,10 +227,15 @@ begin
   elsif p_action = 'heal' then
     if not v_m.is_sick then raise exception '怪獸沒有生病'; end if;
     if v_item not in ('medicine_standard','heal_basic') then raise exception '不支援的藥物'; end if;
-    update public.monsters set is_sick=false,sick_time_start=null,
-      combat_hp=case when v_item='heal_basic' then greatest(1,round((combat_hp*0.8)::numeric)) else combat_hp end
-      where monster_id=v_mon_id;
-    if v_item<>'heal_basic' then update public.user_inventory set quantity=quantity-1 where inventory_id=v_inv.inventory_id; end if;
+    if v_item='heal_basic' then
+      if v_m.repair_until is not null then raise exception '緊急修復已開始，請等待完成或使用標準修復套件'; end if;
+      update public.monsters set repair_until=now()+interval '30 minutes' where monster_id=v_mon_id;
+      v_result:=jsonb_build_object('message','緊急修復已開始，30 分鐘後自動完成，耐久不變');
+    else
+      update public.monsters set is_sick=false,sick_time_start=null,repair_until=null where monster_id=v_mon_id;
+      update public.user_inventory set quantity=quantity-1 where inventory_id=v_inv.inventory_id;
+      v_result:=jsonb_build_object('message','標準修復完成，耐久不變');
+    end if;
   elsif p_action = 'train' then
     if v_u.stamina<10 then raise exception '體力不足，需要 10 點'; end if;
     if v_m.is_sick or coalesce(v_m.fullness,0)<20 then raise exception '怪獸太餓或生病，無法訓練'; end if;

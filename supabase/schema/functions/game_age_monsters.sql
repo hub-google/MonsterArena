@@ -53,6 +53,8 @@ begin
       last_updated_at=now()
     where monster_id=v_m.monster_id and user_id=v_uid;
   end loop;
+  update public.monsters set is_sick=false,sick_time_start=null,repair_until=null
+    where user_id=v_uid and is_dead=false and repair_until<=now();
 end; $function$;
 REVOKE ALL ON FUNCTION public.game_age_monsters() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.game_age_monsters() TO authenticated;

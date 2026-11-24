@@ -60,8 +60,8 @@ export default function Arena({
     return () => clearInterval(interval);
   }, [battleRunning, setBattleState]);
 
-  const getFighter=()=>monsters.find(m=>m.monster_id===activeMonster?.monster_id&&!m.is_dead&&Number(m.life_stage)>=2&&!m.is_frozen)
-    ||monsters.find(m=>!m.is_dead&&Number(m.life_stage)>=2&&!m.is_frozen);
+  const getFighter=()=>monsters.find(m=>m.monster_id===activeMonster?.monster_id&&!m.is_dead&&Number(m.life_stage)>=2&&!m.is_frozen&&!m.repair_until)
+    ||monsters.find(m=>!m.is_dead&&Number(m.life_stage)>=2&&!m.is_frozen&&!m.repair_until);
   const changePvpRegistration=async register=>{
     const monster=getFighter();
     if(register&&!monster){setMessage('請先選擇已啟動且未停機的機體');return;}
@@ -71,8 +71,8 @@ export default function Arena({
   };
   const handleChallenge = async (encounter,opponentId) => {
     if (challengePending.current) return;
-    const monster = monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen)
-      || monsters.find(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen);
+    const monster = monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen && !m.repair_until)
+      || monsters.find(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen && !m.repair_until);
     if (!monster) return setMessage('請先選擇一隻未停機、已啟動的機體出戰！');
     encounter=encounter==='mock'?'wild':encounter==='mock_boss'?'boss':encounter;
     const isBoss=encounter==='boss';

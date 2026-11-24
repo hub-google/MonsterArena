@@ -35,6 +35,15 @@ export default function Dashboard({
   const [showDetails,setShowDetails]=useState(false);
 
   const monster = activeMonster || monsters[0];
+  const [repairClock,setRepairClock]=useState(Date.now);
+  const repairUntil=monster?.repair_until;
+  useEffect(()=>{
+    if(!repairUntil)return;
+    const id=setInterval(()=>setRepairClock(Date.now()),1000);
+    const timeout=setTimeout(()=>refreshData(['monsters']).catch(console.warn),Math.max(0,new Date(repairUntil).getTime()-Date.now())+250);
+    return ()=>{clearInterval(id);clearTimeout(timeout);};
+  },[repairUntil]);
+  const repairSeconds=repairUntil?Math.max(0,Math.ceil((new Date(repairUntil).getTime()-repairClock)/1000)):0;
   const preferredMode=appearanceModes[monster?.monster_id];
   const look=appearance(monster,preferredMode);
   const currentMode=appearanceMode(monster,preferredMode);
@@ -134,7 +143,7 @@ export default function Dashboard({
   const choosePet=delta=>setActiveMonster(monsters[(Math.max(index,0)+delta+monsters.length)%monsters.length]);
   const choice=id=>{const i=ITEM_BY_ID[id];return [id,i.icon,i.name,getItemQty(id),i.tone];};
   const foodChoices=[['feed_basic','feed','免費基礎充能','免費','green'],...['meat_basic','meat_premium','energy_drink'].map(choice)];
-  const healingChoices=[choice('medicine_standard'),['heal_basic','tools','緊急修復程序，扣減20%耐久','免費','orange']];
+  const healingChoices=[choice('medicine_standard'),['heal_basic','tools','緊急修復','免費','orange']];
   const openCheckout=id=>{setMessage('');setCheckoutMessage('');setCheckout(ITEM_BY_ID[id]);};
   const buyMissing=async()=>{
     if(loading||!checkout||Number(user.gold)<checkout.price)return;
@@ -146,7 +155,7 @@ export default function Dashboard({
     finally{setLoading(false);}
   };
   const doItem=(action,id)=>{
-    if(id==='heal_basic'&&!window.confirm('緊急修復程序會扣減20%耐久，確定使用？'))return;
+    if(id==='heal_basic'&&monster.repair_until)return;
     setShowFeedMenu(false);setShowHealMenu(false);handleAction(action,monster.monster_id,id);
   };
   const meter=(icon,label,value,color,low)=><div className="play-meter">
@@ -195,11 +204,11 @@ export default function Dashboard({
     <div className="cockpit-actions" data-testid="care-actions">
       <PlayButton icon="feed" label="補充能源" tone="green" onClick={()=>{setShowHealMenu(false);setShowFeedMenu(v=>!v)}} disabled={loading||!care} selected={showFeedMenu} className={monster.fullness<30&&care?'play-needed':''}/>
       <PlayButton icon="clean" label="保養" caption="機體保養" tone="blue" onClick={()=>handleAction(api.clean,monster.monster_id)} disabled={loading||!care} className={monster.cleanliness<40&&care?'play-needed':''}/>
-      <PlayButton icon="heal" label="修復" caption="系統修復" tone="red" onClick={()=>{setShowFeedMenu(false);setShowHealMenu(v=>!v)}} disabled={loading || !canHealMonster(monster)} className={monster.is_sick&&!monster.is_dead?'play-needed':''} selected={showHealMenu}/>
-      <PlayButton icon="train" label="訓練" caption="機體訓練" tone="orange" onClick={()=>handleAction(api.train,monster.monster_id)} disabled={loading||!care}/>
+      <PlayButton icon="heal" label="修復" caption={monster.repair_until?'修復進行中':'系統修復'} tone="red" onClick={()=>{setShowFeedMenu(false);setShowHealMenu(v=>!v)}} disabled={loading || !canHealMonster(monster)} className={monster.is_sick&&!monster.is_dead?'play-needed':''} selected={showHealMenu}/>
+      <PlayButton icon="train" label="訓練" caption="機體訓練" tone="orange" onClick={()=>handleAction(api.train,monster.monster_id)} disabled={loading||!care||Boolean(monster.repair_until)}/>
       <PlayButton icon="transform" label={formLabel} caption={formCaption} tone="purple" onClick={()=>setAppearanceMode(monster.monster_id,nextMode)} disabled={!nextMode||loading} selected={currentMode==='vehicle'}/>
     </div>
-    <div className="cockpit-feedback-slot">{message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極升級條件，請開啟詳情':' '}</span>}</div>
+    <div className="cockpit-feedback-slot">{monster.repair_until?<span role="status">緊急修復中 · 剩餘 {Math.floor(repairSeconds/60)}:{String(repairSeconds%60).padStart(2,'0')} · 耐久不變</span>:message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極升級條件，請開啟詳情':' '}</span>}</div>
     </div>
     {showDetails&&!checkout&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="機體詳細資料">
      <section className="cockpit-dialog" data-testid="mecha-details">
@@ -213,8 +222,8 @@ export default function Dashboard({
     {(showFeedMenu||showHealMenu)&&!checkout&&!monster.is_dead&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label={showFeedMenu?'選擇補給':'選擇修復道具'}>
      <section className="cockpit-dialog" data-testid="item-menu">
       <div className="dialog-heading"><h2>{showFeedMenu?'選擇補給':'選擇修復道具'}</h2><button onClick={closeItems} aria-label="取消返回">×</button></div>
-      <div className="grid grid-cols-2 gap-2">{(showFeedMenu?foodChoices:healingChoices).map(([id,icon,label,count,tone])=><PlayButton key={id} icon={icon} label={label} caption={id==='heal_basic'?'緊急修復':label} subtext={id==='heal_basic'?'免費 · 耐久 -20%':count===0?'庫存 0 · '+ITEM_BY_ID[id].price+'G 購買':typeof count==='number'?'庫存 '+count:count} tone={tone} onClick={()=>count===0?openCheckout(id):doItem(showFeedMenu?api.feed:api.heal,id)} disabled={loading||(showFeedMenu?!care:!canHealMonster(monster))}/>)}</div>
-      <p className="text-xs text-slate-400">庫存不足時，直接點選道具即可購買。</p>{message&&<ActionFeedback message={message}/>}
+      <div className="grid grid-cols-2 gap-2">{(showFeedMenu?foodChoices:healingChoices).map(([id,icon,label,count,tone])=><PlayButton key={id} icon={icon} label={label} caption={id==='heal_basic'?'緊急修復':label} subtext={id==='heal_basic'?monster.repair_until?'修復進行中':'免費 · 30 分鐘':count===0?'庫存 0 · '+ITEM_BY_ID[id].price+'G 購買':typeof count==='number'?'庫存 '+count:count} tone={tone} onClick={()=>count===0?openCheckout(id):doItem(showFeedMenu?api.feed:api.heal,id)} disabled={loading||(showFeedMenu?!care:!canHealMonster(monster))||(id==='heal_basic'&&Boolean(monster.repair_until))}/>)}</div>
+      <p className="text-xs text-slate-400">{showHealMenu?'兩種方式均不扣減永久耐久；標準修復套件可立即完成。':'庫存不足時，直接點選道具即可購買。'}</p>{message&&<ActionFeedback message={message}/>}
      </section>
     </div>}
     {checkout&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="購買確認">
