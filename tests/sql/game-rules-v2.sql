@@ -227,4 +227,19 @@ DO $balance$ BEGIN
 END $balance$;
 RESET ROLE;
 DO $balance$ BEGIN IF (SELECT attempts FROM arena_internal.raid_contributions WHERE user_id='00000000-0000-4000-8000-000000000001')<>3 THEN RAISE EXCEPTION 'raid attempt count incorrect'; END IF; END $balance$;
+-- Defence registration should not survive a removed unit.
+RESET ROLE;
+UPDATE public.monsters SET is_locked=false,life_stage=5,repair_until=null WHERE monster_id='00000000-0000-4000-8000-000000000011';
+UPDATE public.users SET gold=1000 WHERE user_id='00000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+DO $registration$
+BEGIN
+ IF has_function_privilege(current_user,'arena_internal.resolve_battle(uuid,public.monsters,jsonb)','EXECUTE') THEN RAISE EXCEPTION 'private battle function exposed'; END IF;
+ PERFORM public.game_action('pvp_register','{"monster_id":"00000000-0000-4000-8000-000000000011"}');
+ IF NOT (public.game_action('pvp_list')->>'registered')::boolean THEN RAISE EXCEPTION 'registration not visible'; END IF;
+ PERFORM public.game_action('release','{"monster_id":"00000000-0000-4000-8000-000000000011"}');
+ IF (public.game_action('pvp_list')->>'registered')::boolean THEN RAISE EXCEPTION 'stale registration'; END IF;
+END $registration$;
+RESET ROLE;
 ROLLBACK;

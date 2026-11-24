@@ -22,12 +22,16 @@ export default function TacticalDuel({monster,mode,onExit,boss=false,onSettle}){
  const settling=useRef(false);
  const settlementId=useRef(null);
  async function settle(){
-  if(!onSettle||settling.current)return;
+  if(!onSettle||!duel.result||settling.current||settlement?.result)return;
   settling.current=true;setSettlement({pending:true});
   try{settlementId.current ||= crypto.randomUUID();const result=await onSettle(duel.history.map(h=>h.player),settlementId.current);setSettlement({result});}
   catch(err){setSettlement({error:err.message||'戰績未儲存'});}
   finally{settling.current=false;}
  }
+ // Both wins and losses settle as soon as the last move finishes. The UUID
+ // is retained on failure, so retrying cannot create a second battle record.
+ useEffect(()=>{if(boss&&onSettle&&duel.result&&!settlement&&!settling.current)void settle();},[boss,onSettle,duel.result,settlement]);
+ const needsSettlement=Boolean(boss&&onSettle&&duel.result&&!settlement?.result);
  const clock=useRef(null);
  const started=useRef(0);
  const locked=useRef(false);
@@ -70,7 +74,7 @@ export default function TacticalDuel({monster,mode,onExit,boss=false,onSettle}){
  const latest=duel.history.at(-1);
  const resultText=duel.result==='win'?'戰鬥勝利':duel.result==='loss'?'戰鬥失敗':'平手';
  return <section className="tactical-duel" data-testid="tactical-duel" aria-label="手動戰術對戰">
-  <header className="tactical-top"><button type="button" onClick={onExit} disabled={Boolean(settlement?.pending)} aria-label="離開戰術對戰"><GameIcon name="back"/></button><div><h2>{boss?'終極機甲首領':'戰術競技場'}</h2><span>{boss?(onSettle?'戰術攻略 · 完成後結算':'首領攻略練習 · 不計金幣及排名'):'公平練習 · 不計金幣及排名'}</span></div><span className="tactical-round">{Math.min(duel.round,maxRounds)}/{maxRounds}</span></header>
+  <header className="tactical-top"><button type="button" onClick={onExit} disabled={needsSettlement} aria-label="離開戰術對戰"><GameIcon name="back"/></button><div><h2>{boss?'終極機甲首領':'戰術競技場'}</h2><span>{boss?(onSettle?'戰術攻略 · 完成後結算':'首領攻略練習 · 不計金幣及排名'):'公平練習 · 不計金幣及排名'}</span></div><span className="tactical-round">{Math.min(duel.round,maxRounds)}/{maxRounds}</span></header>
   <div className="tactical-stage">
    {[monster,foe].map((m,i)=><div key={i} className={'tactical-fighter fighter-'+i}>
     <strong>{m.name}</strong>
@@ -86,7 +90,7 @@ export default function TacticalDuel({monster,mode,onExit,boss=false,onSettle}){
    {!boss&&<div className="tactical-track" aria-hidden="true"><i className="tactical-good"/><i className="tactical-perfect"/><b style={{left:progress*100+'%'}}/></div>}
    {pending?<button type="button" className="tactical-tap" onClick={tap}>{pending==='guard'?'立即格擋':'立即攻擊'}</button>:<div className="tactical-feedback" aria-live="polite">{latest?<><span>我方 −{latest.damage[0]} ・ 敵方 −{latest.damage[1]}</span><small>{latest.notes.join('・')||actions[latest.player].label+' / '+(boss?({attack:'普通攻擊',charge:'蓄力',heavy:'超載重擊',stunned:'硬直'})[latest.enemy]:ACTIONS[latest.enemy].label)}{!boss&&['attack','guard'].includes(latest.player)?'・'+gradeNames[latest.grade]:''}</small></>:<span>觀察敵方動作，再選擇你的招式</span>}</div>}
   </div>
-  {duel.result?<div className="tactical-result"><strong>{settlement?.result?(settlement.result.won?'戰鬥勝利':'戰鬥失敗'):resultText}</strong>{boss&&onSettle&&!settlement?.result&&<PlayButton icon="trophy" label={settlement?.pending?'結算中':'結算戰績'} disabled={Boolean(settlement?.pending)} onClick={settle}/>} {settlement?.error&&<small role="alert">{settlement.error}</small>}{settlement?.result&&<small>戰績已儲存 · {settlement.result.reward||0}G</small>}<PlayButton disabled={Boolean(settlement?.pending)} icon="refresh" label="再戰一場" tone="blue" onClick={restart}/></div>:<div className="tactical-actions">{Object.entries(actions).map(([id,a])=><PlayButton key={id} icon={!boss&&id==='attack'&&duel.energy[0]===5?'bolt':a.icon} label={!boss&&id==='attack'&&duel.energy[0]===5?'必殺技':a.label} subtext={!boss&&id==='attack'&&duel.energy[0]===5?'消耗 5 戰術能源':a.hint} tone={a.tone} disabled={revealing||Boolean(pending)||(boss?!canBossMove(duel,id):(id==='break'&&duel.energy[0]<2))} onClick={()=>select(id)}/>)}</div>}
+  {duel.result?<div className="tactical-result"><strong>{settlement?.result?(settlement.result.won?'戰鬥勝利':'戰鬥失敗'):resultText}</strong>{needsSettlement&&(settlement?.error?<PlayButton icon="trophy" label="重新結算" onClick={settle}/>:<small aria-live="polite">戰績結算中…</small>)} {settlement?.error&&<small role="alert">{settlement.error}</small>}{settlement?.result&&<small>戰績已儲存 · {settlement.result.reward||0}G</small>}<PlayButton disabled={needsSettlement} icon="refresh" label="再戰一場" tone="blue" onClick={restart}/></div>:<div className="tactical-actions">{Object.entries(actions).map(([id,a])=><PlayButton key={id} icon={!boss&&id==='attack'&&duel.energy[0]===5?'bolt':a.icon} label={!boss&&id==='attack'&&duel.energy[0]===5?'必殺技':a.label} subtext={!boss&&id==='attack'&&duel.energy[0]===5?'消耗 5 戰術能源':a.hint} tone={a.tone} disabled={revealing||Boolean(pending)||(boss?!canBossMove(duel,id):(id==='break'&&duel.energy[0]<2))} onClick={()=>select(id)}/>)}</div>}
   <footer className="tactical-footer"><span>{boss?'重擊時格擋反擊・硬直時釋放技能':'攻擊克重擊・重擊克格擋・格擋克攻擊'}</span>{!boss&&duel.round===1&&!pending&&!duel.result&&<button type="button" aria-pressed={difficulty==='easy'} onClick={()=>setDifficulty(d=>d==='easy'?'normal':'easy')}>{difficulty==='easy'?'慢速練習 ✓':'慢速練習'}</button>}</footer>
  </section>;
 }

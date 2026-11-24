@@ -11,7 +11,7 @@
 **所有 8 個有效的 `game_*` RPC，以 `supabase/schema/functions/<函式名稱>.sql` 為唯一維護入口。**
 2026-11-24 main 版的 `game_action`、`game_age_monsters` 及 `game_rules_v2.sql` 為下一版規則，**尚未套用共用 Game 資料庫**；其餘 RPC 保留既有定義。包含：
 
-- `game_action.sql`：孵蛋、訓練、晶片、戰鬥、公會、任務、世界王等交易邏輯（保留救援蛋防套利與舊晶片數值）
+- `game_action.sql`：孵蛋、訓練、晶片、公會、任務、世界王等交易入口與授權／鎖定；`supabase/schema/battle_settlement.sql` 負責唯一的戰鬥結算邏輯（保留救援蛋防套利與舊晶片數值）
 - `game_age_monsters.sql`、`game_rename_monster.sql`
 - `game_friend_action.sql`、`game_claim_gifts.sql`
 - `game_plaza_monsters.sql`、`game_public_profiles.sql`、`game_ensure_profile.sql`

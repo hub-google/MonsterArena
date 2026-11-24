@@ -71,7 +71,6 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
  const labels={attack:'普通攻擊',guard:'格擋反擊',special:'特殊技能'};
  while(!s.result){const move=s.phase==='heavy'?'guard':s.phase==='stunned'&&s.energy[0]>=2?'special':'attack';await duel.getByRole('button',{name:labels[move],exact:true}).click();s=resolveBossRound(s,move);}
  await expect(duel.getByRole('status')).toContainText('戰鬥勝利');
- await duel.getByRole('button',{name:'結算戰績'}).click();
  await expect(duel.getByText('戰績已儲存 · 120G')).toBeVisible({timeout:15000});
  expect(value('count(*) FROM public.battle_records WHERE user_id='+literal(uid))).toBe(1);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/v2-boss-settled-mobile.png',animations:'disabled'});

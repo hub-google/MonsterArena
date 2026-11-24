@@ -28,13 +28,17 @@ for (const { name, signature } of GAME_FUNCTIONS) {
   sql.set(name, source);
 }
 const current = sql.get('game_action');
+const battle = read('supabase/schema/battle_settlement.sql');
+assert.match(current,/arena_internal\.resolve_battle\(v_uid,v_m,p_data\)/);
+assert.match(battle,/REVOKE ALL ON FUNCTION arena_internal\.resolve_battle\(uuid,public\.monsters,jsonb\) FROM PUBLIC, anon, authenticated/);
+assert.doesNotMatch(current,/arena_internal\.auto_battle\(/);
 assert.match(current, /p_action\s*=\s*'hatch'/i);
 assert.match(current, /p_action\s*=\s*'battle'/i);
-assert.match(current, /gen_random_uuid\(\)::text/);
-assert.doesNotMatch(current, /v_won\s*:=\s*\(p_data->>'won'\)/);
+assert.match(battle, /gen_random_uuid\(\)::text/);
+assert.doesNotMatch(battle, /v_won\s*:=\s*\(p_data->>'won'\)/);
 assert.match(current, /v_points:=least\(1,60-v_allocated,30-v_count\)/);
 assert.match(current, /if p_action in \('feed','clean','train'\)/);
-assert.match(current, /created_at\s*>\s*clock_timestamp\(\)\s*-\s*interval '5 seconds'/);
+assert.match(battle, /created_at\s*>\s*clock_timestamp\(\)\s*-\s*interval '5 seconds'/);
 assert.match(current, /v_slot is null or v_slot not in \(1,2\)/);
 assert.equal((current.match(/v_slot is null or v_slot not in \(1,2\)/g) || []).length, 2);
 assert.match(current, /game_chip_reserves/);

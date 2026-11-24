@@ -19,9 +19,12 @@ declare
   v_hunger_loss double precision;
 begin
   if v_uid is null then raise exception '請先登入'; end if;
+  -- Same lock order as game_action: player first, then owned units.
+  perform 1 from public.users where user_id=v_uid for update;
+  if not found then raise exception '找不到使用者資料，請重新登入'; end if;
   for v_m in select * from public.monsters
     where user_id=v_uid and is_dead=false and coalesce(is_frozen,false)=false
-    for update
+    order by monster_id for update
   loop
     v_hours:=greatest(0.0,extract(epoch from (now()-coalesce(v_m.last_updated_at,now())))/3600.0);
     if v_hours < 1.0/12.0 then continue; end if;
