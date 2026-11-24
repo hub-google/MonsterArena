@@ -45,3 +45,15 @@ test('gateway error is uncertain, but SQL business rejection is definitive',asyn
  await assert.rejects(sendBoundTransaction({...base,fetcher:async()=>({ok:false,status:503,json:async()=>({code:'PGRST002'})})}),TransactionUncertain);
  await assert.rejects(sendBoundTransaction({...base,fetcher:async()=>({ok:false,status:400,json:async()=>({code:'P0001',message:'gold'})})}),TransactionRejected);
 });
+
+test('two tabs cannot leave an unsent phantom transaction when the lock is busy',async()=>{
+ const storage=memory();let held=false,finish;
+ const lock=async(_key,fn)=>{if(held)throw Error('lock busy');held=true;try{return await fn();}finally{held=false;}};
+ const a=make(storage,()=>new Promise(resolve=>finish=resolve),{lock,uuid:()=> 'tab-a'});
+ const b=make(storage,async()=>{throw Error('must not send')},{lock,uuid:()=> 'tab-b'});
+ const first=a.start('alice','hatch');
+ await assert.rejects(b.start('alice','hatch'),/lock busy/);
+ assert.equal(storage.length,1);
+ finish({message:'ok'});await first;
+ assert.equal(storage.length,0);
+});

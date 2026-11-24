@@ -386,9 +386,15 @@ begin
     update public.users set gold=gold+v_reward where user_id=v_uid;
     v_key:=null;
   elsif p_action in ('guild_create','guild_join','guild_leave','guild_donate','guild_buy') then
-    select * into v_member from public.guild_members where user_id=v_uid limit 1 for update;
+    -- Own user is already locked. Shared guild row must precede member locks
+    -- for donations, shopping, leaving, joining and leader disbanding.
+    select * into v_member from public.guild_members where user_id=v_uid limit 1;
+    if v_member.member_id is not null then
+      perform 1 from public.guilds where guild_id=v_member.guild_id for update;
+      select * into v_member from public.guild_members where user_id=v_uid limit 1 for update;
+    end if;
     if p_action='guild_create' then
-      if found then raise exception '您已經加入公會'; end if;
+      if v_member.member_id is not null then raise exception '您已經加入公會'; end if;
       if v_u.gold<500 then raise exception '建立公會需要 500G'; end if;
       v_text:=trim(p_data->>'name');
       if length(coalesce(v_text,''))<2 or length(v_text)>30 then raise exception '公會名稱需 2～30 字'; end if;
@@ -396,9 +402,9 @@ begin
       insert into public.guild_members(guild_id,user_id,role,contribution) values(v_guild.guild_id,v_uid,2,0);
       update public.users set gold=gold-500 where user_id=v_uid;
     elsif p_action='guild_join' then
-      if found then raise exception '已加入其他公會'; end if;
+      if v_member.member_id is not null then raise exception '已加入其他公會'; end if;
       v_mon_id:=(p_data->>'guild_id')::uuid;
-      perform 1 from public.guilds where guild_id=v_mon_id;
+      perform 1 from public.guilds where guild_id=v_mon_id for update;
       if not found then raise exception '公會不存在'; end if;
       insert into public.guild_members(guild_id,user_id,role,contribution) values(v_mon_id,v_uid,0,0);
     else

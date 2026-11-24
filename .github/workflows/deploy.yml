@@ -63,6 +63,18 @@ jobs:
           npm run --silent db:sql -- --preview-test tests/sql/game-rules-v2.sql > /tmp/arena-preview-test.sql
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-preview-test.sql
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/preview-isolation.sql
+      - name: 多人同時交易及公會鎖定驗收
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: node scripts/test-concurrent-transactions.mjs
+      - name: 30與90日養成及金幣收支模擬
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          npm run --silent db:sql -- --preview-test tests/sql/long-term-economy.sql > /tmp/arena-long-term.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-long-term.sql
+          npm run --silent db:sql -- --preview-test tests/sql/trained-balance.sql > /tmp/arena-trained-balance.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-trained-balance.sql
       - name: 檢查 Supabase 驗證服務
         run: node scripts/check-supabase-game.mjs
       - name: 建置舊版相容測試站

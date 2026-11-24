@@ -28,39 +28,42 @@ export function createTransactionJournal({storage,scope,send,uuid=()=>crypto.ran
  function emit(uid){for(const fn of listeners){try{fn(uid,state(uid));}catch(e){console.warn(e);}}}
  function save(entry){storage.setItem(key(entry.uid,entry.id),JSON.stringify(entry));}
  function remove(entry){storage.removeItem(key(entry.uid,entry.id));}
- async function execute(entry){
-  const uid=entry.uid;
-  if(busy.has(uid))throw Error('已有交易處理中');
-  busy.add(uid);emit(uid);
-  try{
-   return await lock(userPrefix(uid),async()=>{
-    // A second tab may already have recovered this exact entry.
-    if(!storage.getItem(key(uid,entry.id)))throw Error('交易已由另一個視窗處理，請重新整理');
-    if(now()-entry.createdAt>=REPLAY_WINDOW_MS)throw Error('交易已超過安全重送期限，請先核對資產');
-    try{
-     const result=await send(entry);
-     remove(entry);
-     return result;
-    }catch(error){
-     if(error instanceof TransactionRejected)remove(entry);
-     throw error;
-    }
-   });
-  }finally{busy.delete(uid);emit(uid);}
- }
- function start(uid,action,payload={}){
+ // Acquire the cross-tab lock BEFORE creating a new receipt. Otherwise a
+ // rejected competing tab could leave a phantom receipt for an unsent purchase.
+ async function withAccount(uid,fn){
   if(!uid)throw Error('請重新登入');
   if(busy.has(uid))throw Error('已有交易處理中');
-  if(pending(uid).length)throw Error('請先處理尚未確認的交易');
-  const id=payload.request_id||uuid();
-  const entry={uid,id,action,payload:{...payload,request_id:id},createdAt:now()};
-  try{save(entry);}catch{throw Error('無法保存交易恢復紀錄，本次操作未送出');}
-  return execute(entry);
+  busy.add(uid);emit(uid);
+  try{return await lock(userPrefix(uid),fn);}
+  finally{busy.delete(uid);emit(uid);}
+ }
+ async function execute(entry){
+  if(now()-entry.createdAt>=REPLAY_WINDOW_MS)throw Error('交易已超過安全重送期限，請先核對資產');
+  try{
+   const result=await send(entry);
+   remove(entry);
+   return result;
+  }catch(error){
+   if(error instanceof TransactionRejected)remove(entry);
+   throw error;
+  }
+ }
+ function start(uid,action,payload={}){
+  return withAccount(uid,()=>{
+   if(pending(uid).length)throw Error('請先處理尚未確認的交易');
+   const id=payload.request_id||uuid();
+   const entry={uid,id,action,payload:{...payload,request_id:id},createdAt:now()};
+   try{save(entry);}catch{throw Error('無法保存交易恢復紀錄，本次操作未送出');}
+   emit(uid);
+   return execute(entry);
+  });
  }
  function recover(uid){
-  const entry=pending(uid)[0];
-  if(!entry)throw Error('沒有待恢復交易，請重新整理');
-  return execute(entry);
+  return withAccount(uid,()=>{
+   const entry=pending(uid)[0];
+   if(!entry)throw Error('沒有待恢復交易，請重新整理');
+   return execute(entry);
+  });
  }
  function discardExpired(uid){
   const entry=pending(uid)[0];

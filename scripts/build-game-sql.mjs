@@ -15,7 +15,7 @@ const canonical=[prelude,buildCatalogSql(),battle,...chunks].join('\n\n');
 const mode=process.argv[2];
 if(mode==='--preview-test'){
  const path=process.argv[3];
- if(!['tests/sql/game-rules-v2.sql','tests/sql/combat-balance.sql'].includes(path))throw Error('Unknown preview test');
+ if(!['tests/sql/game-rules-v2.sql','tests/sql/combat-balance.sql','tests/sql/long-term-economy.sql','tests/sql/trained-balance.sql'].includes(path))throw Error('Unknown preview test');
  process.stdout.write(namespaceSql(readFileSync(new URL('../'+path,import.meta.url),'utf8')));
 }else if(mode==='--preview-bootstrap'){
  const fixture=readFileSync(new URL('../tests/sql/fixture.sql',import.meta.url),'utf8');

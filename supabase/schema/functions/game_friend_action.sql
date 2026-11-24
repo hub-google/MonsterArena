@@ -14,6 +14,9 @@ declare
 begin
   if v_uid is null then raise exception '請先登入'; end if;
   if p_peer is null or v_uid=p_peer then raise exception '好友帳號無效'; end if;
+  -- Both directions take the same transaction-scoped lock. Prevent reciprocal
+  -- requests and request/accept races without locking unrelated accounts.
+  perform pg_advisory_xact_lock(hashtextextended('arena_internal:friend:'||least(v_uid,p_peer)::text||':'||greatest(v_uid,p_peer)::text,0));
   select username into v_peer_name from public.users where user_id=p_peer;
   select username into v_own_name from public.users where user_id=v_uid;
   if v_peer_name is null or v_own_name is null then raise exception '找不到玩家'; end if;

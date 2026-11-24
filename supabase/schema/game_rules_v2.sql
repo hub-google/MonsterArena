@@ -95,6 +95,14 @@ BEGIN
     INSERT INTO arena_internal.action_requests(user_id,request_id,action,payload_hash,result)
     VALUES(p_uid,p_request,p_action,md5((p_data-'request_id')::text),p_result);
     DELETE FROM arena_internal.action_requests WHERE user_id=p_uid AND created_at<now()-interval '7 days';
+    -- Idle-account receipts cannot accumulate forever; clean a bounded batch
+    -- occasionally. SKIP LOCKED avoids blocking unrelated player transactions.
+    IF random()<0.02 THEN
+      DELETE FROM arena_internal.action_requests r USING (
+        SELECT user_id,request_id FROM arena_internal.action_requests
+        WHERE created_at<now()-interval '7 days' ORDER BY created_at LIMIT 200 FOR UPDATE SKIP LOCKED
+      ) expired WHERE r.user_id=expired.user_id AND r.request_id=expired.request_id;
+    END IF;
   END IF;
   RETURN p_result;
 END $$;
@@ -278,6 +286,13 @@ END $$;
 REVOKE ALL ON FUNCTION arena_internal.ensure_raid(text) FROM PUBLIC, anon, authenticated;
 CREATE INDEX IF NOT EXISTS arena_chat_channel_cursor ON public.messages(channel,timestamp DESC,message_id DESC);
 CREATE INDEX IF NOT EXISTS arena_battle_user_created ON public.battle_records(user_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS arena_monsters_owner ON public.monsters(user_id);
+CREATE INDEX IF NOT EXISTS arena_guild_member_owner ON public.guild_members(user_id);
+CREATE INDEX IF NOT EXISTS arena_friends_incoming ON public.friends(friend_uid,status);
+CREATE INDEX IF NOT EXISTS arena_gifts_pending ON public.gifts(receiver) WHERE claimed=false;
+CREATE INDEX IF NOT EXISTS arena_gifts_daily ON public.gifts(sender,receiver,date);
+CREATE INDEX IF NOT EXISTS arena_users_active ON public.users(last_login_at);
+CREATE INDEX IF NOT EXISTS arena_requests_global_expiry ON arena_internal.action_requests(created_at);
 
 -- Authoritative deterministic tactical PvE transcript, matching the browser practice rules.
 -- The client may submit choices only; HP, damage, result and reward are computed here.
