@@ -5,6 +5,7 @@ import TacticalDuel from './TacticalDuel';
 import {FIXED_ENCOUNTERS,canRankedMatch,roleId,affinityAdvantage} from '../utils/tacticalDuel';
 import {appearance,hasDisguise,getSkin} from '../utils/skins';
 import { api, GAME_RULES_V2 } from '../utils/api';
+import { selectBattleMonster, refreshAfterCommit } from '../utils/gameRules';
 import {PlayButton,GameIcon} from '../components/PlayButton';
 
 import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
@@ -18,6 +19,7 @@ export default function Arena({
   refreshData 
 }) {
   const [subTab, setSubTab] = useState('players');
+  const [tacticalFighter,setTacticalFighter]=useState(null);
   const [showLogs,setShowLogs]=useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -61,8 +63,9 @@ export default function Arena({
     return () => clearInterval(interval);
   }, [battleRunning, setBattleState]);
 
-  const getFighter=()=>monsters.find(m=>m.monster_id===activeMonster?.monster_id&&!m.is_dead&&Number(m.life_stage)>=2&&!m.is_frozen&&!m.repair_until)
-    ||monsters.find(m=>!m.is_dead&&Number(m.life_stage)>=2&&!m.is_frozen&&!m.repair_until);
+  const getFighter=()=>selectBattleMonster(monsters,activeMonster?.monster_id);
+  const enterTactical=tab=>{const fighter=getFighter();if(!fighter)return;setTacticalFighter(fighter);setSubTab(tab);setMessage('');};
+  const exitTactical=()=>{setTacticalFighter(null);setSubTab('players');};
   const changePvpRegistration=async register=>{
     const monster=getFighter();
     if(register&&!monster){setMessage('請先選擇已啟動且未停機的機體');return;}
@@ -72,8 +75,7 @@ export default function Arena({
   };
   const handleChallenge = async (encounter,opponentId) => {
     if (challengePending.current) return;
-    const monster = monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen && !m.repair_until)
-      || monsters.find(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen && !m.repair_until);
+    const monster = getFighter();
     if (!monster) return setMessage('請先選擇一隻未停機、已啟動的機體出戰！');
     encounter=encounter==='mock'?'wild':encounter==='mock_boss'?'boss':encounter;
     const isBoss=encounter==='boss';
@@ -105,7 +107,8 @@ export default function Arena({
         logs:[revealing?'準備解除偽裝！':`⚔️ 戰鬥開始！ ${monster.name} vs ${enemy.name}！`],
         isOver:false,winner:null,finalOwnHp:result.ownHp,finalEnemyHp:result.enemyHp
       });
-      await refreshData(GAME_RULES_V2?['profile','monsters']:['monsters']);
+      const warning=await refreshAfterCommit(refreshData,GAME_RULES_V2?['profile','monsters']:['monsters']);
+      if(warning)setMessage(warning);
     } catch (err) {
       setMessage(`對戰失敗：${err.message || '請稍後重試'}`);
     } finally { challengePending.current=false; setLoading(false); }
@@ -210,8 +213,8 @@ export default function Arena({
     );
   }
 
-  if(subTab==='boss-tactical'&&getFighter())return <TacticalDuel key="boss" boss monster={getFighter()} mode={appearanceModes[getFighter().monster_id]} onSettle={GAME_RULES_V2?async (moves,requestId)=>{const r=await api.settleBossTactics(getFighter().monster_id,moves,requestId);await refreshData(['profile','monsters']).catch(()=>{});return r;}:undefined} onExit={()=>setSubTab('players')}/>;
-  if(subTab==='tactical'&&getFighter())return <TacticalDuel monster={getFighter()} mode={appearanceModes[getFighter().monster_id]} onExit={()=>setSubTab('players')}/>;
+  if(subTab==='boss-tactical'&&tacticalFighter)return <TacticalDuel key={'boss:'+tacticalFighter.monster_id} boss monster={tacticalFighter} mode={appearanceModes[tacticalFighter.monster_id]} onSettle={GAME_RULES_V2?async (moves,requestId)=>{const r=await api.settleBossTactics(tacticalFighter.monster_id,moves,requestId);const warning=await refreshAfterCommit(refreshData,['profile','monsters']);if(warning)setMessage(warning);return r;}:undefined} onExit={exitTactical}/>;
+  if(subTab==='tactical'&&tacticalFighter)return <TacticalDuel monster={tacticalFighter} mode={appearanceModes[tacticalFighter.monster_id]} onExit={exitTactical}/>;
 
   return (
     <div className="h-full flex flex-col gap-4 animate-fade-in">
@@ -221,8 +224,8 @@ export default function Arena({
       {GAME_RULES_V2&&<div className="grid grid-cols-2 gap-2">
        {([['players','battle','失控機甲挑戰'],['pvp','🏆','玩家對戰']]).map(([id,icon,label])=><PlayButton key={id} icon={icon} label={label} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
       </div>}
-      {subTab==='players'&&<PlayButton icon="guild" label="手動戰術對戰" subtext="格擋反擊・精準暴擊・公平競技" tone="blue" disabled={!getFighter()||loading} onClick={()=>{setMessage('');setSubTab('tactical')}} className="play-compact"/>}
-      {subTab==='players'&&!GAME_RULES_V2&&<PlayButton icon="battle" label="首領戰術挑戰" subtext="預判蓄力・格擋反擊・硬直輸出" tone="red" disabled={!getFighter()||loading} onClick={()=>{setMessage('');setSubTab('boss-tactical')}} className="play-compact"/>}
+      {subTab==='players'&&<PlayButton icon="guild" label="手動戰術對戰" subtext="格擋反擊・精準暴擊・公平競技" tone="blue" disabled={!getFighter()||loading} onClick={()=>enterTactical('tactical')} className="play-compact"/>}
+      {subTab==='players'&&!GAME_RULES_V2&&<PlayButton icon="battle" label="首領戰術挑戰" subtext="預判蓄力・格擋反擊・硬直輸出" tone="red" disabled={!getFighter()||loading} onClick={()=>enterTactical('boss-tactical')} className="play-compact"/>}
       <div className="flex-1 overflow-y-auto">
         {subTab==='players'&&GAME_RULES_V2&&(
           <div className="flex flex-col gap-3">
@@ -232,7 +235,7 @@ export default function Arena({
                 <div><div className="font-bold text-amber-300">第 {i+1} 關｜{name}</div>
                   <div className="text-xs text-slate-300" >耐久 {hp}・攻 {atk}・防 {def}・速 {spd}</div>
                   <div className="text-xs text-emerald-300">每日首勝 {reward}G</div></div>
-                <PlayButton icon="battle" label={'挑戰'+name} short="打" tone="red" disabled={loading||!getFighter()} onClick={()=>id==='boss'?setSubTab('boss-tactical'):handleChallenge(id)} className="play-compact"/>
+                <PlayButton icon="battle" label={'挑戰'+name} short="打" tone="red" disabled={loading||!getFighter()} onClick={()=>id==='boss'?enterTactical('boss-tactical'):handleChallenge(id)} className="play-compact"/>
               </div>
             ))}
           </div>

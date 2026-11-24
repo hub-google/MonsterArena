@@ -33,7 +33,7 @@ export default function App() {
   const clearUser=()=>{
     setUser(null);setMonsters([]);setInventory([]);setFriends([]);
     setGuilds([]);setMyGuild(null);setActiveMonster(null);
-    setBattleState(null);setAppearanceModes({});setLoadError('');
+    setBattleState(null);setAppearanceModes({});setLoadError('');setPage('dashboard');
   };
 
   const loadUserData=async (resources=['profile','monsters','inventory','friends','guilds'])=>{

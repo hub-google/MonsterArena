@@ -3,7 +3,7 @@ import { api, GAME_RULES_V2 } from '../utils/api';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import {appearance} from '../utils/skins';
 import {PlayButton} from '../components/PlayButton';
-import { resourcesForAction, getHatchState, canManageMonsterChips } from '../utils/gameRules';
+import { refreshAfterCommit, resourcesForAction, getHatchState, canManageMonsterChips } from '../utils/gameRules';
 
 import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
 
@@ -44,8 +44,8 @@ export default function Roster({
     try {
       const data = await actionFn(...args);
       setMessage(data.message || '操作成功！');
-      try { await refreshData(resourcesForAction(api,actionFn)); }
-      catch { setMessage('操作成功，但重新載入失敗，請手動更新。'); }
+      const warning=await refreshAfterCommit(refreshData,resourcesForAction(api,actionFn));
+      if(warning)setMessage(warning);
       return true;
     } catch (err) {
       setMessage(`❌ ${err.message}`);

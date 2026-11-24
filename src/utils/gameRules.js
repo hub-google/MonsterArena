@@ -36,3 +36,16 @@ export function resourcesForAction(api,action){
  const name=Object.keys(ACTION_RESOURCES).find(key=>api[key]===action);
  return name ? ACTION_RESOURCES[name] : undefined;
 }
+
+// A committed mutation must never be reported as failed just because a subsequent read fails.
+export const COMMITTED_REFRESH_WARNING = '操作已成功，但資料更新失敗，請重新整理；不要重複操作。';
+export async function refreshAfterCommit(refresh, resources) {
+  try { await refresh(resources); return null; }
+  catch { return COMMITTED_REFRESH_WARNING; }
+}
+export const canBattleMonster = monster => Boolean(monster && !monster.is_dead &&
+  Number(monster.life_stage)>=2 && !monster.is_frozen && !monster.repair_until);
+export function selectBattleMonster(monsters, preferredId) {
+  return monsters.find(m=>m.monster_id===preferredId && canBattleMonster(m)) ||
+    monsters.find(canBattleMonster) || null;
+}

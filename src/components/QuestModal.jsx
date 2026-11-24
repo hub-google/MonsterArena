@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api, GAME_RULES_V2 } from '../utils/api';
+import { refreshAfterCommit } from '../utils/gameRules';
 
 export default function QuestModal({ user, onClose, refreshData }) {
   const [loading, setLoading] = useState(false);
@@ -19,14 +20,15 @@ export default function QuestModal({ user, onClose, refreshData }) {
     }
   };
 
-  const handleClaim = async (questId, rewardGold) => {
+  const handleClaim = async (questId) => {
     setLoading(true);
     setMessage('');
     try {
-      const res = await api.claimQuest(questId, rewardGold);
+      const res = await api.claimQuest(questId);
       setMessage(res.message);
       await loadQuests();
-      await refreshData(['profile']);
+      const warning=await refreshAfterCommit(refreshData,['profile']);
+      if(warning)setMessage(warning);
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {
@@ -95,7 +97,7 @@ export default function QuestModal({ user, onClose, refreshData }) {
                     <button disabled className="px-4 py-2 bg-slate-800 text-slate-500 text-xs rounded border border-slate-700">已領取</button>
                   ) : isCompleted ? (
                     <button 
-                      onClick={() => handleClaim(q.id, q.reward)} 
+                      onClick={() => handleClaim(q.id)} 
                       disabled={loading}
                       className="neon-button neon-button-success px-4 py-2 text-xs pulse-glow"
                     >

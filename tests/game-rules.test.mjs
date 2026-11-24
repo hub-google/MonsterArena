@@ -54,3 +54,17 @@ test('successful actions refresh only changed groups',()=>{
  assert.deepEqual(resourcesForAction(api,api.rename),['monsters']);
  assert.equal(resourcesForAction(api,()=>{}),undefined);
 });
+
+import { refreshAfterCommit, COMMITTED_REFRESH_WARNING, canBattleMonster, selectBattleMonster } from '../src/utils/gameRules.js';
+test('failed refresh never changes the outcome of a committed transaction', async()=>{
+ assert.equal(await refreshAfterCommit(async()=>{throw Error('offline')},['profile']),COMMITTED_REFRESH_WARNING);
+ assert.equal(await refreshAfterCommit(async resources=>assert.deepEqual(resources,['inventory']),['inventory']),null);
+});
+test('arena and raid share the same eligibility and preferred fighter selection',()=>{
+ const ready={monster_id:'a',life_stage:3}, other={monster_id:'b',life_stage:2};
+ const blocked=[{...ready,is_dead:true},{...ready,is_frozen:true},{...ready,repair_until:'2026-11-24'},{...ready,life_stage:1}];
+ for(const m of blocked)assert.equal(canBattleMonster(m),false);
+ assert.equal(selectBattleMonster([...blocked,ready,other],'b'),other);
+ assert.equal(selectBattleMonster([...blocked,ready,other],'missing'),ready);
+ assert.equal(selectBattleMonster(blocked,'a'),null);
+});

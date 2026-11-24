@@ -4,7 +4,7 @@ import { supabase, supabaseUrl } from './supabaseClient';
 // Rules V2 must use an explicitly configured isolated backend, never the shared Game project.
 export const GAME_RULES_V2 = import.meta.env.VITE_ARENA_V2 === 'true' &&
   Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) &&
-  !supabaseUrl.includes('fanffwnhkxpfhttylntw');
+  !['fanffwnhkxpfhttylntw','unapiwajmgqqtdkixaab'].some(ref=>supabaseUrl.includes(ref));
 
 // All economy mutations go through authenticated PostgreSQL transactions.
 // Direct client updates are reserved for owner-controlled presentation state.
@@ -237,28 +237,21 @@ export const api = {
     return action('chat', {text});
   },
   subscribeMessages: (channel,callback) => {
-    let disposed=false,running=false,queued=false,cursor=null;
-    let messages=[];
+    let disposed=false,running=false,queued=false;
     const load=async()=>{
       if(disposed || document.visibilityState==='hidden')return;
       if(running){queued=true;return;}
       running=true;
       try{
-        const query=supabase.from('messages').select('message_id,channel,user_id,username,text,timestamp').eq('channel',channel);
-        const {data,error}=cursor
-          ? await query.gte('timestamp',cursor).order('timestamp',{ascending:true}).order('message_id',{ascending:true}).limit(100)
-          : await query.order('timestamp',{ascending:false}).order('message_id',{ascending:false}).limit(50);
+        // The UI only displays the most recent 50 messages. Fetch that exact
+        // window instead of an incremental timestamp cursor that can stall on ties.
+        const {data,error}=await supabase.from('messages')
+          .select('message_id,channel,user_id,username,text,timestamp')
+          .eq('channel',channel).order('timestamp',{ascending:false})
+          .order('message_id',{ascending:false}).limit(50);
         throwIfError(error);
         if(disposed)return;
-        const combined=new Map(messages.map(m=>[m.message_id,m]));
-        for(const m of data??[])combined.set(m.message_id,m);
-        messages=[...combined.values()].sort((a,b)=>a.timestamp.localeCompare(b.timestamp)||String(a.message_id).localeCompare(String(b.message_id))).slice(-50);
-        cursor=messages.at(-1)?.timestamp??null;
-        callback(messages.map(m=>({...m,id:m.message_id})));
-        if(cursor && data?.length===100){
-          if(data[0].timestamp===data.at(-1).timestamp)cursor=null;
-          queued=true;
-        }
+        callback((data??[]).slice().reverse().map(m=>({...m,id:m.message_id})));
       }catch(e){if(!disposed)console.warn('Chat read error:',e.message);}
       finally{running=false;if(queued&&!disposed){queued=false;load();}}
     };

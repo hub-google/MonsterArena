@@ -2,6 +2,7 @@ import BattleReveal from '../components/BattleReveal';
 import {appearance,hasDisguise} from '../utils/skins';
 import React, { useState, useEffect, useRef } from 'react';
 import { api, GAME_RULES_V2 } from '../utils/api';
+import { canBattleMonster, refreshAfterCommit } from '../utils/gameRules';
 
 export default function Raid({ 
   user, 
@@ -13,7 +14,7 @@ export default function Raid({
   const [boss, setBoss] = useState(null);
   const [bossError, setBossError] = useState('');
   const [strategy,setStrategy]=useState('assault');
-  const aliveMonsters = monsters.filter(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen && !m.repair_until);
+  const aliveMonsters = monsters.filter(canBattleMonster);
   const [selectedMonsterId, setSelectedMonsterId] = useState(
     () => aliveMonsters.find(m => m.monster_id === activeMonster?.monster_id)?.monster_id || aliveMonsters[0]?.monster_id || ''
   );
@@ -54,7 +55,7 @@ export default function Raid({
 
   const handleClaim=async bossId=>{
     setLoading(true);setMessage('');
-    try{const result=await api.claimRaid(bossId);setMessage(result.message);await refreshData(['profile']);await fetchBossStatus();}
+    try{const result=await api.claimRaid(bossId);setMessage(result.message);const warning=await refreshAfterCommit(refreshData,['profile']);if(warning)setMessage(warning);await fetchBossStatus();}
     catch(err){setMessage(err.message);}finally{setLoading(false);}
   };
   const [revealing,setRevealing]=useState(false);
@@ -82,7 +83,8 @@ export default function Raid({
       const data = await api.attackRaidBoss(selectedMonster.monster_id,strategy);
       if(!mounted.current)return;
       setMessage(`💥 造成 ${data.damage.toLocaleString()} 點傷害！\n${data.message}${GAME_RULES_V2?'\n有效支援 '+data.support+'・存活回合 '+data.rounds+'/10・參與獎勵 '+data.participationReward+'G':''}`);
-      await refreshData(['profile']);
+      const warning=await refreshAfterCommit(refreshData,['profile']);
+      if(warning)setMessage(previous=>previous+'\n'+warning);
       await fetchBossStatus();
     } catch (err) {
       setMessage(`❌ ${err.message}`);

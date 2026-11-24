@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api, GAME_RULES_V2 } from '../utils/api';
+import { refreshAfterCommit } from '../utils/gameRules';
 import {SKINS,ownsSkin} from '../utils/skins';
 import SkinArt from './SkinArt';
 import {SHOP_ITEMS,BALANCED_SHOP_ITEMS} from '../utils/mechaVocabulary';
@@ -16,7 +17,8 @@ export default function ShopModal({ user, inventory=[], initialTab='items', onCl
     try {
       const res = await api.buyItem(itemId, 1);
       setMessage(res.message);
-      await refreshData(['profile','inventory']);
+      const warning=await refreshAfterCommit(refreshData,['profile','inventory']);
+      if(warning)setMessage(warning);
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {

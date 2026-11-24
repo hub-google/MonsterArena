@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api, GAME_RULES_V2 } from '../utils/api';
-import { resourcesForAction, getHatchState, canCareForMonster, canHealMonster } from '../utils/gameRules';
+import { resourcesForAction, getHatchState, canCareForMonster, canHealMonster, refreshAfterCommit } from '../utils/gameRules';
 import { STAGE_NAMES, FACTIONS, getMecha } from '../utils/monsterSprites';
 import {ITEM_BY_ID as LEGACY_ITEMS,BALANCED_ITEM_BY_ID} from '../utils/mechaVocabulary';
 import ShopModal from '../components/ShopModal';
@@ -77,7 +77,8 @@ export default function Dashboard({
         setTimeout(() => setActionEmote(null), 3000);
       }
 
-      await refreshData(resourcesForAction(api,actionFn));
+      const warning=await refreshAfterCommit(refreshData,resourcesForAction(api,actionFn));
+      if(warning)setMessage(warning);
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {
@@ -91,7 +92,8 @@ export default function Dashboard({
     try {
       const data = await api.hatchEgg();
       setMessage(data.message);
-      await refreshData(['profile','monsters']);
+      const warning=await refreshAfterCommit(refreshData,['profile','monsters']);
+      if(warning)setMessage(warning);
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {
@@ -128,7 +130,8 @@ export default function Dashboard({
       try {
         const data = await api.rename(monster.monster_id, newName.trim());
         setMessage(data.message || '改名成功！');
-        await refreshData(['monsters']);
+        const warning=await refreshAfterCommit(refreshData,['monsters']);
+        if(warning)setMessage(warning);
       } catch (err) {
         setMessage(`❌ ${err.message}`);
       } finally {
@@ -137,7 +140,7 @@ export default function Dashboard({
     }
   };
 
-  const equipSkin=async id=>{if(loading)return;setLoading(true);setWardrobeError('');try{await api.equipSkin(monster.monster_id,id);setAppearanceMode(monster.monster_id,id?'skin':'robot');await refreshData(['monsters']);setShowWardrobe(false);}catch(err){setWardrobeError(err.message||'造型更新失敗');}finally{setLoading(false);}};
+  const equipSkin=async id=>{if(loading)return;setLoading(true);setWardrobeError('');try{await api.equipSkin(monster.monster_id,id);setAppearanceMode(monster.monster_id,id?'skin':'robot');const warning=await refreshAfterCommit(refreshData,['monsters']);setShowWardrobe(false);if(warning)setMessage(warning);}catch(err){setWardrobeError(err.message||'造型更新失敗');}finally{setLoading(false);}};
   const care=canCareForMonster(monster);
   const formLabel=nextMode==='skin'?'恢復偽裝':nextMode==='robot'?'切換機器人':'變形：'+(mecha.vehicle||'載具');
   const formCaption=nextMode==='skin'?'恢復偽裝':nextMode==='robot'?'切換機器人':'機體變形';

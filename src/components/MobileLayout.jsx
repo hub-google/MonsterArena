@@ -1,5 +1,6 @@
 import React,{useState,useEffect} from 'react';
 import {PlayButton,GameIcon} from './PlayButton';
+import { GAME_RULES_V2 } from '../utils/api';
 export default function MobileLayout({children,page,setPage,isConnected,onRefresh,onLogout}) {
  const [more,setMore]=useState(false);
  // The desktop is the same portrait game, fitted to the available height.
@@ -12,7 +13,7 @@ export default function MobileLayout({children,page,setPage,isConnected,onRefres
  const go=id=>{setMore(false);setPage(id)};
  return <div data-testid="game-shell" className="arena-shell" style={{'--arena-fit':arenaFit}}>
    <header className="cockpit-header">
-    <div className="cockpit-brand"><GameIcon name="robot"/><span>MONSTER <strong>ARENA</strong></span></div>
+    <div className="cockpit-brand"><GameIcon name="robot"/><span>MONSTER <strong>ARENA</strong></span>{!GAME_RULES_V2&&<small title="獨立新版後端尚未連接" className="text-[9px] text-amber-300">舊版規則</small>}</div>
     <span title={isConnected?'瀏覽器在線':'瀏覽器離線'} aria-label={isConnected?'瀏覽器在線':'瀏覽器離線'} className={'w-2.5 h-2.5 rounded-full '+(isConnected?'bg-emerald-400':'bg-rose-500')}/>
    </header>
    <main data-testid="game-main" className={'cockpit-main '+(page==='dashboard'?'cockpit-main-home':'')}>{children}</main>

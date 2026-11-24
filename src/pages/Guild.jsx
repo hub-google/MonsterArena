@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../utils/api';
-import { resourcesForAction } from '../utils/gameRules';
+import { refreshAfterCommit, resourcesForAction } from '../utils/gameRules';
 
 export default function Guild({ 
   user, 
@@ -20,8 +20,8 @@ export default function Guild({
     try {
       const data = await actionFn(...args);
       setMessage(data.message || '操作成功！');
-      try { await refreshData(resourcesForAction(api,actionFn)); }
-      catch { setMessage('操作成功，但重新整理失敗，請手動更新畫面。'); }
+      const warning=await refreshAfterCommit(refreshData,resourcesForAction(api,actionFn));
+      if(warning)setMessage(warning);
       return true;
     } catch (err) {
       setMessage(`❌ ${err.message}`);
