@@ -15,3 +15,15 @@ test('vehicle fit preserves all eight original raster silhouettes',async()=>{
   for(let yy=0;yy<128;yy++)for(let xx=0;xx<128;xx++)if(pixels[yy][xx])assert.ok(xx>=x&&xx+1<=x+w&&yy>=y&&yy+1<=y+h);
  }
 });
+
+test('redesigned vehicles use the original 128px indexed raster and matching faction palette',async()=>{
+ const {getSpriteGrid}=await import('../src/utils/mechaArt.js');
+ for(const faction of FACTIONS)for(const type of [1,2]){
+  const robot=getSpriteGrid(faction.legacy,5,type,false),vehicle=getSpriteGrid(faction.legacy,5,type,true);
+  assert.equal(vehicle.length,128);assert.ok(vehicle.every(row=>row.length===128));
+  const robotColors=new Set(robot.flat().filter(Boolean)),vehicleColors=new Set(vehicle.flat().filter(Boolean));
+  const shared=[...vehicleColors].filter(c=>robotColors.has(c));
+  assert.ok(shared.length>=7);assert.ok(vehicleColors.size>=7);
+  assert.ok(vehicle.flat().includes(''));assert.ok(vehicle.flat().filter(Boolean).length>2000);
+ }
+});
