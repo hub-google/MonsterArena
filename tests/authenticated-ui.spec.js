@@ -84,7 +84,12 @@ async function setupAuthenticatedGame(page, initialPets=[dead]) {
         }];
         return json(route, { message: '核心啟動成功！' });
       }
-      throw new Error('Disabled UI issued a game_action: ' + args.p_action);
+      if(['feed','clean','heal','train'].includes(args.p_action)){
+        pets=pets.map(p=>p.monster_id===args.p_data.monster_id?{...p,fullness:args.p_action==='feed'?70:p.fullness,cleanliness:args.p_action==='clean'?100:p.cleanliness,is_sick:args.p_action==='heal'?false:p.is_sick}:p);
+        return json(route,{message:'操作成功！'});
+      }
+      if(args.p_action==='battle')return json(route,{battleId:'mock-battle',won:true,events:[{attacker:'A',damage:50,ownHp:500,enemyHp:0}],enemyName:'野外失控機甲',enemyFamily:3,enemyType:1,enemyStage:3,ownMaxHp:500,enemyMaxHp:50,ownHp:500,enemyHp:0,reward:0});
+      throw new Error('Unexpected UI issued a game_action: ' + args.p_action);
     }
     throw new Error('Unexpected Supabase request in isolated UI test: ' + request.method() + ' ' + path);
   });
@@ -97,7 +102,7 @@ test('authenticated dead pet never exposes usable care or chip actions', async (
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   const calls = await setupAuthenticatedGame(page);
-  await expect(page.getByText('此怪獸已死亡，無法補充能源、打掃、治療、訓練或進化。')).toBeVisible();
+  await expect(page.getByRole('status',{name:'此怪獸已死亡，無法照顧或出戰'})).toBeVisible();
   await expect(page.getByRole('button', { name: /治療/ })).toBeDisabled();
   await page.getByRole('button', { name: '倉庫', exact: true }).click();
   await page.getByRole('button', { name: '裝備晶片' }).click();
@@ -123,7 +128,10 @@ test('authenticated all-dead account can claim the rescue egg once', async ({ pa
 test('existing stage-six legacy type-three unit retains custom name and converts to matching robot and vehicle',async({page})=>{
  await setupAuthenticatedGame(page,[{...dead,name:'老玩家收藏',family:4,type:3,life_stage:6,is_dead:false,is_sick:false}]);
  await expect(page.getByRole('heading',{name:'老玩家收藏'})).toBeVisible();
+ await expect(page.getByTestId('mecha-details')).toHaveCount(0);
+ await page.getByRole('button',{name:'機體詳細資料'}).click();
  await expect(page.getByText('鋼鐵族・重砲型',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'機體詳細資料'}).click();
  await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'})).toBeVisible();
  await page.getByRole('button',{name:'變形：重型坦克'}).click();
  await expect(page.getByRole('img',{name:'重型坦克'})).toBeVisible();
@@ -137,9 +145,9 @@ test('three simultaneous status warnings stay separate from each other and the m
  const calls=await setupAuthenticatedGame(page,[{...dead,name:'警示測試',family:4,type:3,life_stage:6,is_dead:false,is_sick:true,fullness:20,cleanliness:20}]);
  const screen=page.getByTestId('mecha-screen');
  const statuses=screen.getByTestId('mecha-status-list');
- const fault=statuses.getByText('系統故障',{exact:true});
- const energy=statuses.getByText('能源不足',{exact:true});
- const maintenance=statuses.getByText('需要保養',{exact:true});
+ const fault=statuses.getByTestId('mecha-status-fault');
+ const energy=statuses.getByTestId('mecha-status-energy');
+ const maintenance=statuses.getByTestId('mecha-status-maintenance');
  await expect(fault).toBeVisible();
  await expect(energy).toBeVisible();
  await expect(maintenance).toBeVisible();
@@ -167,4 +175,31 @@ test('three simultaneous status warnings stay separate from each other and the m
  await page.getByRole('button',{name:'切換機器人'}).click();
  await assertLayout('鋼鐵族・重砲型・終極機');
  expect(calls).not.toContain('/rest/v1/rpc/game_action');
+});
+
+test('mobile pictogram controls perform care, form selection, battle and navigation',async({page})=>{
+ await page.setViewportSize({width:360,height:800});await page.emulateMedia({reducedMotion:'reduce'});
+ const calls=await setupAuthenticatedGame(page,[{...dead,name:'小機甲',family:4,type:3,life_stage:6,is_dead:false,is_sick:true,fullness:20,cleanliness:20}]);
+ const actions=page.getByTestId('care-actions');
+ await expect(actions.getByRole('button')).toHaveCount(6);
+ for(const button of await actions.getByRole('button').all()){const b=await button.boundingBox();expect(b.width).toBeGreaterThanOrEqual(44);expect(b.height).toBeGreaterThanOrEqual(44);}
+ await actions.getByRole('button',{name:'補充能源'}).click();
+ await page.getByRole('button',{name:'免費基礎飼料'}).click();
+ await expect(page.getByRole('progressbar',{name:'能源'})).toHaveAttribute('aria-valuenow','70');
+ await actions.getByRole('button',{name:'打掃'}).click();
+ await expect(page.getByRole('progressbar',{name:'機體維護'})).toHaveAttribute('aria-valuenow','100');
+ await actions.getByRole('button',{name:'治療'}).click();
+ await expect(page.getByRole('button',{name:'免費急救草藥，扣減20%生命'})).toBeEnabled();
+ await actions.getByRole('button',{name:'治療'}).click();
+ await actions.getByRole('button',{name:'訓練'}).click();
+ await expect.poll(()=>calls.filter(x=>x==='/rest/v1/rpc/game_action').length).toBe(3);
+ await actions.getByRole('button',{name:'開始戰鬥'}).click();
+ await expect(page.getByTestId('wild-challenges')).toBeVisible();
+ await page.getByRole('button',{name:'挑戰野外失控機甲'}).click();
+ await expect(page.getByRole('status',{name:'勝利'})).toBeVisible();
+ await page.getByRole('button',{name:'離開戰場'}).click();
+ await page.getByRole('button',{name:'圖鑑',exact:true}).click();
+ await expect(page.getByRole('button',{name:'疾風族',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'更多功能'}).click();
+ await expect(page.getByRole('button',{name:'世界王',exact:true})).toBeVisible();
 });

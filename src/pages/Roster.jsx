@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../utils/api';
+import MonsterPixelArt from '../components/MonsterPixelArt';
+import {PlayButton} from '../components/PlayButton';
 import { resourcesForAction, getHatchState, canManageMonsterChips } from '../utils/gameRules';
 
 import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
@@ -99,121 +101,34 @@ export default function Roster({
         <span className="text-amber-400">💰 {user.gold}G</span>
       </div>
 
-      {/* Sub tabs navigation */}
       <div className="grid grid-cols-3 gap-2">
-        <button 
-          onClick={() => { setSubTab('list'); setMessage(''); }}
-          className={`py-3 rounded-xl font-bold transition-all ${subTab === 'list' ? 'bg-cyan-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.6)]' : 'glass-panel text-slate-400'}`}
-        >
-          倉庫
-        </button>
-        <button 
-          onClick={() => { setSubTab('chips'); setMessage(''); }}
-          className={`py-3 rounded-xl font-bold transition-all ${subTab === 'chips' ? 'bg-cyan-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.6)]' : 'glass-panel text-slate-400'}`}
-        >
-          裝備晶片
-        </button>
-        <button 
-          onClick={() => { setSubTab('breed'); setMessage(''); }}
-          className={`py-3 rounded-xl font-bold transition-all ${subTab === 'breed' ? 'bg-fuchsia-600 text-white shadow-[0_0_15px_rgba(192,38,211,0.6)]' : 'glass-panel text-slate-400'}`}
-        >
-          繁衍
-        </button>
+        {[['list','🤖','機體清單','機體'],['chips','🔧','裝備晶片','裝備'],['breed','🧬','繁衍','融合']].map(([id,icon,label,short])=><PlayButton key={id} icon={icon} label={label} short={short} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
       </div>
 
       {/* Main SubTab Content Area (Scrollable) */}
       <div className="flex-1 overflow-y-auto">
         
-        {subTab === 'list' && (
-          <div className="flex flex-col gap-4">
-            <div className="glass-card p-5 flex flex-col gap-4">
-              {monsters.length < 50 && (
-                <button
-                  onClick={handleHatch}
-                  disabled={loading || !hatchState.available}
-                  className="w-full neon-button py-3 text-sm flex items-center justify-center gap-2"
-                >
-                  <span>🥚</span> {hatchState.label}
-                </button>
-              )}
-
-              <div>
-                <label className="text-xs text-slate-400 mb-2 block">選擇怪獸</label>
-                <select 
-                  value={selectedMonster?.monster_id || ''}
-                  onChange={(e) => handleSetSelection(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-cyan-500 transition-colors"
-                >
-                  {monsters.map(m => (
-                    <option key={m.monster_id} value={m.monster_id}>
-                      {m.name} (G{m.generation} {STAGE_NAMES[m.life_stage]})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {selectedMonster && (
-              <div className="glass-card p-5 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-bold text-white">{selectedMonster.name}</h3>
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${selectedMonster.is_locked ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                    {selectedMonster.is_locked ? '🔒 已鎖定' : '🔓 未鎖定'}
-                  </span>
-                </div>
-                
-                <div className="flex gap-2 text-sm text-slate-400 mb-6">
-                  <span>階段: {STAGE_NAMES[selectedMonster.life_stage]}</span>
-                  {selectedMonster.is_rescue && <span className="text-cyan-400">免費救援怪獸（放生無金幣獎勵）</span>}
-                  <span>•</span>
-                  <span>屬性: {getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).factionName}・{getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).roleName}</span>
-                </div>
-                
-                <div className="grid grid-cols-4 gap-2 mb-6">
-                  <div className="bg-slate-900/50 p-2 rounded-lg text-center border border-slate-700/50">
-                    <div className="text-xs text-slate-500">HP</div>
-                    <div className="font-bold text-rose-400">{Math.round(selectedMonster.combat_hp)}</div>
-                  </div>
-                  <div className="bg-slate-900/50 p-2 rounded-lg text-center border border-slate-700/50">
-                    <div className="text-xs text-slate-500">ATK</div>
-                    <div className="font-bold text-amber-400">{Math.round(selectedMonster.combat_atk)}</div>
-                  </div>
-                  <div className="bg-slate-900/50 p-2 rounded-lg text-center border border-slate-700/50">
-                    <div className="text-xs text-slate-500">DEF</div>
-                    <div className="font-bold text-blue-400">{Math.round(selectedMonster.combat_def)}</div>
-                  </div>
-                  <div className="bg-slate-900/50 p-2 rounded-lg text-center border border-slate-700/50">
-                    <div className="text-xs text-slate-500">SPD</div>
-                    <div className="font-bold text-emerald-400">{Math.round(selectedMonster.combat_spd)}</div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => handleAction(api.toggleLock, selectedMonster.monster_id)}
-                    disabled={loading}
-                    className="flex-1 neon-button neon-button-primary py-3"
-                  >
-                    {selectedMonster.is_locked ? '解除鎖定' : '鎖定保護'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`確定永久放生「${selectedMonster.name}」？${selectedMonster.is_rescue ? '這隻免費救援怪獸放生不會獲得金幣。' : ''}放生後無法恢復。`)) {
-                        handleAction(api.release, selectedMonster.monster_id);
-                      }
-                    }}
-                    disabled={loading || selectedMonster.is_locked}
-                    className="flex-1 neon-button neon-button-danger py-3"
-                  >
-                    放生
-                  </button>
-                </div>
-              </div>
-            )}
+        {subTab==='list'&&<div className="flex flex-col gap-3">
+          {monsters.length<50&&<PlayButton icon="hatch" label={hatchState.label} short={hatchState.isRescue?'免費':'100 🪙'} tone="green" onClick={handleHatch} disabled={loading||!hatchState.available} className="w-full play-compact"/>}
+          <div className="grid grid-cols-3 gap-2" data-testid="pet-picker">
+           {monsters.map(m=><button key={m.monster_id} type="button" aria-label={'選擇 '+m.name} aria-pressed={selectedMonster?.monster_id===m.monster_id} onClick={()=>handleSetSelection(m.monster_id)} className={'play-encounter min-w-0 p-1 '+(selectedMonster?.monster_id===m.monster_id?'border-cyan-400':'border-slate-700')}>
+             <MonsterPixelArt family={m.family} stage={m.life_stage} type={m.type} isDead={m.is_dead} displaySize={88}/>
+             <span className="truncate w-full text-xs">{m.name}</span>{m.is_locked&&<span aria-label="已鎖定">🔒</span>}
+           </button>)}
           </div>
-        )}
+          {selectedMonster&&<>
+           <PlayButton icon="home" label="回家照顧選定機體" short="回家" tone="blue" onClick={()=>{handleSetSelection(selectedMonster.monster_id);setPage('dashboard')}} className="w-full play-compact"/>
+           <details className="glass-card p-3"><summary className="cursor-pointer text-sm">ℹ️ {selectedMonster.name}</summary>
+            <div className="text-xs text-slate-400 my-2">{getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).name}・G{selectedMonster.generation}</div>
+            {selectedMonster.is_rescue&&<div className="text-xs text-cyan-300">免費救援機體（放生無金幣獎勵）</div>}
+            <div className="grid grid-cols-4 gap-2 my-3">{[['❤️',selectedMonster.combat_hp],['⚔️',selectedMonster.combat_atk],['🛡️',selectedMonster.combat_def],['⚡',selectedMonster.combat_spd]].map(([icon,val])=><div key={icon} className="text-center">{icon}<div>{Math.round(val)}</div></div>)}</div>
+            <div className="grid grid-cols-2 gap-2">
+              <PlayButton icon={selectedMonster.is_locked?'🔓':'🔒'} label={selectedMonster.is_locked?'解除鎖定':'鎖定保護'} short="保護" disabled={loading} onClick={()=>handleAction(api.toggleLock,selectedMonster.monster_id)}/>
+              <PlayButton icon="🗑️" label="永久放生" short="放生" tone="red" disabled={loading||selectedMonster.is_locked} onClick={()=>{if(window.confirm('確定永久放生「'+selectedMonster.name+'」？放生後無法恢復。'+(selectedMonster.is_rescue?'免費救援機體不會獲得金幣。':'')))handleAction(api.release,selectedMonster.monster_id)}}/>
+            </div>
+           </details>
+          </>}
+        </div>}
 
         {subTab === 'chips' && selectedMonster && (
           <div className="flex flex-col gap-4">
@@ -225,10 +140,7 @@ export default function Roster({
               {!canManageMonsterChips(selectedMonster) && (
                 <p role="status" className="mb-4 text-sm text-rose-300">此怪獸已死亡，無法鑲嵌或拆除晶片。請切換其他怪獸。</p>
               )}
-              <p className="text-xs text-slate-400 mb-4">
-                新晶片基本加成 +5。舊版強化晶片拆除後會保留原本的 +50／+200 等加成，
-                同種類下次鑲嵌時優先恢復強化晶片，不會降為 +5。
-              </p>
+              <details className="text-xs text-slate-400 mb-4"><summary>ℹ️</summary>新晶片基本加成 +5。舊版強化晶片拆除後會保留原本加成，同種類下次鑲嵌優先恢復強化晶片。</details>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-between min-h-[120px]">
                   <span className="text-xs text-slate-400">插槽 1 (戰鬥機)</span>

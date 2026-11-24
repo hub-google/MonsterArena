@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api, GAME_RULES_V2 } from '../utils/api';
+import {PlayButton} from '../components/PlayButton';
 
 import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
 
@@ -14,7 +15,8 @@ export default function Arena({
   refreshData, 
   setPage 
 }) {
-  const [subTab, setSubTab] = useState('chat');
+  const [subTab, setSubTab] = useState('players');
+  const [showLogs,setShowLogs]=useState(false);
   const [chatMessage, setChatMessage] = useState('');
   const [chatLogs, setChatLogs] = useState([]);
   const [targetUsername, setTargetUsername] = useState('');
@@ -115,6 +117,7 @@ export default function Arena({
         combat_def:result.enemyDef, combat_spd:result.enemySpd,
         type:result.enemyType
       };
+      setShowLogs(false);
       setBattleState({
         battleId:result.battleId, serverWon:result.won, reward:result.reward||0, events:result.events||[], eventIndex:0,
         mA:monster, mB:enemy,
@@ -147,23 +150,23 @@ export default function Arena({
         <div className="absolute inset-0 bg-red-900/10 pointer-events-none animate-pulse rounded-2xl"></div>
         
         <div className="glass-card p-4 text-center border-red-500/30">
-          <h2 className="text-xl font-bold text-red-500 tracking-widest">{isBattleOver ? '對戰已結算' : '對戰播放中（伺服器已結算）'}</h2>
+          <div role="status" aria-label={isBattleOver?(battleState.serverWon?'勝利':'失敗'):'戰鬥中'} className="text-5xl">{isBattleOver?(battleState.serverWon?'🏆':'💔'):'⚔️'}</div>{isBattleOver&&battleState.reward>0&&<div className="text-amber-300">🪙 +{battleState.reward}</div>}
         </div>
 
-        <div className="glass-card p-6 flex flex-col gap-6">
+        <div className="glass-card p-3 flex flex-col gap-3">
           <div className="flex justify-between items-center px-2">
             
             {/* Player A */}
             <div className="flex flex-col items-center gap-2 w-1/3">
               <span className="truncate w-full text-center text-sm font-bold text-cyan-400">{battleState.mA?.name}</span>
-              <div className="scale-125 my-4">
+              <div className="my-2 w-full flex justify-center">
                 <MonsterPixelArt family={battleState.mA?.family || 1} stage={battleState.mA?.life_stage || 4} type={battleState.mA?.type} isDead={battleState.mA_HP <= 0} />
               </div>
               
               <div className="w-full space-y-2">
                 <div>
                   <div className="flex justify-between text-[10px] mb-1">
-                    <span className="text-emerald-400 font-bold">HP</span>
+                    <span className="text-emerald-400 font-bold" aria-label="生命">❤️</span>
                     <span className="text-white">{Math.round(battleState.mA_HP)}/{Math.round(battleState.mA_MaxHP)}</span>
                   </div>
                   <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
@@ -173,7 +176,7 @@ export default function Arena({
                 
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <div className="text-[8px] text-slate-400 mb-0.5">ATB</div>
+                    <div className="text-[8px] text-slate-400 mb-0.5" aria-label="行動">⚡</div>
                     <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden"><div className="h-full bg-cyan-500 transition-all" style={{width:`${battleState.mA_ATB}%`}}></div></div>
                   </div>
 
@@ -181,19 +184,19 @@ export default function Arena({
               </div>
             </div>
 
-            <div className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-br from-red-500 to-amber-500">VS</div>
+            <div className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-br from-red-500 to-amber-500">⚔️</div>
 
             {/* Player B */}
             <div className="flex flex-col items-center gap-2 w-1/3">
               <span className="truncate w-full text-center text-sm font-bold text-rose-400">{battleState.mB?.name}</span>
-              <div className="scale-125 my-4">
+              <div className="my-2 w-full flex justify-center">
                 <MonsterPixelArt family={battleState.mB?.family || 1} stage={battleState.mB?.life_stage || 4} type={battleState.mB?.type} isDead={battleState.mB_HP <= 0} />
               </div>
               
               <div className="w-full space-y-2">
                 <div>
                   <div className="flex justify-between text-[10px] mb-1">
-                    <span className="text-emerald-400 font-bold">HP</span>
+                    <span className="text-emerald-400 font-bold" aria-label="生命">❤️</span>
                     <span className="text-white">{Math.round(battleState.mB_HP)}/{Math.round(battleState.mB_MaxHP)}</span>
                   </div>
                   <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
@@ -203,7 +206,7 @@ export default function Arena({
                 
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <div className="text-[8px] text-slate-400 mb-0.5">ATB</div>
+                    <div className="text-[8px] text-slate-400 mb-0.5" aria-label="行動">⚡</div>
                     <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden"><div className="h-full bg-cyan-500 transition-all" style={{width:`${battleState.mB_ATB}%`}}></div></div>
                   </div>
 
@@ -212,26 +215,27 @@ export default function Arena({
             </div>
           </div>
           
-          <div className="bg-slate-950/80 border border-slate-700 rounded-xl p-3 h-48 overflow-y-auto text-xs leading-relaxed flex flex-col gap-2 select-text shadow-inner">
+          <button type="button" className="self-end text-xs text-slate-400 p-2" aria-label="戰鬥紀錄" aria-expanded={showLogs} onClick={()=>setShowLogs(v=>!v)}>📜 {showLogs?'▴':'▾'}</button>
+          {showLogs&&<div className="bg-slate-950/80 border border-slate-700 rounded-xl p-3 h-40 overflow-y-auto text-xs leading-relaxed flex flex-col gap-2 select-text shadow-inner">
             {battleState.logs.map((log, idx) => (
               <div key={idx} className="border-b border-slate-800 pb-1 text-slate-300">
                 {log.includes('獲勝') ? <span className="text-yellow-400 font-bold text-sm">{log}</span> : log.includes('傷害') ? <span className="text-rose-300">{log}</span> : log}
               </div>
             ))}
             <div ref={logsEndRef} />
-          </div>
+          </div>}
         </div>
 
         <div className="mt-auto">
           {isBattleOver ? (
-            <button onClick={() => { setBattleState(null); }} className="w-full neon-button neon-button-primary py-4 font-bold text-lg">離開戰場</button>
+            <PlayButton icon="back" label="離開戰場" short="返回" tone="blue" onClick={()=>setBattleState(null)} className="w-full"/>
           ) : (
-            <button onClick={() => setBattleState(prev => prev && ({
+            <button aria-label="跳過戰鬥動畫" title="跳過戰鬥動畫" onClick={() => setBattleState(prev => prev && ({
               ...prev,isOver:true,winner:prev.serverWon?'A':'B',
               mA_HP:prev.finalOwnHp,mB_HP:prev.finalEnemyHp,
               eventIndex:prev.events?.length||0,
               logs:[...prev.logs,`🏆 戰鬥結束！${prev.serverWon ? prev.mA.name : prev.mB.name} 獲勝！`]
-            }))} className="w-full neon-button neon-button-primary py-4 font-bold">跳過戰鬥動畫</button>
+            }))} className="w-full neon-button neon-button-primary py-4 text-3xl">⏩</button>
           )}
         </div>
       </div>
@@ -240,16 +244,11 @@ export default function Arena({
 
   return (
     <div className="h-full flex flex-col gap-4 animate-fade-in">
-      <div className="glass-card p-4 flex justify-between items-center text-sm font-bold">
-        <span className="text-cyan-400">{GAME_RULES_V2?'怪獸競技場':'野生模擬對戰'}</span>
-        <span className="text-emerald-400">出戰: {monsters.find(m => m.monster_id === activeMonster?.monster_id && !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen)?.name || monsters.find(m => !m.is_dead && Number(m.life_stage)>=2 && !m.is_frozen)?.name || '無'}</span>
+      <div className="flex justify-center items-center gap-2">
+        {getFighter()?<><MonsterPixelArt family={getFighter().family} stage={getFighter().life_stage} type={getFighter().type} displaySize={64}/><span className="font-bold text-cyan-300 text-sm truncate">{getFighter().name}</span></>:<PlayButton icon="home" label="先養成機甲" short="返回" onClick={()=>setPage('dashboard')}/>}
       </div>
-
-      <div className={`grid ${GAME_RULES_V2?'grid-cols-4':'grid-cols-3'} gap-2`}>
-        <button onClick={() => { setSubTab('chat'); setMessage(''); }} className={`py-3 rounded-xl font-bold transition-all ${subTab === 'chat' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.6)]' : 'glass-panel text-slate-400'}`}>世界聊天</button>
-        <button onClick={() => { setSubTab('players'); setMessage(''); }} className={`py-3 rounded-xl font-bold transition-all ${subTab === 'players' ? 'bg-rose-600 text-white shadow-[0_0_15px_rgba(225,29,72,0.6)]' : 'glass-panel text-slate-400'}`}>野生挑戰</button>
-        <button onClick={() => { setSubTab('friends'); setMessage(''); }} className={`py-3 rounded-xl font-bold transition-all ${subTab === 'friends' ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.6)]' : 'glass-panel text-slate-400'}`}>好友名單</button>
-        {GAME_RULES_V2&&<button onClick={()=>{setSubTab('pvp');setMessage('');}} className={`py-3 rounded-xl font-bold ${subTab==='pvp'?'bg-amber-600 text-white':'glass-panel text-slate-400'}`}>玩家對戰</button>}
+      <div className={'grid gap-2 '+(GAME_RULES_V2?'grid-cols-4':'grid-cols-3')}>
+       {([['players','battle','野生挑戰','打'],...(GAME_RULES_V2?[['pvp','🏆','玩家對戰','賽']]:[]),['friends','social','好友名單','友'],['chat','💬','世界聊天','聊']]).map(([id,icon,label,short])=><PlayButton key={id} icon={icon} label={label} short={short} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -273,7 +272,7 @@ export default function Arena({
 
         {subTab==='players'&&GAME_RULES_V2&&(
           <div className="flex flex-col gap-3">
-            <p className="text-xs text-slate-300">固定敵人強度，培養怪獸即可挑戰更高難度。各關每日首勝有金幣獎勵。</p>
+            <details className="text-xs text-slate-300"><summary>ℹ️</summary>固定敵人強度，各關每日首勝有金幣獎勵。</details>
             {[
               ['wild','野生訓練怪獸',45,5,2,4,10],
               ['stage2','岩甲守衛',120,15,12,8,30],
@@ -285,34 +284,19 @@ export default function Arena({
                 <div><div className="font-bold text-amber-300">第 {i+1} 關｜{name}</div>
                   <div className="text-xs text-slate-300">HP {hp}・攻 {atk}・防 {def}・速 {spd}</div>
                   <div className="text-xs text-emerald-300">每日首勝 {reward}G</div></div>
-                <button disabled={loading} onClick={()=>handleChallenge(id)} className="neon-button neon-button-danger px-4 py-2">挑戰</button>
+                <PlayButton icon="battle" label={'挑戰'+name} short="打" tone="red" disabled={loading||!getFighter()} onClick={()=>handleChallenge(id)} className="play-compact"/>
               </div>
             ))}
           </div>
         )}
-        {subTab === 'players' && !GAME_RULES_V2 && (
-          <div className="flex flex-col gap-3">
-             <div className="glass-card p-4 border-rose-500/30 flex justify-between items-center hover:border-rose-500/60 transition-colors">
-               <div className="flex items-center gap-3">
-                 <span className="text-2xl">🦠</span>
-                 <div className="flex flex-col">
-                   <span className="font-bold text-rose-400 text-base">野外失控機甲</span>
-                   <span className="text-xs text-slate-400">等級不定的野怪，練功好對象。</span>
-                 </div>
-               </div>
-               <button onClick={() => handleChallenge('mock')} disabled={loading} className="neon-button neon-button-danger px-6 py-2 shadow-rose-500/20">挑戰</button>
-             </div>
-
-             <div className="glass-card p-4 border-fuchsia-500/30 flex justify-between items-center hover:border-fuchsia-500/60 transition-colors">
-               <div className="flex items-center gap-3">
-                 <span className="text-2xl">🐉</span>
-                 <div className="flex flex-col">
-                   <span className="font-bold text-fuchsia-400 text-base">終極機甲首領</span>
-                   <span className="text-xs text-slate-400">極度危險！請確保有充分準備。</span>
-                 </div>
-               </div>
-               <button onClick={() => handleChallenge('mock_boss')} disabled={loading} className="neon-button neon-button-danger px-6 py-2 shadow-fuchsia-500/20 bg-fuchsia-700 hover:bg-fuchsia-600">挑戰</button>
-             </div>
+        {subTab==='players'&&!GAME_RULES_V2&&(
+          <div className="grid grid-cols-2 gap-3" data-testid="wild-challenges">
+            {[['wild','野外失控機甲',3,4,1,'⭐','普通'],['boss','終極機甲首領',4,6,2,'⭐⭐⭐','首領']].map(([encounter,label,family,stage,type,stars,short])=>
+             <button key={encounter} type="button" aria-label={'挑戰'+label} disabled={loading||!getFighter()} onClick={()=>handleChallenge(encounter)} className={'play-encounter '+(encounter==='boss'?'border-purple-500/60':'border-emerald-500/60')}>
+               <span className="text-xl" aria-hidden="true">{stars}</span>
+               <MonsterPixelArt family={family} stage={stage} type={type} displaySize={136}/>
+               <span aria-hidden="true" className="text-3xl">⚔️</span><span className="text-xs">{short}</span>
+             </button>)}
           </div>
         )}
 

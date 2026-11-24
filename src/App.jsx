@@ -150,8 +150,8 @@ export default function App() {
 
   if(!user)return <Login onLoginSuccess={()=>{ /* session loads through onAuthStateChange */ }} />;
 
-  return <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4">
-    <MobileLayout isConnected={isOnline} page={page} setPage={setPage}>
+  return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950">
+    <MobileLayout isConnected={isOnline} page={page} setPage={setPage} onRefresh={()=>loadUserData().catch(console.warn)} onLogout={handleLogout}>
       <Suspense fallback={<div className="p-6 text-center text-cyan-400">載入功能中...</div>}>
       {page==='dashboard'&&<Dashboard user={user} monsters={monsters} inventory={inventory} refreshData={loadUserData}
         activeMonster={activeMonster} setActiveMonster={setActiveMonster} setPage={setPage}/>}
@@ -168,10 +168,5 @@ export default function App() {
       {page==='pokedex'&&<Pokedex setPage={setPage}/>}
       </Suspense>
     </MobileLayout>
-    <div className="mt-4 flex gap-4 text-xs">
-      <button onClick={()=>loadUserData().catch(console.warn)} className="text-slate-400 hover:text-cyan-600">重新整理</button>
-      <span className="text-slate-600">|</span>
-      <button onClick={handleLogout} className="text-rose-500 hover:text-rose-400">安全登出 ({user.username})</button>
-    </div>
   </div>;
 }

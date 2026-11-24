@@ -142,3 +142,30 @@
 @media (prefers-reduced-motion: reduce) {
   .mecha-display > svg { animation: none !important; }
 }
+
+/* Pictogram-first game controls. All primary hit targets >= 44 CSS px. */
+.play-button {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:44px;min-height:72px;padding:7px 4px;border:2px solid #475569;border-radius:15px;background:#1e293b;color:#f8fafc;box-shadow:0 3px 0 #0f172a;font-weight:700;cursor:pointer;touch-action:manipulation;}
+.play-button:active:not(:disabled){transform:translateY(2px);box-shadow:none;}
+.play-button:disabled{opacity:.37;filter:grayscale(.65);cursor:not-allowed;box-shadow:none;}
+.play-button:focus-visible,.play-arrow:focus-visible,.play-encounter:focus-visible{outline:3px solid #67e8f9;outline-offset:2px;}
+.play-button[aria-pressed="true"]{border-color:#67e8f9;box-shadow:0 0 0 2px #22d3ee55;}
+.play-symbol{font-size:34px;line-height:1.1;display:block;}
+.play-caption{font-size:12px;line-height:1.2;}
+.play-green{background:#14532d;border-color:#22c55e;}.play-blue{background:#164e63;border-color:#38bdf8;}.play-red{background:#7f1d1d;border-color:#fb7185;}.play-orange{background:#78350f;border-color:#f59e0b;}.play-purple{background:#4c1d95;border-color:#a78bfa;}
+.play-small,.play-nav{min-height:44px;padding:4px;min-width:44px;box-shadow:none;border-radius:12px;}
+.play-small .play-symbol{font-size:25px;}.play-nav .play-symbol{font-size:28px;}
+.play-compact{min-height:54px;}.play-compact .play-symbol{font-size:26px;}
+.play-nav{background:transparent;border-color:transparent;}
+.play-nav[aria-pressed="true"]{background:#164e63;border-color:#22d3ee;}
+.play-needed:not(:disabled){outline:2px solid #fbbf24;outline-offset:1px;}
+.play-pet-screen{border:3px solid #334155;border-radius:22px;background:#101b2e;padding:8px 10px 12px;min-width:0;}
+.play-arrow{display:grid;place-items:center;min-width:44px;min-height:44px;font-size:32px;background:#1e293b;border-radius:12px;line-height:1;}
+.play-arrow:disabled{opacity:.25;}
+.play-meter{display:flex;align-items:center;gap:6px;min-width:0;}
+.play-meter-track{height:15px;flex:1;border-radius:7px;background:#020617;border:2px solid #475569;overflow:hidden;}
+.play-meter-fill{height:100%;border-radius:4px;transition:width .25s;}
+.play-encounter{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#152137;border-width:2px;border-radius:16px;padding:8px;min-height:64px;color:#f8fafc;touch-action:manipulation;}
+.play-encounter:disabled{opacity:.4;}
+.play-encounter:active:not(:disabled){transform:scale(.98);}
+.play-feedback{display:flex;align-items:center;justify-content:center;gap:8px;min-height:32px;}
+@media(max-width:360px){.play-symbol{font-size:30px;}.play-pet-screen{padding-inline:6px;}.play-small{min-width:44px;}.play-home{gap:8px;}}
