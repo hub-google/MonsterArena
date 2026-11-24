@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../utils/api';
 import { resourcesForAction, getHatchState, canManageMonsterChips } from '../utils/gameRules';
 
-const STAGE_NAMES = ['蛋', '蛋', '幼年期', '成長期', '成熟期', '完全體', '究極體'];
+import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
 
 export default function Roster({ 
   user, 
@@ -168,7 +168,7 @@ export default function Roster({
                   <span>階段: {STAGE_NAMES[selectedMonster.life_stage]}</span>
                   {selectedMonster.is_rescue && <span className="text-cyan-400">免費救援怪獸（放生無金幣獎勵）</span>}
                   <span>•</span>
-                  <span>屬性: {selectedMonster.type === 1 ? '疫苗' : selectedMonster.type === 2 ? '資料' : selectedMonster.type === 3 ? '病毒' : '無'}</span>
+                  <span>屬性: {getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).factionName}・{getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).roleName}</span>
                 </div>
                 
                 <div className="grid grid-cols-4 gap-2 mb-6">
@@ -231,7 +231,7 @@ export default function Roster({
               </p>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-between min-h-[120px]">
-                  <span className="text-xs text-slate-400">插槽 1 (成熟期)</span>
+                  <span className="text-xs text-slate-400">插槽 1 (戰鬥機)</span>
                   <span className={`font-bold text-center w-full my-2 ${selectedMonster.chip_slot_1 ? 'text-amber-400' : 'text-slate-600'}`}>
                     {chipLabels[selectedMonster.chip_slot_1] || selectedMonster.chip_slot_1 || '【空位】'}
                   </span>
@@ -246,7 +246,7 @@ export default function Roster({
                   )}
                 </div>
                 <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-between min-h-[120px]">
-                  <span className="text-xs text-slate-400">插槽 2 (完全體)</span>
+                  <span className="text-xs text-slate-400">插槽 2 (超限機)</span>
                   <span className={`font-bold text-center w-full my-2 ${selectedMonster.chip_slot_2 ? 'text-amber-400' : 'text-slate-600'}`}>
                     {chipLabels[selectedMonster.chip_slot_2] || selectedMonster.chip_slot_2 || '【空位】'}
                   </span>
@@ -300,7 +300,7 @@ export default function Roster({
             <h3 className="text-lg font-bold text-fuchsia-400 mb-1 flex items-center gap-2">
               <span className="text-2xl">🧬</span> 基因繁衍實驗室
             </h3>
-            <p className="text-xs text-slate-400 mb-6">將兩隻成熟期以上的怪獸基因融合，產生更強大的後代。</p>
+            <p className="text-xs text-slate-400 mb-6">將兩隻戰鬥機以上的怪獸基因融合，產生更強大的後代。</p>
             
             <div className="space-y-4">
               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">

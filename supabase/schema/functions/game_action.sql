@@ -132,8 +132,8 @@ begin
     end if;
     insert into public.monsters(user_id,name,generation,life_stage,type,family,age_days,fullness,cleanliness,
       is_sick,is_dead,gene_hp,gene_atk,gene_def,gene_spd,combat_hp,combat_atk,combat_def,combat_spd,battles,wins,is_locked,last_updated_at,is_rescue)
-    values(v_uid,'數位蛋',1,1,0,1+floor(random()*7)::int,0,100,100,false,false,50,5,5,5,50,5,5,5,0,0,false,now(),v_rescue);
-    return arena_internal.finish_action(v_uid,v_request,p_action,p_data,jsonb_build_object('message','孵化數位蛋成功！'),v_u.gold);
+    values(v_uid,'機械核心',1,1,0,(array[1,4,7,3])[1+floor(random()*4)::int],0,100,100,false,false,50,5,5,5,50,5,5,5,0,0,false,now(),v_rescue);
+    return arena_internal.finish_action(v_uid,v_request,p_action,p_data,jsonb_build_object('message','核心啟動成功！'),v_u.gold);
   end if;
 
   if p_action in ('feed','clean','heal','train','evolve','release','lock','equip','unequip','raid','battle','pvp_register') then
@@ -144,10 +144,10 @@ begin
     if v_m.is_dead and p_action not in ('release','lock') then raise exception '已死亡的怪獸無法執行此操作'; end if;
     -- Match disabled egg actions in the UI, even when a player calls the RPC directly.
     if p_action in ('feed','clean','train') and coalesce(v_m.life_stage,1)=1 then
-      raise exception '數位蛋尚不能餵食、清潔或訓練';
+      raise exception '機械核心尚不能補充能源、保養或訓練';
     end if;
     if p_action in ('raid','battle','pvp_register') then
-      if coalesce(v_m.life_stage,1)<2 then raise exception '數位蛋不能出戰'; end if;
+      if coalesce(v_m.life_stage,1)<2 then raise exception '機械核心不能出戰'; end if;
       if coalesce(v_m.is_frozen,false) then raise exception '凍結中的怪獸不能出戰'; end if;
     end if;
   end if;
@@ -381,7 +381,7 @@ begin
     select * into v_boss from public.raid_boss where id=v_boss_id for update;
     if not coalesce(v_boss.is_active,false) then raise exception '今日世界王已被討伐'; end if;
     v_damage:=least(v_boss.current_hp,greatest(1,round((v_m.combat_atk*20*
-      case when v_m.type=3 then 1.3 when v_m.type=2 then 0.7 else 1 end
+      1
       *(0.9+random()*0.2))::numeric)::int));
     v_remaining:=greatest(0,v_boss.current_hp-v_damage);
     update public.raid_boss set current_hp=v_remaining,is_active=v_remaining>0 where id=v_boss.id;
@@ -429,24 +429,17 @@ begin
       for v_step in 1..2 loop
         if (v_step=1 and v_player_first) or (v_step=2 and not v_player_first) then
           v_damage_a:=greatest(1,floor(greatest(1,coalesce(v_m.combat_atk,1)) *
-            (case when v_m.type=1 and v_enemy_type=3 then 1.3
-                  when v_m.type=3 and v_enemy_type=2 then 1.3
-                  when v_m.type=2 and v_enemy_type=1 then 1.3
-                  when v_m.type=3 and v_enemy_type=1 then 0.7
-                  when v_m.type=2 and v_enemy_type=3 then 0.7
-                  when v_m.type=1 and v_enemy_type=2 then 0.7 else 1 end) *
+            (case when v_m.life_stage<3 then 1 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=1 and mod(v_round,3)=1 then 1.25 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=2 and mod(v_round,2)=0 then 1.15 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=4 and mod(v_round,3)=0 then 1.35 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=5 then 1.08 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=6 and mod(v_round,3)=0 then 1.30 else 1 end) *
+            (case when (case coalesce(v_enemy_family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end) = mod((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end),4)+1 then 1.2 else 1 end) *
             (0.9+random()*0.2) - v_enemy_def*0.5)::int);
           v_enemy_hp:=greatest(0,v_enemy_hp-v_damage_a);
+          if v_m.life_stage>=3 and ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=8 and mod(v_round,3)=0 then v_own_hp:=least(v_own_max_hp,v_own_hp+greatest(1,floor(v_own_max_hp*0.04))); end if;
           v_events:=v_events||jsonb_build_array(jsonb_build_object(
             'attacker','A','damage',v_damage_a,'ownHp',v_own_hp,'enemyHp',v_enemy_hp));
         else
           v_damage_b:=greatest(1,floor(v_enemy_atk *
-            (case when v_enemy_type=1 and v_m.type=3 then 1.3
-                  when v_enemy_type=3 and v_m.type=2 then 1.3
-                  when v_enemy_type=2 and v_m.type=1 then 1.3
-                  when v_enemy_type=3 and v_m.type=1 then 0.7
-                  when v_enemy_type=2 and v_m.type=3 then 0.7
-                  when v_enemy_type=1 and v_m.type=2 then 0.7 else 1 end) *
+            (case when v_m.life_stage<3 then 1 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=3 then 0.88 when ((case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end)*2 - case when v_m.type=1 then 1 else 0 end)=7 and mod(v_round,3)=0 then 0.72 else 1 end) *
+            (case when (case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end) = mod((case coalesce(v_enemy_family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end),4)+1 then 1.2 else 1 end) *
             (0.9+random()*0.2) - coalesce(v_m.combat_def,0)*0.5)::int);
           v_own_hp:=greatest(0,v_own_hp-v_damage_b);
           v_events:=v_events||jsonb_build_array(jsonb_build_object(

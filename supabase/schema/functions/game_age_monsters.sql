@@ -32,7 +32,7 @@ begin
       case when v_age>=7 then 5 when v_age>=3 then 4 when v_age>=1 then 3
            when v_age>=0.05 then 2 else 1 end);
     v_type:=coalesce(v_m.type,0);
-    if v_stage>=3 and v_type=0 then v_type:=1+floor(random()*3)::int; end if;
+    if v_stage>=3 and v_type=0 then v_type:=1+floor(random()*2)::int; end if;
     v_decay:=power(0.99::double precision,
       greatest(0,floor(v_age-30)::int)-greatest(0,floor(v_prev_age-30)::int));
     -- Integer cleanliness decreases on elapsed 15-minute boundaries, not refresh count.

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api } from '../utils/api';
 
-const STAGE_NAMES = ['蛋', '蛋', '幼年期', '成長期', '成熟期', '完全體', '究極體'];
-const TYPE_NAMES = ['無', '疫苗種', '資料種', '病毒種'];
+import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
 
 export default function Social({ user }) {
   const [subTab, setSubTab] = useState('plaza'); // 'plaza' or 'chat'
@@ -155,10 +154,11 @@ export default function Social({ user }) {
               onChange={(e) => setTypeFilter(e.target.value)}
               className="bg-slate-800/80 border border-slate-700 text-white p-2 rounded-lg text-sm outline-none focus:border-cyan-500 flex-1"
             >
-              <option value="">全部屬性（公開玩家名單）</option>
-              <option value="1">💉 疫苗種</option>
-              <option value="2">💾 資料種</option>
-              <option value="3">🦠 病毒種</option>
+              <option value="">全部種族（公開玩家名單）</option>
+              <option value="1">疾風族</option>
+              <option value="2">鋼鐵族</option>
+              <option value="3">蒼空族</option>
+              <option value="4">星核族</option>
             </select>
             <button onClick={loadPlayers} disabled={loading} className="neon-button bg-cyan-700 hover:bg-cyan-600 text-white px-4 rounded-lg text-sm">
               重新整理
@@ -185,7 +185,7 @@ export default function Social({ user }) {
                         <span className="text-[10px] text-slate-300 text-center max-w-[60px] truncate">
                           {m.custom_name || m.name}
                         </span>
-                        <span className="text-[9px] text-slate-500">{TYPE_NAMES[m.type] || '無'}</span>
+                        <span className="text-[9px] text-slate-500">{getMecha(m.family,m.life_stage,m.type).factionName}・{getMecha(m.family,m.life_stage,m.type).roleName}</span>
                       </div>
                     ))}
                   </div>

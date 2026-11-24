@@ -163,7 +163,7 @@ export const api = {
     const { data, error } = await supabase.from('raid_boss').select('*')
       .order('created_at', { ascending: false }).limit(1).maybeSingle();
     throwIfError(error);
-    return data ?? { name:'數碼世界王',current_hp:0,max_hp:500000,is_active:false };
+    return data ?? { name:'機械紀元首領',current_hp:0,max_hp:500000,is_active:false };
   },
   attackRaidBoss: monster_id => action('raid', { monster_id }),
   searchPlayers: async typeFilter => {

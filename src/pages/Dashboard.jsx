@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api } from '../utils/api';
 import { resourcesForAction, getHatchState, canCareForMonster, canHealMonster } from '../utils/gameRules';
-import { MONSTER_SPRITES } from '../utils/monsterSprites';
+import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
 import ShopModal from '../components/ShopModal';
 import QuestModal from '../components/QuestModal';
 
-const STAGE_NAMES = ['蛋', '蛋', '幼年期', '成長期', '成熟期', '完全體', '究極體'];
-const TYPE_NAMES = ['', '疫苗種 (Vaccine)', '資料種 (Data)', '病毒種 (Virus)'];
 
 export default function Dashboard({ 
   user, 
@@ -25,6 +23,7 @@ export default function Dashboard({
   const [actionEmote, setActionEmote] = useState(null);
   const [showShop, setShowShop] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
+  const [vehicle, setVehicle] = useState(false);
 
   const monster = activeMonster || monsters[0];
   const hatchState = getHatchState(user, monsters);
@@ -33,6 +32,7 @@ export default function Dashboard({
   useEffect(() => {
     setShowFeedMenu(false);
     setShowHealMenu(false);
+    setVehicle(false);
   }, [monster?.monster_id]);
 
   const handleAction = async (actionFn, ...args) => {
@@ -78,7 +78,7 @@ export default function Dashboard({
           <div className="text-6xl animate-bounce">🥚</div>
           <div>
             <h2 className="text-xl font-bold neon-text mb-2">尚未擁有怪獸</h2>
-            <p className="text-slate-400 text-sm">你需要孵化一顆數位蛋來開始你的冒險。</p>
+            <p className="text-slate-400 text-sm">你需要啟動一枚機械核心來開始你的冒險。</p>
           </div>
           
           <div className="flex justify-center gap-6 w-full text-sm font-bold text-slate-300">
@@ -110,24 +110,10 @@ export default function Dashboard({
 
   // The database has a "name" column, but no "custom_name" column.
   // Preserve names chosen by players instead of replacing them with a species name.
-  const isDefaultEggName = monster.name === '數位蛋' || monster.name === '新生基因蛋';
-  let displayName = monster.name;
-  if (isDefaultEggName && monster.life_stage >= 3) {
-    const spriteKey = `${monster.family || 1}_${monster.life_stage}_${monster.type || 0}`;
-    if (MONSTER_SPRITES[spriteKey]) displayName = MONSTER_SPRITES[spriteKey].name;
-  }
-
-  let speciesName = '數位蛋';
-  if (monster.life_stage >= 3) {
-    const spriteKey = `${monster.family || 1}_${monster.life_stage}_${monster.type || 0}`;
-    if (MONSTER_SPRITES[spriteKey]) {
-      speciesName = MONSTER_SPRITES[spriteKey].name;
-    } else {
-      speciesName = '未知變種';
-    }
-  } else if (monster.life_stage === 2) {
-    speciesName = '幼年期怪獸';
-  }
+  const mecha = getMecha(monster.family, monster.life_stage, monster.type);
+  const isDefaultEggName = ['數位蛋','新生基因蛋','機械核心'].includes(monster.name);
+  const speciesName = mecha.name;
+  const displayName = isDefaultEggName ? speciesName : monster.name;
 
   const handleRename = async () => {
     const newName = prompt('請輸入新的怪獸名稱（最多30字）：', displayName);
@@ -210,7 +196,7 @@ export default function Dashboard({
         <div className="flex gap-2 text-xs font-medium text-slate-300 z-10 mb-6 bg-slate-800 px-3 py-1 rounded-full border border-slate-600">
           <span>G{monster.generation} {STAGE_NAMES[monster.life_stage]}</span>
           <span>•</span>
-          <span>{TYPE_NAMES[monster.type] || '無屬性'}</span>
+          <span>{mecha.factionName}・{mecha.roleName}</span>
         </div>
 
         {/* LCD Screen for Pet */}
@@ -224,14 +210,16 @@ export default function Dashboard({
             isPoop={monster.cleanliness < 40}
             isHappy={actionEmote === 'happy'}
             isHungry={monster.fullness < 30}
+            vehicle={vehicle && monster.life_stage >= 4}
           />
         </div>
 
+        {!monster.is_dead && monster.life_stage >= 4 && <button onClick={()=>setVehicle(v=>!v)} className="neon-button text-xs px-3 py-2 z-10">{vehicle?'切換機器人':'變形：'+mecha.vehicle}</button>}
         {/* Status Bars */}
         <div className="w-full space-y-4 z-10 mt-6">
           <div>
             <div className="flex justify-between text-xs mb-1 font-medium text-slate-300">
-              <span>飽食度</span>
+              <span>能源</span>
               <span>{Math.round(monster.fullness)}%</span>
             </div>
             <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
@@ -244,7 +232,7 @@ export default function Dashboard({
 
           <div>
             <div className="flex justify-between text-xs mb-1 font-medium text-slate-300">
-              <span>環境清潔</span>
+              <span>機體維護</span>
               <span>{Math.round(monster.cleanliness)}%</span>
             </div>
             <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
@@ -280,7 +268,7 @@ export default function Dashboard({
       {/* Disabled state for a dead pet: backend already rejects its actions. */}
       {monster.is_dead && (
         <div role="status" className="glass-card p-3 text-center text-sm border-rose-500/40 text-rose-300">
-          此怪獸已死亡，無法餵食、打掃、治療、訓練或進化。請到倉庫切換其他怪獸。
+          此怪獸已死亡，無法補充能源、打掃、治療、訓練或進化。請到倉庫切換其他怪獸。
         </div>
       )}
 
@@ -359,7 +347,7 @@ export default function Dashboard({
               disabled={loading || !canCareForMonster(monster)}
               className="neon-button neon-button-primary py-3 text-sm"
             >
-              🍽️ 餵食
+              🍽️ 補充能源
             </button>
             <button
               onClick={() => handleAction(api.clean, monster.monster_id)}

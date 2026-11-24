@@ -11,7 +11,7 @@ export function getHatchState(user, monsters = []) {
   return {
     available: !stocked && (canAfford || isRescue),
     isRescue,
-    label: isRescue ? '免費領取救援數位蛋' : '孵化新怪獸蛋 (-100G)',
+    label: isRescue ? '免費領取救援核心' : '啟動新機械核心 (-100G)',
   };
 }
 

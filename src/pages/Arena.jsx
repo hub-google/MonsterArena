@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api, GAME_RULES_V2 } from '../utils/api';
 
-const STAGE_NAMES = ['蛋', '蛋', '幼年期', '成長期', '成熟期', '完全體', '究極體'];
+import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
 
 export default function Arena({ 
   user, 
@@ -279,7 +279,7 @@ export default function Arena({
               ['stage2','岩甲守衛',120,15,12,8,30],
               ['stage3','疾風獵手',200,27,16,25,60],
               ['stage4','深淵巨獸',340,45,32,30,100],
-              ['boss','究極體王怪',550,70,48,50,200]
+              ['boss','終極機甲首領',550,70,48,50,200]
             ].map(([id,name,hp,atk,def,spd,reward],i)=>(
               <div className="glass-card p-3 flex justify-between items-center gap-2" key={id}>
                 <div><div className="font-bold text-amber-300">第 {i+1} 關｜{name}</div>
@@ -296,7 +296,7 @@ export default function Arena({
                <div className="flex items-center gap-3">
                  <span className="text-2xl">🦠</span>
                  <div className="flex flex-col">
-                   <span className="font-bold text-rose-400 text-base">野生病毒怪獸</span>
+                   <span className="font-bold text-rose-400 text-base">野外失控機甲</span>
                    <span className="text-xs text-slate-400">等級不定的野怪，練功好對象。</span>
                  </div>
                </div>
@@ -307,7 +307,7 @@ export default function Arena({
                <div className="flex items-center gap-3">
                  <span className="text-2xl">🐉</span>
                  <div className="flex flex-col">
-                   <span className="font-bold text-fuchsia-400 text-base">究極體王怪</span>
+                   <span className="font-bold text-fuchsia-400 text-base">終極機甲首領</span>
                    <span className="text-xs text-slate-400">極度危險！請確保有充分準備。</span>
                  </div>
                </div>

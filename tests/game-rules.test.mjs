@@ -7,13 +7,13 @@ const dead = { is_dead: true };
 
 test('unfunded empty account receives one rescue egg', () => {
   assert.deepEqual(getHatchState({ gold: 0 }, []), {
-    available: true, isRescue: true, label: '免費領取救援數位蛋',
+    available: true, isRescue: true, label: '免費領取救援核心',
   });
 });
 test('funded empty account pays normal hatch price', () => {
   assert.equal(EGG_PRICE, 100);
   assert.deepEqual(getHatchState({ gold: 100 }, []), {
-    available: true, isRescue: false, label: '孵化新怪獸蛋 (-100G)',
+    available: true, isRescue: false, label: '啟動新機械核心 (-100G)',
   });
 });
 test('unfunded account with an alive monster cannot farm rescue eggs', () => {

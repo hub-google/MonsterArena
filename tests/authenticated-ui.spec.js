@@ -82,7 +82,7 @@ async function setupAuthenticatedGame(page) {
           name: '數位蛋', life_stage: 1, type: 0, is_dead: false,
           is_sick: false, chip_slot_1: null, chip_slot_1_val: 0,
         }];
-        return json(route, { message: '孵化數位蛋成功！' });
+        return json(route, { message: '核心啟動成功！' });
       }
       throw new Error('Disabled UI issued a game_action: ' + args.p_action);
     }
@@ -97,7 +97,7 @@ test('authenticated dead pet never exposes usable care or chip actions', async (
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   const calls = await setupAuthenticatedGame(page);
-  await expect(page.getByText('此怪獸已死亡，無法餵食、打掃、治療、訓練或進化。')).toBeVisible();
+  await expect(page.getByText('此怪獸已死亡，無法補充能源、打掃、治療、訓練或進化。')).toBeVisible();
   await expect(page.getByRole('button', { name: /治療/ })).toBeDisabled();
   await page.getByRole('button', { name: '倉庫', exact: true }).click();
   await page.getByRole('button', { name: '裝備晶片' }).click();
@@ -112,10 +112,10 @@ test('authenticated dead pet never exposes usable care or chip actions', async (
 test('authenticated all-dead account can claim the rescue egg once', async ({ page }) => {
   const calls = await setupAuthenticatedGame(page);
   await page.getByRole('button', { name: '倉庫', exact: true }).click();
-  const hatch = page.getByRole('button', { name: '免費領取救援數位蛋' });
+  const hatch = page.getByRole('button', { name: '免費領取救援核心' });
   await expect(hatch).toBeEnabled();
   await hatch.click();
-  await expect(page.getByText('孵化數位蛋成功！')).toBeVisible();
-  await expect(page.getByRole('button', { name: '孵化新怪獸蛋 (-100G)' })).toBeDisabled();
+  await expect(page.getByText('核心啟動成功！')).toBeVisible();
+  await expect(page.getByRole('button', { name: '啟動新機械核心 (-100G)' })).toBeDisabled();
   expect(calls.filter(path => path === '/rest/v1/rpc/game_action')).toHaveLength(1);
 });

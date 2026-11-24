@@ -1,111 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React,{useState} from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
-import { MONSTER_SPRITES } from '../utils/monsterSprites';
-
-const STAGE_NAMES = ['蛋', '蛋', '幼年期', '成長期', '成熟期', '完全體', '究極體'];
-const TYPE_NAMES = ['無屬性', '疫苗種', '資料種', '病毒種'];
-
-export default function Pokedex({ setPage }) {
-  const [filterStage, setFilterStage] = useState('all');
-  const [pageNumber,setPageNumber]=useState(0);
-  const pageSize=24;
-  const changeFilter=value=>{setFilterStage(value);setPageNumber(0);};
-
-  const monstersList = useMemo(() => {
-    return Object.values(MONSTER_SPRITES).sort((a, b) => {
-      if (a.stage !== b.stage) return a.stage - b.stage;
-      if (a.family !== b.family) return a.family - b.family;
-      return a.type - b.type;
-    });
-  }, []);
-
-  const filteredMonsters = useMemo(() => {
-    if (filterStage === 'all') return monstersList;
-    return monstersList.filter(m => m.stage === parseInt(filterStage));
-  }, [monstersList, filterStage]);
-
-  return (
-    <div className="flex flex-col h-full animate-fade-in relative">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold neon-text">📖 怪獸圖鑑</h2>
-        <button 
-          onClick={() => setPage('dashboard')}
-          className="text-slate-400 hover:text-white transition bg-slate-800 px-3 py-1 rounded text-sm"
-        >
-          返回養成
-        </button>
-      </div>
-
-      {/* Filter */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-2 hide-scrollbar">
-        <button 
-          onClick={() => changeFilter('all')}
-          className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterStage === 'all' ? 'bg-amber-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}
-        >
-          全部
-        </button>
-        {[2, 3, 4, 5, 6].map(stage => (
-          <button 
-            key={stage}
-            onClick={() => changeFilter(stage.toString())}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterStage === stage.toString() ? 'bg-amber-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'}`}
-          >
-            {STAGE_NAMES[stage]}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between text-xs text-slate-300">
-        <button disabled={pageNumber===0} onClick={()=>setPageNumber(n=>n-1)} className="neon-button px-3 py-2 disabled:opacity-40">上一頁</button>
-        <span>{filteredMonsters.length} 隻・第 {pageNumber+1} / {Math.max(1,Math.ceil(filteredMonsters.length/pageSize))} 頁</span>
-        <button disabled={(pageNumber+1)*pageSize>=filteredMonsters.length} onClick={()=>setPageNumber(n=>n+1)} className="neon-button px-3 py-2 disabled:opacity-40">下一頁</button>
-      </div>
-      {/* Grid */}
-      <div className="flex-1 overflow-y-auto pb-10 pr-1">
-        <div className="grid grid-cols-2 gap-3">
-          {filteredMonsters.slice(pageNumber*pageSize,(pageNumber+1)*pageSize).map((monster, index) => (
-            <div key={`${monster.family}_${monster.stage}_${monster.type}_${index}`} className="glass-card p-3 flex flex-col items-center gap-2 relative">
-              <div className="absolute top-2 right-2 text-[9px] font-bold text-slate-600 bg-slate-900/50 px-1.5 rounded">
-                #{monster.id || index + 1}
-              </div>
-              
-              <div className="w-16 h-16 bg-[#e2e8f0] border-2 border-[#94a3b8] rounded-md shadow-[inset_0_2px_5px_rgba(0,0,0,0.1)] flex items-center justify-center p-2 mt-2">
-                <MonsterPixelArt 
-                  family={monster.family}
-                  stage={monster.stage}
-                  type={monster.type}
-                  className="scale-75"
-                />
-              </div>
-              
-              <div className="text-xs font-bold text-cyan-300 text-center truncate w-full px-1">
-                {monster.name.split(' ').pop().replace(/[()]/g, '') || monster.name}
-              </div>
-              
-              <div className="flex gap-1 text-[9px] font-medium w-full justify-center">
-                <span className="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
-                  {STAGE_NAMES[monster.stage]}
-                </span>
-                {monster.type > 0 && (
-                  <span className={`px-1.5 py-0.5 rounded border ${monster.type === 1 ? 'bg-emerald-900/30 text-emerald-400 border-emerald-500/30' : monster.type === 2 ? 'bg-blue-900/30 text-blue-400 border-blue-500/30' : monster.type === 3 ? 'bg-purple-900/30 text-purple-400 border-purple-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
-                    {TYPE_NAMES[monster.type]}
-                  </span>
-                )}
-              </div>
-              
-              {/* Evolution Hint */}
-              <div className="text-[9px] text-slate-400 mt-1 text-center leading-tight bg-slate-900/50 p-1.5 rounded w-full">
-                {monster.stage === 2 && '累積養成約 1 天進入成長期'}
-                {monster.stage === 3 && '累積養成約 3 天進入成熟期'}
-                {monster.stage === 4 && '累積養成約 7 天進入完全體'}
-                {monster.stage === 5 && '需50戰+70%勝率+進化核心'}
-                {monster.stage === 6 && '數碼世界的巔峰存在'}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+import {FACTIONS,MONSTER_SPRITES} from '../utils/monsterSprites';
+export default function Pokedex({setPage}){
+ const [filter,setFilter]=useState(0),[vehicle,setVehicle]=useState(false);
+ return <div className="flex flex-col h-full animate-fade-in">
+ <div className="flex justify-between items-center mb-3"><h2 className="text-xl font-bold neon-text">機甲圖鑑・40種</h2><button onClick={()=>setPage('dashboard')} className="bg-slate-800 text-slate-300 px-3 py-1 rounded text-sm">返回養成</button></div>
+ <div className="text-xs text-slate-300 mb-2">疾風 → 鋼鐵 → 蒼空 → 星核 → 疾風　克制傷害 +20%</div>
+ <div className="flex gap-2 overflow-x-auto pb-2"><button onClick={()=>setFilter(0)} className={'rounded px-2 py-1 text-xs '+(!filter?'bg-cyan-700':'bg-slate-800')}>全部</button>{FACTIONS.map(f=><button key={f.id} onClick={()=>setFilter(f.id)} className={'whitespace-nowrap rounded px-2 py-1 text-xs '+(filter===f.id?'bg-cyan-700':'bg-slate-800')}>{f.name}</button>)}</div>
+ <button onClick={()=>setVehicle(v=>!v)} className="text-xs mb-2 text-cyan-300 text-left">{vehicle?'顯示機器人形態':'顯示戰鬥機以上載具形態'}</button>
+ <div className="flex-1 overflow-y-auto pb-10">{FACTIONS.filter(f=>!filter||f.id===filter).map(f=><section key={f.id} className="mb-5"><h3 className="font-bold mb-2" style={{color:f.color}}>{f.name}・10種</h3>
+ {[0,1,2].map(role=><div key={role} className="mb-2"><p className="text-xs text-slate-400 mb-1">{role?f.roles[role-1].name+'｜'+f.roles[role-1].skill:'共同初始階段'}</p><div className="grid grid-cols-2 gap-2">{Object.values(MONSTER_SPRITES).filter(m=>m.faction===f.id&&m.type===role).map(m=><div key={m.key} className="glass-card flex flex-col items-center py-2 px-1"><span className="text-[10px] text-slate-500">#{String(m.id).padStart(2,'0')}</span><MonsterPixelArt family={m.family} stage={m.stage} type={m.type} vehicle={vehicle&&m.stage>=4}/><span className="text-xs font-bold text-cyan-200">{m.stageName}</span>{vehicle&&m.stage>=4&&<span className="text-[10px] text-slate-400">{m.vehicle}</span>}</div>)}</div></div>)}
+ </section>)}</div></div>
 }
