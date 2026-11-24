@@ -93,7 +93,7 @@ BEGIN
 END $$;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
-DO $
+DO $$
 BEGIN
   BEGIN PERFORM public.game_action('skin_equip','{"monster_id":"00000000-0000-4000-8000-000000000011","skin_id":"skin_husky"}'); RAISE EXCEPTION 'unowned skin accepted'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%尚未收藏%' THEN RAISE; END IF; END;
   PERFORM public.game_action('buy','{"item_id":"skin_husky","quantity":1}');
@@ -101,7 +101,7 @@ BEGIN
   PERFORM public.game_action('skin_equip','{"monster_id":"00000000-0000-4000-8000-000000000011","skin_id":"skin_husky"}');
   BEGIN PERFORM public.game_action('skin_equip','{"monster_id":"00000000-0000-4000-8000-000000000012","skin_id":"skin_husky"}'); RAISE EXCEPTION 'other pet accepted'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%不屬於%' THEN RAISE; END IF; END;
   PERFORM public.game_action('skin_equip','{"monster_id":"00000000-0000-4000-8000-000000000011","skin_id":null}');
-END $;
+END $$;
 RESET ROLE;
-DO $ BEGIN IF (SELECT quantity FROM public.user_inventory WHERE user_id='00000000-0000-4000-8000-000000000001' AND item_id='skin_husky')<>1 THEN RAISE EXCEPTION 'skin consumed'; END IF; IF (SELECT skin_id FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011') IS NOT NULL THEN RAISE EXCEPTION 'unequip failed'; END IF; END $;
+DO $$ BEGIN IF (SELECT quantity FROM public.user_inventory WHERE user_id='00000000-0000-4000-8000-000000000001' AND item_id='skin_husky')<>1 THEN RAISE EXCEPTION 'skin consumed'; END IF; IF (SELECT skin_id FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011') IS NOT NULL THEN RAISE EXCEPTION 'unequip failed'; END IF; END $$;
 ROLLBACK;
