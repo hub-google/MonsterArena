@@ -19,6 +19,8 @@ declare
   v_qty int;
   v_cost int;
   v_price int;
+  v_item_type int;
+  v_cosmetic boolean;
   v_count int;
   v_stat text;
   v_old numeric;
@@ -168,7 +170,7 @@ begin
     if coalesce(v_m.life_stage,1)<2 then raise exception '機械核心尚未孵化'; end if;
     v_item:=nullif(p_data->>'skin_id','');
     if v_item is not null then
-      if v_item not in ('skin_flerken','skin_husky','skin_dragon','skin_slime','skin_ghost','skin_panda','skin_dino','skin_fox','skin_angel','skin_demon') then raise exception '未知皮膚'; end if;
+      if not exists(select 1 from arena_internal.shop_catalog(v_item) c where c.cosmetic) then raise exception '未知皮膚'; end if;
       if not exists(select 1 from public.user_inventory where user_id=v_uid and item_id=v_item and quantity>0) then raise exception '尚未收藏此皮膚'; end if;
     end if;
     update public.monsters set skin_id=v_item where monster_id=v_mon_id and user_id=v_uid;
@@ -179,16 +181,9 @@ begin
     v_item := p_data->>'item_id';
     v_qty := (p_data->>'quantity')::int;
     if v_qty is null or v_qty<1 or v_qty>99 then raise exception '數量需為 1～99'; end if;
-    v_price := case v_item
-      when 'meat_basic' then 10 when 'meat_premium' then 25 when 'energy_drink' then 50
-      when 'medicine_standard' then 80 when 'vitamin' then 30 when 'breed_catalyst' then 300
-      when 'ultimate_core' then 1000
-      when 'chip_atk' then 300 when 'chip_def' then 300
-      when 'chip_hp' then 300 when 'chip_spd' then 300
-      when 'skin_flerken' then 100 when 'skin_husky' then 50 when 'skin_dragon' then 150 when 'skin_slime' then 50 when 'skin_ghost' then 80 when 'skin_panda' then 80 when 'skin_dino' then 200 when 'skin_fox' then 180 when 'skin_angel' then 250 when 'skin_demon' then 300
-      else null end;
-    if v_price is null then raise exception '未知商品'; end if;
-    if v_item in ('skin_flerken','skin_husky','skin_dragon','skin_slime','skin_ghost','skin_panda','skin_dino','skin_fox','skin_angel','skin_demon') then
+    select c.price,c.item_type,c.cosmetic into v_price,v_item_type,v_cosmetic from arena_internal.shop_catalog(v_item) c;
+    if not found then raise exception '未知商品'; end if;
+    if v_cosmetic then
       if v_qty<>1 then raise exception '皮膚每款只需購買一次'; end if;
       if exists(select 1 from public.user_inventory where user_id=v_uid and item_id=v_item and quantity>0) then raise exception '已收藏此皮膚'; end if;
     end if;
@@ -196,9 +191,7 @@ begin
     if v_u.gold < v_cost then raise exception '金幣不足'; end if;
     update public.users set gold=gold-v_cost where user_id=v_uid;
     insert into public.user_inventory(user_id,item_id,item_type,quantity)
-      values(v_uid,v_item,case when v_item in ('breed_catalyst','ultimate_core') then 3
-           when v_item in ('chip_atk','chip_def','chip_hp','chip_spd') then 4
-           when v_item in ('medicine_standard','vitamin') then 2 else 1 end,v_qty)
+      values(v_uid,v_item,v_item_type,v_qty)
       on conflict(user_id,item_id) do update set quantity=public.user_inventory.quantity+excluded.quantity;
     return arena_internal.finish_action(v_uid,v_request,p_action,p_data,jsonb_build_object('message','購買成功，花費 '||v_cost||'G'),v_u.gold);
   end if;
@@ -476,13 +469,8 @@ begin
     insert into public.messages(channel,user_id,username,text) values('world',v_uid::text,v_u.username,v_text);
   elsif p_action='claim' then
     v_text:=p_data->>'quest_id';
-    v_key:=case v_text when 'feed_3' then 'feed_count' when 'clean_1' then 'clean_count'
-      when 'train_2' then 'train_count' when 'battle_2' then 'battle_count' else null end;
-    v_required:=case v_text when 'feed_3' then 3 when 'clean_1' then 1
-      when 'train_2' then 2 when 'battle_2' then 2 end;
-    v_reward:=case v_text when 'feed_3' then 50 when 'clean_1' then 30
-      when 'train_2' then 70 when 'battle_2' then 100 end;
-    if v_key is null then raise exception '未知任務'; end if;
+    select c.progress_key,c.required,c.reward into v_key,v_required,v_reward from arena_internal.quest_catalog(v_text) c;
+    if not found then raise exception '未知任務'; end if;
     insert into public.daily_quests(quest_id,user_id,date) values(v_uid::text||'_'||v_date,v_uid,v_date)
       on conflict(quest_id) do nothing;
     select * into v_quest from public.daily_quests where quest_id=v_uid::text||'_'||v_date for update;
@@ -529,12 +517,11 @@ begin
         update public.guilds set total_contribution=coalesce(total_contribution,0)+v_cost where guild_id=v_member.guild_id;
       elsif p_action='guild_buy' then
         v_item:=p_data->>'item_id';
-        v_cost:=case v_item when 'chip_extractor' then 300 when 'breed_catalyst' then 150
-          when 'ultimate_core' then 500 else null end;
-        if v_cost is null then raise exception '未知公會商品'; end if;
+        select c.price,c.item_type into v_cost,v_item_type from arena_internal.guild_catalog(v_item) c;
+        if not found then raise exception '未知公會商品'; end if;
         if coalesce(v_member.contribution,0)<v_cost then raise exception '公會貢獻不足'; end if;
         update public.guild_members set contribution=contribution-v_cost where member_id=v_member.member_id;
-        insert into public.user_inventory(user_id,item_id,item_type,quantity) values(v_uid,v_item,case when v_item='chip_extractor' then 4 else 3 end,1)
+        insert into public.user_inventory(user_id,item_id,item_type,quantity) values(v_uid,v_item,v_item_type,1)
           on conflict(user_id,item_id) do update set quantity=public.user_inventory.quantity+1;
       end if;
     end if;

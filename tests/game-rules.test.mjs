@@ -68,3 +68,17 @@ test('arena and raid share the same eligibility and preferred fighter selection'
  assert.equal(selectBattleMonster([...blocked,ready,other],'missing'),ready);
  assert.equal(selectBattleMonster(blocked,'a'),null);
 });
+
+import { SHOP_CATALOG, QUEST_CATALOG, GUILD_SHOP, dailyQuestConfig } from '../src/utils/gameCatalog.js';
+import { buildCatalogSql } from '../scripts/game-catalog-sql.mjs';
+test('one catalog generates V2 SQL and client rewards with stable legacy prices',()=>{
+ assert.equal(SHOP_CATALOG.length,21);
+ assert.equal(new Set(SHOP_CATALOG.map(x=>x.id)).size,21);
+ assert.equal(SHOP_CATALOG.filter(x=>x.cosmetic).length,10);
+ assert.deepEqual(dailyQuestConfig(false).map(q=>q.reward),[100,50,150,150]);
+ assert.deepEqual(dailyQuestConfig(true).map(q=>q.reward),[50,30,70,100]);
+ const sql=buildCatalogSql();
+ for(const x of SHOP_CATALOG)assert.ok(sql.includes("('"+x.id+"',"+x.price+","+x.itemType+","+x.cosmetic+")"));
+ for(const x of QUEST_CATALOG)assert.ok(sql.includes("('"+x.id+"','"+x.key+"',"+x.target+","+x.reward+")"));
+ for(const x of GUILD_SHOP)assert.ok(sql.includes("('"+x.id+"',"+x.price+","+x.itemType+")"));
+});

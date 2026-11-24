@@ -24,6 +24,9 @@ const action = async (p_action, p_data = {}) => {
   if(GAME_RULES_V2 && error && !error.code && /fetch|network|timeout/i.test(error.message??'')){
     ({data,error}=await supabase.rpc('game_action',args));
   }
+  if(error && !error.code && /fetch|network|timeout/i.test(error.message??'')){
+    throw new Error('交易結果尚未確認，請先重新整理資料，不要立即重複操作。');
+  }
   throwIfError(error);
   return data?.message ? {...data,message:presentGameMessage(data.message)} : data ?? { message: '操作成功！' };
 };

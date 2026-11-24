@@ -16,7 +16,7 @@
 - `game_friend_action.sql`、`game_claim_gifts.sql`
 - `game_plaza_monsters.sql`、`game_public_profiles.sql`、`game_ensure_profile.sql`
 
-SQL 清單集中管理在 `supabase/schema/manifest.mjs`。產生可供審閱的 SQL：
+SQL 清單集中管理在 `supabase/schema/manifest.mjs`。商城、皮膚、每日任務及公會商品的 V2 價格與條件由 `src/utils/gameCatalog.js` 共用目錄產生私有 SQL 查詢函式，禁止在 `game_action` 重複硬編碼。產生可供審閱的 SQL：
 
 ```bash
 npm run db:sql > /tmp/arena-functions.sql

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import MobileLayout from './components/MobileLayout';
 import Login from './pages/Login';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -27,6 +27,7 @@ export default function App() {
   const setAppearanceMode=(id,value)=>setAppearanceModes(old=>({...old,[id]:value}));
   const [isOnline,setIsOnline]=useState(typeof navigator==='undefined' || navigator.onLine);
   const authUidRef=useRef(null);
+  const scopedBattleState=useCallback(value=>{if(user?.user_id && authUidRef.current===user.user_id)setBattleState(value);},[user?.user_id]);
   const loadVersionRef=useRef({});
   const hasLoadedProfileRef=useRef(false);
 
@@ -178,7 +179,7 @@ export default function App() {
         activeMonster={activeMonster} setActiveMonster={setActiveMonster} setPage={setPage} appearanceModes={appearanceModes}/>}
       {page==='arena'&&<Arena user={user} monsters={monsters} friends={friends} activeMonster={activeMonster}
         battleState={battleState} appearanceModes={appearanceModes}
-        setBattleState={setBattleState} refreshData={loadUserData} setPage={setPage}/>}
+        setBattleState={scopedBattleState} refreshData={loadUserData} setPage={setPage}/>}
       {page==='raid'&&<Raid user={user} monsters={monsters} activeMonster={activeMonster} appearanceModes={appearanceModes}
         refreshData={loadUserData} setPage={setPage}/>}
       {page==='guild'&&<Guild user={user} guilds={guilds} myGuild={myGuild}

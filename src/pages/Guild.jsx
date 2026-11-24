@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../utils/api';
 import { refreshAfterCommit, resourcesForAction } from '../utils/gameRules';
+import { GUILD_SHOP } from '../utils/gameCatalog';
 
 export default function Guild({ 
   user, 
@@ -123,56 +124,14 @@ export default function Guild({
               </h4>
               
               <div className="space-y-3">
-                <div className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center hover:border-indigo-500/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🔧</span>
-                    <div className="flex flex-col">
-                      <span className="font-bold text-white text-sm">晶片提取器</span>
-                      <span className="text-xs text-slate-400">安全拔除已安裝的晶片</span>
-                    </div>
+                {GUILD_SHOP.map(item=><div key={item.id} className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center hover:border-indigo-500/30 transition-colors">
+                  <div className="flex items-center gap-3"><span className="text-2xl">{item.icon}</span>
+                    <div className="flex flex-col"><span className="font-bold text-white text-sm">{item.name}</span>
+                      <span className="text-xs text-slate-400">{item.description}</span></div>
                   </div>
-                  <button 
-                    onClick={() => handleBuyShop('chip_extractor')} 
-                    disabled={loading || myGuild.contribution < 300}
-                    className="neon-button bg-indigo-600 text-white px-4 py-2 text-sm shadow-indigo-500/20 disabled:opacity-50"
-                  >
-                    300 貢獻
-                  </button>
-                </div>
-
-                <div className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center hover:border-indigo-500/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">⚙️</span>
-                    <div className="flex flex-col">
-                      <span className="font-bold text-white text-sm">核心融合增幅器</span>
-                      <span className="text-xs text-slate-400">核心融合時變異機率翻倍</span>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => handleBuyShop('breed_catalyst')} 
-                    disabled={loading || myGuild.contribution < 150}
-                    className="neon-button bg-indigo-600 text-white px-4 py-2 text-sm shadow-indigo-500/20 disabled:opacity-50"
-                  >
-                    150 貢獻
-                  </button>
-                </div>
-
-                <div className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center hover:border-indigo-500/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🔮</span>
-                    <div className="flex flex-col">
-                      <span className="font-bold text-white text-sm">終極升級核心</span>
-                      <span className="text-xs text-slate-400">超限機升級終極機甲的必備材料</span>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => handleBuyShop('ultimate_core')} 
-                    disabled={loading || myGuild.contribution < 500}
-                    className="neon-button bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 text-sm shadow-yellow-500/30 disabled:opacity-50 font-bold pulse-glow"
-                  >
-                    500 貢獻
-                  </button>
-                </div>
+                  <button onClick={()=>handleBuyShop(item.id)} disabled={loading||myGuild.contribution<item.price}
+                    className="neon-button bg-indigo-600 text-white px-4 py-2 text-sm shadow-indigo-500/20 disabled:opacity-50">{item.price} 貢獻</button>
+                </div>)}
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, GAME_RULES_V2 } from '../utils/api';
 import { refreshAfterCommit } from '../utils/gameRules';
+import { dailyQuestConfig } from '../utils/gameCatalog';
 
 export default function QuestModal({ user, onClose, refreshData }) {
   const [loading, setLoading] = useState(false);
@@ -49,12 +50,7 @@ export default function QuestModal({ user, onClose, refreshData }) {
     </div>
   );
 
-  const QUEST_CONFIG = [
-    { id: 'feed_3', title: '能源補給', desc: '為機體補充能源 3 次', target: 3, key: 'feed_count', reward: GAME_RULES_V2?50:100 },
-    { id: 'clean_1', title: '例行維護', desc: '執行機體保養 1 次', target: 1, key: 'clean_count', reward: GAME_RULES_V2?30:50 },
-    { id: 'train_2', title: '戰鬥校準', desc: '執行機體訓練 2 次', target: 2, key: 'train_count', reward: GAME_RULES_V2?70:150 },
-    { id: 'battle_2', title: '戰場演習', desc: '參與競技場戰鬥 2 次', target: 2, key: 'battle_count', reward: GAME_RULES_V2?100:150 },
-  ];
+  const QUEST_CONFIG = dailyQuestConfig(GAME_RULES_V2);
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in">
