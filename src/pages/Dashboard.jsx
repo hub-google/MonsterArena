@@ -118,7 +118,7 @@ export default function Dashboard({
   // The database has a "name" column, but no "custom_name" column.
   // Preserve names chosen by players instead of replacing them with a species name.
   const mecha = getMecha(monster.family, monster.life_stage, monster.type);
-  const isDefaultEggName = ['數位蛋','新生基因蛋','機械核心'].includes(monster.name);
+  const isDefaultEggName = ['數位蛋','新生基因蛋','機械核心','新生機械核心'].includes(monster.name);
   const speciesName = mecha.modelName||mecha.name;
   const displayName = isDefaultEggName ? speciesName : displayMonsterName(monster);
 

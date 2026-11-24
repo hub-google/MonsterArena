@@ -33,7 +33,7 @@ export function displayMonsterName(monster){
  if(!monster)return '';
  const mecha=getMecha(monster.family,monster.life_stage??monster.stage,monster.type);
  const name=monster.name??monster.monster_name;
- if(mecha.modelName&&(!name||['數位蛋','新生基因蛋','機械核心',mecha.legacyName].includes(name)))return mecha.modelName;
+ if(mecha.modelName&&(!name||['數位蛋','新生基因蛋','機械核心','新生機械核心',mecha.legacyName].includes(name)))return mecha.modelName;
  return name||mecha.modelName||mecha.name;
 }
 export function counterMultiplier(attackerFamily,defenderFamily){return factionOf(defenderFamily)===factionOf(attackerFamily)%4+1?1.2:1;}

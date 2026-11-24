@@ -65,6 +65,7 @@ test('seven final model overrides are cosmetic, eight named final models, preser
   assert.equal(m.skill,FACTIONS[m.faction-1].roles[m.type-1].skill);
   assert.equal(m.stage,6);
   assert.equal(displayMonsterName({family:m.family,life_stage:6,type:m.type,name:'數位蛋'}),m.modelName);
+  assert.equal(displayMonsterName({family:m.family,life_stage:6,type:m.type,name:'新生機械核心'}),m.modelName);
   assert.equal(displayMonsterName({family:m.family,life_stage:6,type:m.type,name:'自訂名字'}),'自訂名字');
   assert.equal(displayMonsterName({family:m.family,life_stage:6,type:m.type,name:m.legacyName}),m.modelName);
   for(const path of Object.values(m.spriteAsset)){

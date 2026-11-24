@@ -64,5 +64,48 @@ test('published site renders different robots and transformations for stage 5 an
   await page.getByRole('button',{name:'切換機器人'}).click();
   await page.getByRole('button',{name:'上一隻機甲'}).click();
  }
+ // Exercise every newly replaced species in the actual published catalog.
+ const models=[
+  [1,1,'雷霆暴龍','重裝戰車','thunder-rex'],
+  [1,2,'炫藍閃電W','武裝警車','blue-lightning-w'],
+  [2,1,'巡邏戰警','巡邏警車','patrol-guard'],
+  [3,1,'翼龍機動裝甲','翼龍型態','wing-dragon'],
+  [3,2,'風暴翼龍','風暴翼龍型態','storm-wyvern'],
+  [4,1,'帝王暴龍','霸氣恐龍戰車','emperor-rex'],
+  [4,2,'帝王暴龍 闇黑限定版','闇黑暴龍型態','dark-emperor']
+ ];
+ const factions=['疾風族','鋼鐵族','蒼空族','星核族'];
+ for(const [width,height] of [[360,640],[1280,550]]){
+  await page.setViewportSize({width,height});
+  await page.getByRole('button',{name:'圖鑑',exact:true}).click();
+  for(let faction=1;faction<=4;faction++){
+   await page.getByRole('button',{name:factions[faction-1],exact:true}).click();
+   await page.getByRole('button',{name:'下一頁圖鑑'}).click();
+   for(const [,role,name,vehicle,file] of models.filter(m=>m[0]===faction)){
+    const card=page.getByTestId('catalog-'+faction+'_6_'+role);
+    await expect(card.getByText(name,{exact:true})).toBeVisible();
+    const pic=card.getByRole('img',{name,exact:true});
+    await expect(pic.locator('image')).toHaveAttribute('href',new RegExp(file+'-robot[.]png
+));
+    const check=async locator=>{
+     const href=await locator.getAttribute('href');
+     const size=await page.evaluate(async url=>{const image=new Image();image.src=url;await image.decode();return [image.naturalWidth,image.naturalHeight]},href);
+     expect(size).toEqual([128,128]);
+    };
+    await check(pic.locator('image'));
+    await card.getByRole('button',{name:'變身：'+name,exact:true}).click();
+    const alternate=card.getByRole('img',{name:vehicle,exact:true});
+    await expect(alternate.locator('image')).toHaveAttribute('href',new RegExp(file+'-vehicle[.]png
+));
+    await check(alternate.locator('image'));
+    await card.getByRole('button',{name,exact:true}).click();
+    await expect(page.getByRole('dialog').getByRole('img',{name:vehicle,exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'關閉圖鑑詳情'}).click();
+    await shell.screenshot({path:'test-results/ui-visual/catalog-'+file+'-vehicle-'+width+'.png',animations:'disabled'});
+    await card.getByRole('button',{name:'還原：'+name,exact:true}).click();
+   }
+   await shell.screenshot({path:'test-results/ui-visual/catalog-faction-'+faction+'-robot-'+width+'.png',animations:'disabled'});
+  }
+ }
  expect(errors).toEqual([]);
 });
