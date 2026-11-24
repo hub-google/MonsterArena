@@ -1,5 +1,7 @@
 import {presentGameMessage} from './mechaVocabulary';
-import { supabase, supabaseUrl } from './supabaseClient';
+import { supabase, supabaseUrl, publishableKey } from './supabaseClient';
+import {createTransactionJournal,REPLAY_WINDOW_MS,TransactionRejected} from './transactionJournal.js';
+import {sendBoundTransaction} from './transactionTransport.js';
 
 // The preview namespace is isolated from the original Game tables, while
 // retaining the same Supabase Auth accounts. Independent test projects also work.
@@ -23,19 +25,21 @@ const getUid = async () => {
 const usernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9_]/g, '')}@monsterarena.app`;
 const legacyUsernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@monsterarena.app`;
 const throwIfError = error => { if (error) throw new Error(presentGameMessage(error.message)); };
-const action = async (p_action, p_data = {}) => {
-  const args={p_action,p_data:GAME_RULES_V2?{...p_data,request_id:p_data.request_id||crypto.randomUUID()}:p_data};
-  let {data,error}=await gameRpc('game_action',args);
-  // The isolated V2 server caches the transaction result under the same UUID.
-  // Never retry legacy mutations or business-rule rejections.
-  if(GAME_RULES_V2 && error && !error.code && /fetch|network|timeout/i.test(error.message??'')){
-    ({data,error}=await gameRpc('game_action',args));
-  }
-  if(error && !error.code && /fetch|network|timeout/i.test(error.message??'')){
-    throw new Error('交易結果尚未確認，請先重新整理資料，不要立即重複操作。');
-  }
-  throwIfError(error);
-  return data?.message ? {...data,message:presentGameMessage(data.message)} : data ?? { message: '操作成功！' };
+let transactionUid=null;
+const journal=createTransactionJournal({
+ storage:globalThis.localStorage,scope:supabaseUrl+'|'+gameResource('game_action'),
+ send:entry=>sendBoundTransaction({entry,getSession:()=>supabase.auth.getSession(),url:supabaseUrl,key:publishableKey,resource:gameResource('game_action')}),
+ lock:async(key,fn)=>globalThis.navigator?.locks?globalThis.navigator.locks.request(key,{ifAvailable:true},lock=>{if(!lock)throw Error('另一個視窗正在處理交易，請稍後恢復');return fn();}):fn()
+});
+const presentResult=data=>data?.message?{...data,message:presentGameMessage(data.message)}:data??{message:'操作成功！'};
+const action = async (p_action,p_data={})=>{
+ if(GAME_RULES_V2&&!['capabilities','raid_status','pvp_list'].includes(p_action)){
+  try{return presentResult(await journal.start(transactionUid,p_action,p_data));}
+  catch(error){if(error instanceof TransactionRejected)throw new Error(presentGameMessage(error.message));throw error;}
+ }
+ const {data,error}=await gameRpc('game_action',{p_action,p_data});
+ if(error&&!error.code&&/fetch|network|timeout/i.test(error.message??''))throw Error('操作結果尚未確認，請重新整理資料，不要立即重複操作。');
+ throwIfError(error);return presentResult(data);
 };
 const dateInTaiwan = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit'
@@ -43,6 +47,17 @@ const dateInTaiwan = () => new Intl.DateTimeFormat('en-CA', {
 const getQuestId = uid => `${uid}_${dateInTaiwan()}`;
 
 export const api = {
+  setTransactionUser:uid=>{transactionUid=uid;},
+  transactionState:uid=>GAME_RULES_V2?journal.state(uid):{busy:false,pending:null},
+  subscribeTransactions:fn=>{
+    const unsubscribe=journal.subscribe(fn);
+    const changed=e=>{if(transactionUid&&journal.matchesStorageKey(e.key))fn(transactionUid,journal.state(transactionUid));};
+    if(GAME_RULES_V2)window.addEventListener('storage',changed);
+    return()=>{unsubscribe();window.removeEventListener('storage',changed);};
+  },
+  recoverTransaction:async uid=>presentResult(await journal.recover(uid)),
+  discardExpiredTransaction:uid=>journal.discardExpired(uid),
+  transactionExpired:entry=>Boolean(entry&&Date.now()-entry.createdAt>=REPLAY_WINDOW_MS),
   register: async (username, email, password) => {
     const trimmed = username.trim();
     if (!/^[a-zA-Z0-9_]{3,24}$/.test(trimmed)) throw new Error('帳號需為 3–24 位英數字或底線');

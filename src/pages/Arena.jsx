@@ -15,11 +15,12 @@ export default function Arena({
   monsters, 
   activeMonster, 
   battleState, appearanceModes={}, 
-  setBattleState, 
+  setBattleState, setBattleNavLocked, 
   refreshData 
 }) {
   const [subTab, setSubTab] = useState('players');
   const [tacticalFighter,setTacticalFighter]=useState(null);
+  useEffect(()=>{if(!GAME_RULES_V2||subTab!=='boss-tactical')return;setBattleNavLocked?.(true);return()=>setBattleNavLocked?.(false);},[subTab,setBattleNavLocked]);
   const [showLogs,setShowLogs]=useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);

@@ -27,8 +27,7 @@ export default function QuestModal({ user, onClose, refreshData }) {
     try {
       const res = await api.claimQuest(questId);
       setMessage(res.message);
-      await loadQuests();
-      const warning=await refreshAfterCommit(refreshData,['profile']);
+      const warning=await refreshAfterCommit(async()=>{const results=await Promise.allSettled([api.getDailyQuests(),refreshData(['profile'])]);if(results[0].status==='fulfilled')setQuests(results[0].value);if(results.some(r=>r.status==='rejected'))throw Error('資料更新失敗');});
       if(warning)setMessage(warning);
     } catch (err) {
       setMessage(`❌ ${err.message}`);

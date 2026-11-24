@@ -27,6 +27,7 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
  const now=Math.floor(Date.now()/1000),payload=Buffer.from(JSON.stringify({sub:uid,aud:'authenticated',role:'authenticated',exp:now+36000,iat:now,iss:host+'/auth/v1'})).toString('base64url');
  await page.addInitScript(session=>localStorage.setItem('sb-arena-v2-ci-auth-token',JSON.stringify(session)),{access_token:'eyJhbGciOiJIUzI1NiJ9.'+payload+'.test-signature',token_type:'bearer',refresh_token:'test',expires_at:now+36000,expires_in:36000,user});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ let loseBuyResponse=false,buyCalls=0;const buyRequests=[];
  await page.route(host+'/**',async route=>{
   const req=route.request(),rawPath=new URL(req.url()).pathname;
   if(rawPath.startsWith('/rest/v1/'))expect(rawPath).toMatch(/^\/rest\/v1\/(?:rpc\/)?arena_preview_/);
@@ -37,7 +38,7 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
    if(path==='/rest/v1/rpc/game_ensure_profile')return reply(route,value('to_jsonb(public.game_ensure_profile())',uid));
    if(path==='/rest/v1/rpc/game_claim_gifts')return reply(route,value('public.game_claim_gifts()',uid));
    if(path==='/rest/v1/rpc/game_age_monsters'){db('SELECT public.game_age_monsters();',uid);return reply(route,null);}
-   if(path==='/rest/v1/rpc/game_action'){const a=req.postDataJSON();return reply(route,action(a.p_action,a.p_data));}
+   if(path==='/rest/v1/rpc/game_action'){const a=req.postDataJSON();const result=action(a.p_action,a.p_data);if(loseBuyResponse&&a.p_action==='buy'){buyRequests.push(a.p_data.request_id);if(++buyCalls<=2)return route.abort('failed');}return reply(route,result);}
    if(path==='/rest/v1/monsters')return reply(route,value("coalesce(jsonb_agg(to_jsonb(m)),'[]'::jsonb) FROM public.monsters m WHERE user_id="+literal(uid)));
    if(path==='/rest/v1/user_inventory')return reply(route,value("coalesce(jsonb_agg(to_jsonb(i)),'[]'::jsonb) FROM public.user_inventory i WHERE user_id="+literal(uid)));
    if(path==='/rest/v1/daily_quests')return reply(route,value("coalesce((SELECT to_jsonb(q) FROM public.daily_quests q WHERE user_id="+literal(uid)+" LIMIT 1),'null'::jsonb)"));
@@ -61,12 +62,19 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
  await page.getByRole('button',{name:'商城',exact:true}).click();
  const item=page.getByText('標準修復套件',{exact:true}).locator('../..').locator('..');
  const before=profile().gold;
+ loseBuyResponse=true;
  await item.getByRole('button',{name:'80G 購買'}).click();await expect.poll(()=>profile().gold).toBe(before-80);
- await page.getByRole('button',{name:'關閉商城'}).click();
+ await expect(page.getByRole('dialog',{name:'尚未確認的交易'})).toBeVisible({timeout:15000});
+ // A full page reload must retain the receipt; the two lost responses actually committed.
+ await page.reload({waitUntil:'domcontentloaded'});
+ await page.getByRole('button',{name:'恢復交易',exact:true}).click();
+ await expect(page.getByRole('dialog',{name:'尚未確認的交易'})).toHaveCount(0);
+ expect(profile().gold).toBe(before-80);expect(buyRequests).toHaveLength(3);expect(new Set(buyRequests).size).toBe(1);
  await page.getByRole('button',{name:'競技',exact:true}).click();
  for(const label of ['廢棄機械兵','失控巡邏機','重裝守衛','疾風獵手','深淵機甲','終極機甲首領'])await expect(page.getByRole('button',{name:'挑戰'+label,exact:true})).toBeVisible();
  await page.getByRole('button',{name:'挑戰終極機甲首領',exact:true}).click();
  const duel=page.getByTestId('tactical-duel');let s=initialBossDuel(ownPet());
+ await expect(page.getByRole('button',{name:'倉庫',exact:true})).toBeDisabled();
  await expect(duel.getByTestId('tactical-hp-0')).toHaveText(s.hp[0]+' / '+s.hp[0]);
  const labels={attack:'普通攻擊',guard:'格擋反擊',special:'特殊技能'};
  while(!s.result){const move=s.phase==='heavy'?'guard':s.phase==='stunned'&&s.energy[0]>=2?'special':'attack';await duel.getByRole('button',{name:labels[move],exact:true}).click();s=resolveBossRound(s,move);}
@@ -75,6 +83,7 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
  expect(value('count(*) FROM public.battle_records WHERE user_id='+literal(uid))).toBe(1);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/v2-boss-settled-mobile.png',animations:'disabled'});
  await duel.getByRole('button',{name:'離開戰術對戰'}).click();
+ await expect(page.getByRole('button',{name:'倉庫',exact:true})).toBeEnabled();
  await page.getByRole('button',{name:'玩家對戰',exact:true}).click();
  await expect(page.getByText(/克制優勢/)).toBeVisible();
  await expect(page.getByRole('button',{name:'挑戰',exact:true})).toBeEnabled();

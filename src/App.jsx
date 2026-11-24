@@ -27,14 +27,20 @@ export default function App() {
   const setAppearanceMode=(id,value)=>setAppearanceModes(old=>({...old,[id]:value}));
   const [isOnline,setIsOnline]=useState(typeof navigator==='undefined' || navigator.onLine);
   const authUidRef=useRef(null);
-  const scopedBattleState=useCallback(value=>{if(user?.user_id && authUidRef.current===user.user_id)setBattleState(value);},[user?.user_id]);
   const loadVersionRef=useRef({});
+  const renderSession=loadVersionRef.current;
+  const [transaction,setTransaction]=useState({busy:false,pending:null});
+  const [recoveryError,setRecoveryError]=useState('');
+  const [battleNavLocked,setBattleNavLocked]=useState(false);
+  const [resourceErrors,setResourceErrors]=useState({});
+  const scopedBattleState=useCallback(value=>{if(user?.user_id&&authUidRef.current===user.user_id&&loadVersionRef.current===renderSession)setBattleState(value);},[user?.user_id,renderSession]);
+  const scopedBattleLock=useCallback(value=>{if(loadVersionRef.current===renderSession)setBattleNavLocked(value);},[renderSession]);
   const hasLoadedProfileRef=useRef(false);
 
   const clearUser=()=>{
     setUser(null);setMonsters([]);setInventory([]);setFriends([]);
     setGuilds([]);setMyGuild(null);setActiveMonster(null);
-    setBattleState(null);setAppearanceModes({});setLoadError('');setPage('dashboard');
+    setBattleState(null);setBattleNavLocked(false);setAppearanceModes({});setLoadError('');setResourceErrors({});setRecoveryError('');setPage('dashboard');
   };
 
   const loadUserData=async (resources=['profile','monsters','inventory','friends','guilds'])=>{
@@ -59,14 +65,22 @@ export default function App() {
       const version=(versions[key]||0)+1;
       versions[key]=version;
       const [read,apply]=tasks[key];
-      const value=await read();
-      if(isAccount() && versions[key]===version)apply(value);
+      try{
+        const value=await read();
+        if(isAccount()&&versions[key]===version){apply(value);setResourceErrors(old=>({...old,[key]:null}));}
+      }catch(error){
+        if(isAccount()&&versions[key]===version)setResourceErrors(old=>({...old,[key]:error.message||'資料讀取失敗'}));
+        throw error;
+      }
     };
     try{
       if(initial){
         await run('profile');
         if(!isAccount())return;
-        await Promise.all(resources.filter(key=>key!=='profile').map(run));
+        const results=await Promise.allSettled(resources.filter(key=>key!=='profile').map(run));
+        // Friends and guilds are optional: a failure must not block the cockpit.
+        const critical=results.slice(0,2).find(result=>result.status==='rejected');
+        if(critical)throw critical.reason;
       }else await Promise.all(resources.map(run));
       if(isAccount())hasLoadedProfileRef.current=true;
     }catch(err){
@@ -78,6 +92,11 @@ export default function App() {
     }finally{if(isAccount())setLoading(false);}
   };
 
+  const scopedRefresh=resources=>{
+    if(loadVersionRef.current!==renderSession||authUidRef.current!==user?.user_id)throw Error('帳號已切換');
+    return loadUserData(resources);
+  };
+  useEffect(()=>api.subscribeTransactions((uid,state)=>{if(authUidRef.current===uid)setTransaction(state);}),[]);
   useEffect(()=>{
     let ready=true;
     let previousAuthId=null;
@@ -87,6 +106,7 @@ export default function App() {
       if(!nextUid){
         previousAuthId=null;
         authUidRef.current=null;
+        api.setTransactionUser(null);setTransaction({busy:false,pending:null});
         loadVersionRef.current={};
         hasLoadedProfileRef.current=false;
         clearUser();
@@ -96,12 +116,14 @@ export default function App() {
       if(previousAuthId===nextUid)return;
       previousAuthId=nextUid;
       authUidRef.current=nextUid;
+      api.setTransactionUser(nextUid);setTransaction(api.transactionState(nextUid));
       loadVersionRef.current={};
+      const sessionVersion=loadVersionRef.current;
       hasLoadedProfileRef.current=false;
       clearUser();
       setLoading(true);
       // Auth callbacks must not synchronously await Supabase database operations.
-      setTimeout(()=>{if(ready && authUidRef.current===nextUid)loadUserData();},0);
+      setTimeout(()=>{if(ready && authUidRef.current===nextUid && loadVersionRef.current===sessionVersion)loadUserData();},0);
     });
     return ()=>{ready=false;loadVersionRef.current={};subscription.unsubscribe();};
   },[]);
@@ -147,6 +169,7 @@ export default function App() {
     try {
       await api.logout();
       authUidRef.current=null;
+      api.setTransactionUser(null);setTransaction({busy:false,pending:null});
       loadVersionRef.current={};
       hasLoadedProfileRef.current=false;
       clearUser();
@@ -157,6 +180,19 @@ export default function App() {
     }
   };
 
+  const recoverTransaction=async()=>{
+    const uid=authUidRef.current,session=loadVersionRef.current;
+    setRecoveryError('');
+    try{
+      await api.recoverTransaction(uid);
+      if(authUidRef.current===uid&&loadVersionRef.current===session){await loadUserData();setRecoveryError('');}
+    }catch(error){if(authUidRef.current===uid&&loadVersionRef.current===session)setRecoveryError(error.message||'交易恢復失敗');}
+  };
+  const discardExpired=async()=>{
+    if(!window.confirm('交易已超過安全重送期限。請先核對戰績、金幣及庫存。確定清除本機紀錄？'))return;
+    const uid=authUidRef.current;
+    try{await loadUserData();api.discardExpiredTransaction(uid);setRecoveryError('');}catch(error){setRecoveryError(error.message);}
+  };
   if(loading)return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-cyan-400">
     <span className="text-4xl">🤖</span><span className="mt-4">載入遊戲數據中...</span>
   </div>;
@@ -171,22 +207,24 @@ export default function App() {
   if(!user)return <Login onLoginSuccess={()=>{ /* session loads through onAuthStateChange */ }} />;
 
   return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950">
-    <MobileLayout isConnected={isOnline} page={page} setPage={setPage} onRefresh={()=>loadUserData().catch(console.warn)} onLogout={handleLogout}>
+    <MobileLayout isConnected={isOnline} page={page} setPage={setPage} navigationLocked={battleNavLocked||transaction.busy||Boolean(transaction.pending)} onRefresh={()=>loadUserData().catch(console.warn)} onLogout={handleLogout}>
+      {((page==='guild'&&resourceErrors.guilds)||(page==='arena'&&resourceErrors.friends))&&<div role="alert" className="text-amber-300 text-xs p-2">部分資料無法載入 <button onClick={()=>loadUserData([page==='guild'?'guilds':'friends']).catch(console.warn)} className="underline">重試</button></div>}
       <Suspense fallback={<div className="p-6 text-center text-cyan-400">載入功能中...</div>}>
-      {page==='dashboard'&&<Dashboard user={user} monsters={monsters} inventory={inventory} refreshData={loadUserData}
+      {page==='dashboard'&&<Dashboard user={user} monsters={monsters} inventory={inventory} refreshData={scopedRefresh}
         activeMonster={activeMonster} setActiveMonster={setActiveMonster} setPage={setPage} appearanceModes={appearanceModes} setAppearanceMode={setAppearanceMode}/>}
-      {page==='roster'&&<Roster user={user} monsters={monsters} inventory={inventory} refreshData={loadUserData}
+      {page==='roster'&&<Roster user={user} monsters={monsters} inventory={inventory} refreshData={scopedRefresh}
         activeMonster={activeMonster} setActiveMonster={setActiveMonster} setPage={setPage} appearanceModes={appearanceModes}/>}
       {page==='arena'&&<Arena user={user} monsters={monsters} friends={friends} activeMonster={activeMonster}
         battleState={battleState} appearanceModes={appearanceModes}
-        setBattleState={scopedBattleState} refreshData={loadUserData} setPage={setPage}/>}
+        setBattleState={scopedBattleState} setBattleNavLocked={scopedBattleLock} refreshData={scopedRefresh} setPage={setPage}/>}
       {page==='raid'&&<Raid user={user} monsters={monsters} activeMonster={activeMonster} appearanceModes={appearanceModes}
-        refreshData={loadUserData} setPage={setPage}/>}
+        refreshData={scopedRefresh} setPage={setPage}/>}
       {page==='guild'&&<Guild user={user} guilds={guilds} myGuild={myGuild}
-        refreshData={loadUserData} setPage={setPage}/>}
+        refreshData={scopedRefresh} setPage={setPage}/>}
       {page==='social'&&<Social user={user}/>}
       {page==='pokedex'&&<Pokedex setPage={setPage}/>}
       </Suspense>
     </MobileLayout>
+    {transaction.pending&&!transaction.busy&&<div role="dialog" aria-modal="true" aria-label="尚未確認的交易" className="fixed z-[100] inset-0 flex items-center justify-center bg-black/85 p-5"><div className="glass-card w-full max-w-sm p-5 space-y-4 text-white"><h2 className="text-lg font-bold">尚未確認的交易</h2><p className="text-sm text-slate-300">{api.transactionExpired(transaction.pending)?'已超過安全重送期限，請核對金幣、庫存及戰績後再清除紀錄。':'上次操作可能已完成。使用相同交易識別碼恢復，不會重複扣款或計分。'}</p>{recoveryError&&<p role="alert" className="text-rose-300 text-sm">{recoveryError}</p>}{api.transactionExpired(transaction.pending)?<button className="neon-button w-full py-3" onClick={discardExpired}>核對後清除紀錄</button>:<button className="neon-button neon-button-primary w-full py-3" onClick={recoverTransaction}>恢復交易</button>}<button className="neon-button w-full py-2" onClick={handleLogout}>登出並保留恢復紀錄</button></div></div>}
   </div>;
 }
