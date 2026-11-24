@@ -3,7 +3,7 @@
 怪獸養成、競技場、好友、公會與世界王。正式資料沿用 **Supabase Game**（專案 `fanffwnhkxpfhttylntw`），不使用 Firebase 或 Cloudflare Worker 作為遊戲後端。
 
 - **測試版 `main`**：https://hub-google.github.io/monster-arena-web/
-- **正式版 `release`**：https://pets.monsterport.com/
+- **正式站（本次不部署）**：https://pets.monsterport.com/
 - **原始碼**：https://github.com/hub-google/monster-arena-web
 
 ## 唯一現行 SQL 程式碼
@@ -62,7 +62,7 @@ npm run dev
 
 `main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。另以隔離 PostgreSQL 容器、兩組測試身分實測 V2 SQL 權限及交易。真實 Supabase Auth 多帳號登入後 E2E 尚未由 CI 覆蓋；不以隔離 SQL 或模擬瀏覽器測試替代線上驗收。
 
-**部署隔離：**`main` 只更新 GitHub Pages；`release` 才是 Cloudflare Pages 正式版。任何程式碼清理都不修改 `release`、Cloudflare DNS/Worker，或共用 Supabase 的其他專案資料。詳細安全說明見 `docs/SECURITY.md`。
+**部署隔離：**依 2026-11-24 指示，Repository 僅保留 `main`；GitHub Pages 改採 Artifact 部署，不再建立 `gh-pages`。本次不部署 Cloudflare 正式站，不變更 DNS/Worker 或共用 Supabase 資料。詳細安全說明見 `docs/SECURITY.md`。
 
 ## 原始碼優先的修復規範
 

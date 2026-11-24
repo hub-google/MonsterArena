@@ -7,13 +7,48 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: monster-arena-pages-main
   cancel-in-progress: true
 
 jobs:
+  cleanup-branches:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[arena-cleanup-branches-20261124]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: 確認 main 並清理六個舊分支
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          test "$GITHUB_REF_NAME" = main
+          test "$(gh api "repos/$repo" --jq .default_branch)" = main
+          # Attempt the supported Pages source migration before removing its old branch.
+          if [ "$(gh api "repos/$repo/pages" --jq .build_type)" != workflow ]; then
+            if gh api --method PUT "repos/$repo/pages" -f build_type=workflow; then
+              echo 'Pages 已改用 Actions Artifact' >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo 'Pages 設定需由管理員切換至 GitHub Actions；仍依指示清理舊分支。' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          for branch in master release gh-pages gh-pages-preview legacy-main-20261116 supabase-stable-fixes; do
+            if gh api "repos/$repo/git/ref/heads/$branch" >/dev/null 2>&1; then
+              gh api --method DELETE "repos/$repo/git/refs/heads/$branch"
+              echo "已刪除 $branch" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          remaining=$(gh api --paginate "repos/$repo/branches?per_page=100" --jq '.[].name')
+          printf '%s\n' "$remaining"
+          test "$remaining" = main
+          echo '驗證完成：只剩 main' >> "$GITHUB_STEP_SUMMARY"
   build-deploy:
     runs-on: ubuntu-latest
     services:
@@ -69,13 +104,10 @@ jobs:
             sleep 1
           done
           npx playwright test tests/smoke.spec.js tests/authenticated-ui.spec.js --project=chromium
-      - name: 發布 GitHub Pages 測試站
-        uses: peaceiris/actions-gh-pages@v4
+      - name: 上傳 GitHub Pages Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
-          keep_files: false
+          path: ./dist
 
       - name: 產生執行摘要
         if: always()
@@ -85,3 +117,18 @@ jobs:
           echo "- 版本：${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- 執行結果：${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- 登入後瀏覽器測試使用模擬 API；不代表真實多帳號資料庫驗收" >> "$GITHUB_STEP_SUMMARY"
+
+  publish-pages:
+    name: 發布 GitHub Pages 測試站
+    needs: [build-deploy, cleanup-branches]
+    if: always() && needs.build-deploy.result == 'success' && (needs.cleanup-branches.result == 'success' || needs.cleanup-branches.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 檢查 Pages 發布來源
+        uses: actions/configure-pages@v5
+      - name: 部署 Artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
