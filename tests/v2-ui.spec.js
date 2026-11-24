@@ -27,7 +27,7 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
  const now=Math.floor(Date.now()/1000),payload=Buffer.from(JSON.stringify({sub:uid,aud:'authenticated',role:'authenticated',exp:now+36000,iat:now,iss:host+'/auth/v1'})).toString('base64url');
  await page.addInitScript(session=>localStorage.setItem('sb-arena-v2-ci-auth-token',JSON.stringify(session)),{access_token:'eyJhbGciOiJIUzI1NiJ9.'+payload+'.test-signature',token_type:'bearer',refresh_token:'test',expires_at:now+36000,expires_in:36000,user});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- let loseBuyResponse=false,buyCalls=0;const buyRequests=[];
+ let loseBuyResponse=false,buyCalls=0,optionalUnavailable=true;const buyRequests=[];
  await page.route(host+'/**',async route=>{
   const req=route.request(),rawPath=new URL(req.url()).pathname;
   if(rawPath.startsWith('/rest/v1/'))expect(rawPath).toMatch(/^\/rest\/v1\/(?:rpc\/)?arena_preview_/);
@@ -43,13 +43,14 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
    if(path==='/rest/v1/user_inventory')return reply(route,value("coalesce(jsonb_agg(to_jsonb(i)),'[]'::jsonb) FROM public.user_inventory i WHERE user_id="+literal(uid)));
    if(path==='/rest/v1/daily_quests')return reply(route,value("coalesce((SELECT to_jsonb(q) FROM public.daily_quests q WHERE user_id="+literal(uid)+" LIMIT 1),'null'::jsonb)"));
    if(path==='/rest/v1/users')return reply(route,profile());
-   if(path==='/rest/v1/friends'||path==='/rest/v1/guilds')return reply(route,[]);
+   if(path==='/rest/v1/friends'||path==='/rest/v1/guilds'){if(optionalUnavailable)return reply(route,{message:'optional unavailable',code:'PGRST002'},503);return reply(route,[]);}
    if(path==='/rest/v1/guild_members')return reply(route,null);
    throw Error('unexpected fixture request '+path);
   }catch(e){errors.push(e.stderr?.toString()||e.message);return reply(route,{message:e.stderr?.toString()||e.message,code:'P0001'},400);}
  });
  await page.goto('./',{waitUntil:'domcontentloaded'});
  await expect(page.getByRole('button',{name:'倉庫',exact:true})).toBeVisible({timeout:20000});
+ optionalUnavailable=false;
  await page.getByRole('button',{name:'訓練',exact:true}).click();
  const train=page.getByRole('dialog',{name:'選擇訓練項目'});
  await expect(train).toContainText('總配點 0/60');
@@ -68,8 +69,9 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
  // A full page reload must retain the receipt; the two lost responses actually committed.
  await page.reload({waitUntil:'domcontentloaded'});
  await page.getByRole('button',{name:'恢復交易',exact:true}).click();
- await expect(page.getByRole('dialog',{name:'尚未確認的交易'})).toHaveCount(0);
+ await expect(page.getByRole('dialog',{name:'尚未確認的交易'})).toContainText('交易已恢復',{timeout:15000});
  expect(profile().gold).toBe(before-80);expect(buyRequests).toHaveLength(3);expect(new Set(buyRequests).size).toBe(1);
+ await page.getByRole('dialog',{name:'尚未確認的交易'}).getByRole('button',{name:'返回遊戲',exact:true}).click();
  await page.getByRole('button',{name:'競技',exact:true}).click();
  for(const label of ['廢棄機械兵','失控巡邏機','重裝守衛','疾風獵手','深淵機甲','終極機甲首領'])await expect(page.getByRole('button',{name:'挑戰'+label,exact:true})).toBeVisible();
  await page.getByRole('button',{name:'挑戰終極機甲首領',exact:true}).click();

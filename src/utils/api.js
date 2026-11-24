@@ -27,7 +27,7 @@ const legacyUsernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9]/g, 
 const throwIfError = error => { if (error) throw new Error(presentGameMessage(error.message)); };
 let transactionUid=null;
 const journal=createTransactionJournal({
- storage:globalThis.localStorage,scope:supabaseUrl+'|'+gameResource('game_action'),
+ storage:{get length(){return globalThis.localStorage.length;},key:i=>globalThis.localStorage.key(i),getItem:k=>globalThis.localStorage.getItem(k),setItem:(k,v)=>globalThis.localStorage.setItem(k,v),removeItem:k=>globalThis.localStorage.removeItem(k)},scope:supabaseUrl+'|'+gameResource('game_action'),
  send:entry=>sendBoundTransaction({entry,getSession:()=>supabase.auth.getSession(),url:supabaseUrl,key:publishableKey,resource:gameResource('game_action')}),
  lock:async(key,fn)=>globalThis.navigator?.locks?globalThis.navigator.locks.request(key,{ifAvailable:true},lock=>{if(!lock)throw Error('另一個視窗正在處理交易，請稍後恢復');return fn();}):fn()
 });
@@ -105,8 +105,8 @@ export const api = {
     throwIfError(error);
     if(GAME_RULES_V2){const caps=await action('capabilities');if(caps.combatBalance!==3)throw new Error('測試後端未部署目前戰鬥平衡版本');}
     const giftResult = await gameRpc('game_claim_gifts');
-    throwIfError(giftResult.error);
-    if (giftResult.data > 0) {
+    if(giftResult.error)console.warn('Gift claim unavailable; re-reading current player balance',giftResult.error.message);
+    if (giftResult.error || giftResult.data > 0) {
       const refresh = await gameTable('users').select('*').eq('user_id',data.user_id).single();
       throwIfError(refresh.error);
       return refresh.data;
