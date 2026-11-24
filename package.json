@@ -9,8 +9,6 @@
     "build": "vite build",
     "lint": "oxlint -D correctness -A no-unused-vars -A react-hooks/exhaustive-deps src --ignore-pattern src/utils/monsterSprites.js",
     "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
     "check:contract": "node scripts/check-game-contract.mjs",
     "test:unit": "node --test tests/*.test.mjs",
     "db:sql": "node scripts/build-game-sql.mjs"

@@ -1,83 +1,61 @@
-# Monster Arena Web
+# 怪獸競技場｜Monster Arena
 
-怪獸養成、競技場、好友、公會與世界王。正式資料沿用 **Supabase Game**（專案 `fanffwnhkxpfhttylntw`），不使用 Firebase 或 Cloudflare Worker 作為遊戲後端。
+怪獸養成、戰術對戰、競技場、圖鑑、商城、好友、公會與世界王。
 
-- **測試版 `main`**：https://hub-google.github.io/monster-arena-web/
-- **正式站 `release`**：https://pets.monsterport.com/
-- **原始碼**：https://github.com/hub-google/monster-arena-web
+| 環境 | 分支 | 網址 |
+| --- | --- | --- |
+| 測試 | `main` | [GitHub Pages](https://hub-google.github.io/monster-arena-web/) |
+| 正式 | `release` | [Monster Arena](https://pets.monsterport.com/) |
 
-## 唯一現行 SQL 程式碼
+前端使用 React / Vite，後端使用 Supabase Game。測試站與正式站的遊戲資料隔離，不會自動互相同步。只有明確要求上正式時才推進 release。
 
-**所有 8 個有效的 `game_*` RPC，以 `supabase/schema/functions/<函式名稱>.sql` 為唯一維護入口。**
-2026-11-24 main 版的 `game_action`、`game_age_monsters` 及 `game_rules_v2.sql` 為下一版規則，**尚未套用共用 Game 資料庫**；其餘 RPC 保留既有定義。包含：
-
-- `game_action.sql`：孵蛋、訓練、晶片、公會、任務、世界王等交易入口與授權／鎖定；`supabase/schema/battle_settlement.sql` 負責唯一的戰鬥結算邏輯（保留救援蛋防套利與舊晶片數值）
-- `game_age_monsters.sql`、`game_rename_monster.sql`
-- `game_friend_action.sql`、`game_claim_gifts.sql`
-- `game_plaza_monsters.sql`、`game_public_profiles.sql`、`game_ensure_profile.sql`
-
-SQL 清單集中管理在 `supabase/schema/manifest.mjs`。商城、皮膚、每日任務及公會商品的 V2 價格與條件由 `src/utils/gameCatalog.js` 共用目錄產生私有 SQL 查詢函式，禁止在 `game_action` 重複硬編碼。產生可供審閱的 SQL：
-
-```bash
-npm run db:sql > /tmp/arena-functions.sql
-```
-
-此命令**僅輸出 SQL，不會更新資料庫**；檢視並經測試後，方可透過正式遷移程序套用到 Game，且只部署到核准環境。**禁止直接複製舊的 `game_action()` 遷移定義當作最新版本。**
-
-### 為什麼還保留 `supabase/migrations/`？
-
-原本近 9 份對 `game_action()` 的定義是「**已執行過的歷史遷移紀錄**」，不是現行程式碼，也不應直接刪除或重新執行。既有遠端 Supabase migration history 必須保留，不改寫舊檔，不會為了清理程式碼刪除現有玩家資料。
-
-**注意：**現有 repo 歷史 SQL 使用日期加名稱，與 Supabase 線上歷史版本戳並非同一套標準命名。不可直接對現有 Game 資料庫執行 `supabase db reset` 或批次重播這些舊 SQL。新遷移需使用標準時間戳、從上述現行函式檔產生，且先經隔離測試後再套用。
-
-## 前端程式碼
-
-- `src/utils/api.js`：唯一 Supabase RPC／讀取介面，聊天採可見時增量讀取。
-- `src/App.jsx`：頁面按需載入，依交易類型刷新對應資源；圖鑑分頁、無損壓縮像素資料。
-- `src/utils/gameRules.js`：共享前端孵化／免費救援蛋規則，Dashboard、Roster 使用同一份。
-- 既有的 Firebase client、Firebase rules、emulator 測試與 firebase-tools 相依性已從 `main` 移除；舊版可從 Git 歷史查詢。
-
-## 遊戲規則 V2（隔離測試）
-
-main 公開站使用 Game 內獨立 `arena_preview_*` 資料表／RPC 及不公開的 `arena_preview_internal` schema。共用 Auth，首次只複製既有 Arena 玩家資產快照；正式資料與測試資料自此分開，不互相同步。不增加付費專案、不改正式站、不修改原有資料表及 RPC。SQL 由同一份現行規則產生：`npm run db:sql -- --preview`；首次建立才使用 `--preview-bootstrap`，禁止重複執行。
-
-- 固定五關 PvE、每日首勝、每日挑戰上限；敵人不再隨玩家能力等比變強。
-- 非即時 PVP 防守快照、每人每日五場且同對手每日一次、按月賽季排行榜。
-- 每日世界王、有效傷害與支援貢獻、依規模分配最高 5,000G 獎池及防重複領取。
-- 依實際時間老化和清潔度、生病機率；交易 UUID 防重複扣款、私有金幣流水。
-- `tests/sql/fixture.sql` 只用真實表結構 metadata 產出，不包含玩家資料；CI 使用臨時 PostgreSQL 容器驗證。
-- main GitHub Pages 預設以 `VITE_ARENA_V2=true`、`VITE_ARENA_PREVIEW=true` 連接獨立測試命名空間；既有 public Game 表／RPC 不得用於 V2。另可設定獨立專案的 URL 與 publishable key，不能直接使用任一共用專案的原有遊戲資料表。
-
-### 戰鬥平衡與手動首領
-- 舊版相容測試模式的首領戰術挑戰僅練習；main 公開站走隔離 V2 並正常結算。舊正式站共用後端不改動。
-- 隔離 V2：各階段八職業基準、每回合速度機率、比例減傷、保留陣營克制與職業技能、固定六關，首領由 SQL 重算完整戰術指令。訓練總配點60／單項30，核心品質0–5%、晶片各5%；不繼承訓練與裝備。舊能力原值保留於 legacy_combat，舊訓練次數轉成最多60點。
-- 世界王依近24小時活躍機體的預估有效傷害固定每日耐久，每帳號每日三次；10回合攻防破甲策略、支援分數、首次參與20G及總額受限的獎池。
-- V2 取消老化永久能力衰退、統一體力上限及回復、調整商城／任務／關卡經濟。競技依現有防守機體即時能力，僅允許相差不超過一階且戰力比例不超過1.45倍的對手。
-- 平衡測試：每階28種職業配對各10,000次（JavaScript鏡像），隔離PostgreSQL直接執行實際戰鬥核心（完全體每配對10,000次，其餘階段各1,000次），並驗證各階平均勝率、克制優勢與各職業首領攻略。
-- V2 不得直接套用至共用 Game 的原始表／RPC；只可使用獨立命名空間或獨立專案。
-
-## 開發與驗收
+## 開始開發
 
 Node.js 22：
 
 ```bash
 npm ci
+npm run dev
+````
+
+本機建置與驗收：
+
+```bash
 npm run lint
 npm run check:contract
 npm run test:unit
-npm run db:sql > /dev/null
 npm run build
-npm run dev
+````
+
+## 專案目錄
+
+```text
+src/                  前端程式
+  pages/              各功能頁面
+  components/         共用畫面元件
+  hooks/              共用 React 狀態與副作用
+  utils/              API、交易、遊戲規則與美術邏輯
+  assets/             前端打包資源
+public/               靜態資源（機甲、皮膚、圖示）
+supabase/
+  schema/             現行 SQL 維護入口
+  migrations/         歷史遷移（不可任意重播或刪除）
+scripts/              SQL 產生、契約與交易驗證工具
+tests/                單元、瀏覽器與 SQL 測試
+docs/                 技術及遊戲設計文件
+.github/workflows/    GitHub Pages 部署
 ```
 
-`main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。另以隔離 PostgreSQL 容器、兩組測試身分實測 V2 SQL 權限及交易。新版另外建置 V2 前端，瀏覽器使用隔離 PostgreSQL 實際 RPC 交易驗收訓練、商城、首領結算、屬性配對與世界王；登入傳輸仍為測試身分。真正 Supabase Auth 多帳號仍須線上驗收。發布前必須取得新版命名空間 health 回應，不能默默回退成舊版。若選擇其他獨立測試專案，再設定 repository variables `ARENA_TEST_SUPABASE_URL` 與 `ARENA_TEST_SUPABASE_PUBLISHABLE_KEY`。
+## 文件索引
 
-**部署隔離：**Repository 保留 `main`（GitHub Pages 測試站，Artifact 部署）與 `release`（Cloudflare Pages 正式站）。2026-11-24 恢復 `release` 至上次正式部署的 d98e6ec，不將測試版自動同步至正式版。只有使用者明確要求上正式時才推進 `release`；發布前須確認正式後端相容性及資料隔離。不建立 `gh-pages`，不擅自變更 DNS/Worker 或原始共用 Supabase 資料；main 只維護 Arena 專屬 preview 命名空間。詳細安全說明見 `docs/SECURITY.md`。
+| 文件 | 用途 |
+| --- | --- |
+| [架構與資料庫](docs/ARCHITECTURE.md) | 程式分工、SQL 維護、交易恢復 |
+| [部署與驗收](docs/DEPLOYMENT.md) | 分支、建置、手動驗收、發布隔離 |
+| [遊戲規則 V2](docs/GAME_RULES.md) | 養成、戰鬥、競技與經濟設計 |
+| [機甲相容映射](docs/MECHA_MIGRATION.md) | 舊資料映射與歷史相容性 |
+| [皮膚系統](docs/SKINS.md) | 造型與商城規格 |
+| [安全規範](docs/SECURITY.md) | 權限、帳號與資料隔離 |
+| [開發規範](AGENTS.md) | 修復、回歸驗收與發布政策 |
 
-## 原始碼優先的修復規範
-
-往後修 BUG 應直接修唯一現行來源、移除重複實作、保留已套用的資料庫遷移歷史，並以回歸測試驗收。詳細規範見 `AGENTS.md`。
-
-### 交易恢復（main V2）
-
-重要交易送出前按原帳號及 UUID 寫入瀏覽器恢復紀錄，不儲存密碼或權杖。RPC 使用同一帳號的 bearer token；斷線後以相同 UUID 重送，資料庫依交易識別碼回傳原結果。重開同一瀏覽器可按「恢復交易」；跨瀏覽器無法讀取本機紀錄。安全恢復期限為 6 天（後端保留識別碼至少 7 天）。對戰結算中禁止跨頁；好友、公會讀取失敗不阻止進入養成頁。
+GitHub Actions 僅保留網站部署工作流；功能測試獨立執行。不可將部署成功視為遊戲功能已驗收。

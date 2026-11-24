@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import MobileLayout from './components/MobileLayout';
 import Login from './pages/Login';
+import TransactionRecoveryDialog from './components/TransactionRecoveryDialog';
+import {useOnlineStatus} from './hooks/useOnlineStatus.js';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Roster = lazy(() => import('./pages/Roster'));
 const Arena = lazy(() => import('./pages/Arena'));
@@ -25,7 +27,7 @@ export default function App() {
   const [battleState,setBattleState]=useState(null);
   const [appearanceModes,setAppearanceModes]=useState({});
   const setAppearanceMode=(id,value)=>setAppearanceModes(old=>({...old,[id]:value}));
-  const [isOnline,setIsOnline]=useState(typeof navigator==='undefined' || navigator.onLine);
+  const isOnline=useOnlineStatus();
   const authUidRef=useRef(null);
   const loadVersionRef=useRef({});
   const renderSession=loadVersionRef.current;
@@ -128,11 +130,6 @@ export default function App() {
     return ()=>{ready=false;loadVersionRef.current={};subscription.unsubscribe();};
   },[]);
 
-  useEffect(()=>{
-    const online=()=>setIsOnline(navigator.onLine);
-    window.addEventListener('online',online);window.addEventListener('offline',online);
-    return ()=>{window.removeEventListener('online',online);window.removeEventListener('offline',online);};
-  },[]);
 
   useEffect(()=>{
     if(!user)return;
@@ -229,14 +226,8 @@ export default function App() {
       {page==='pokedex'&&<Pokedex setPage={setPage}/>}
       </Suspense>
     </MobileLayout>
-    {(recoveryFlow||(transaction.pending&&!transaction.busy))&&<div role="dialog" aria-modal="true" aria-label="尚未確認的交易" className="fixed z-[100] inset-0 flex items-center justify-center bg-black/85 p-5"><div className="glass-card w-full max-w-sm p-5 space-y-4 text-white">
-      <h2 className="text-lg font-bold">{recoveryFlow?.busy?'正在恢復交易':recoveryFlow?.message?'交易恢復結果':'尚未確認的交易'}</h2>
-      {recoveryFlow?.busy?<p role="status">正在確認交易及最新資產…</p>:recoveryFlow?.message?<><p role="status" className="text-sm text-slate-300">{recoveryFlow.message}</p><button className="neon-button neon-button-primary w-full py-3" onClick={()=>setRecoveryFlow(null)}>返回遊戲</button></>:<>
-        <p className="text-sm text-slate-300">{api.transactionExpired(transaction.pending)?'已超過安全重送期限，請核對金幣、庫存及戰績後再清除紀錄。':'上次操作可能已完成。使用相同交易識別碼恢復，不會重複扣款或計分。'}</p>
-        {recoveryError&&<p role="alert" className="text-rose-300 text-sm">{recoveryError}</p>}
-        {api.transactionExpired(transaction.pending)?<button className="neon-button w-full py-3" onClick={discardExpired}>核對後清除紀錄</button>:<button className="neon-button neon-button-primary w-full py-3" onClick={recoverTransaction}>恢復交易</button>}
-        <button className="neon-button w-full py-2" onClick={handleLogout}>登出並保留恢復紀錄</button>
-      </>}
-    </div></div>}
+    <TransactionRecoveryDialog recoveryFlow={recoveryFlow} transaction={transaction} recoveryError={recoveryError}
+      transactionExpired={api.transactionExpired} onDismiss={()=>setRecoveryFlow(null)} onDiscard={discardExpired}
+      onRecover={recoverTransaction} onLogout={handleLogout}/>
   </div>;
 }
