@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
+import Mecha3D from '../components/Mecha3D';
 import {GAME_RULES_V2} from '../utils/api';
 import {FACTIONS,MONSTER_SPRITES} from '../utils/monsterSprites';
 import {PlayButton,GameIcon} from '../components/PlayButton';
@@ -7,17 +8,19 @@ const glyphs=['car','guild','wing','orbit'];
 const canTransform=m=>m.stage>=4&&Boolean(m.vehicle);
 export default function Pokedex(){
  const [filter,setFilter]=useState(0),[forms,setForms]=useState({}),[selected,setSelected]=useState(null),[page,setPage]=useState(0);
+ const [view3D,setView3D]=useState(false);
+ const Art=view3D?Mecha3D:MonsterPixelArt;
  const entries=Object.values(MONSTER_SPRITES).filter(m=>!filter||m.faction===filter),pages=Math.ceil(entries.length/6),current=Math.min(page,pages-1);
  const choose=f=>{setFilter(f);setPage(0)};
  const isVehicle=m=>canTransform(m)&&Boolean(forms[m.key]);
  const toggle=m=>setForms(old=>({...old,[m.key]:!old[m.key]}));
  return <div className="catalog-screen">
-  <div className="catalog-heading"><h2>機甲圖鑑 <span>40 種</span></h2><span className="catalog-hint">點選變身預覽載具</span></div>
+  <div className="catalog-heading"><h2>機甲圖鑑 <span>40 種</span></h2><button type="button" aria-pressed={view3D} className="catalog-view3d" onClick={()=>setView3D(v=>!v)}>{view3D?'切換原圖':'360° 立體預覽'}</button></div>
   <div className="grid grid-cols-5 gap-1"><PlayButton icon="pokedex" label="全部陣營" caption="全部" selected={!filter} onClick={()=>choose(0)} className="play-small"/>{FACTIONS.map(f=><PlayButton key={f.id} icon={glyphs[f.id-1]} label={f.name} selected={filter===f.id} onClick={()=>choose(f.id)} className="play-small" style={{'--control-accent':f.color}}/>)}</div>
   <div className="catalog-grid">{entries.slice(current*6,current*6+6).map(m=><article key={m.key} className="play-encounter catalog-entry" data-testid={'catalog-'+m.key} style={{'--entry-accent':FACTIONS[m.faction-1].color}}>
    <button type="button" aria-label={m.modelName||m.name} onClick={()=>setSelected(m)} className="catalog-art-button">
     <strong className="catalog-model" title={m.modelName}>{m.modelName}</strong>
-    <MonsterPixelArt family={m.family} stage={m.stage} type={m.type} vehicle={isVehicle(m)} fitVehicle displaySize={104}/>
+    <Art family={m.family} stage={m.stage} type={m.type} vehicle={isVehicle(m)} fitVehicle displaySize={104}/>
     <span className="catalog-species">{m.factionName}</span>
     <span className="catalog-classification">{m.roleName}・{m.stageName}</span>
    </button>
@@ -28,7 +31,7 @@ export default function Pokedex(){
   {selected&&<div className="cockpit-overlay" role="dialog" aria-label={selected.modelName||selected.name} aria-modal="true"><div className="cockpit-dialog flex flex-col items-center gap-2">
     <div className="dialog-heading w-full"><h2>機甲資料</h2><button onClick={()=>setSelected(null)} aria-label="關閉圖鑑詳情">×</button></div>
     <div className="text-base font-bold text-center">{selected.modelName}</div>
-    <MonsterPixelArt family={selected.family} stage={selected.stage} type={selected.type} vehicle={isVehicle(selected)} fitVehicle displaySize={200}/>
+    <Art family={selected.family} stage={selected.stage} type={selected.type} vehicle={isVehicle(selected)} fitVehicle displaySize={200}/>
     <div className="text-sm font-medium" style={{color:FACTIONS[selected.faction-1].color}}>{selected.factionName}</div>
     <div className="text-xs text-slate-400">{selected.roleName}・{selected.stageName}</div>
     {isVehicle(selected)&&<div className="text-sm text-cyan-300">載具：{selected.vehicle}</div>}
