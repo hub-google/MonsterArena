@@ -41,3 +41,14 @@ test('approved alternate forms remain pixel-identical and robot sprites match pr
  assert.equal(digest(vehicles),'ab36bfd1b17b254a50986e8af9cc40148bd30f3b980aec7c7364c51a728c3688');
  assert.equal(digest(robots),'849ca4b4dbf5926f11a05fe13f3be464824e275af5eb1508341975f2af540961');
 });
+
+test('advanced steel artillery shares the approved Tyranno sprite and alternate form across legacy type codes',()=>{
+ for(const family of [4,5])for(const type of [2,3])for(const stage of [5,6]){
+  const m=getMecha(family,stage,type);
+  assert.equal(m.vehicle,'暴龍型態');
+  assert.deepEqual(m.spriteAsset,{robot:'mecha/tyranno-robot.png',vehicle:'mecha/tyranno-rex.png'});
+ }
+ assert.equal(getMecha(4,4,3).spriteAsset,null);
+ assert.equal(getMecha(4,5,1).spriteAsset,null);
+ assert.equal(getMecha(1,6,2).spriteAsset,null);
+});

@@ -158,15 +158,15 @@ test('authenticated all-dead account can claim the rescue egg once', async ({ pa
   expect(calls.filter(path => path === '/rest/v1/rpc/game_action')).toHaveLength(1);
 });
 
-test('existing stage-six legacy type-three unit retains custom name and converts to matching robot and vehicle',async({page})=>{
- await setupAuthenticatedGame(page,[{...dead,name:'老玩家收藏',family:4,type:3,life_stage:6,is_dead:false,is_sick:false}]);
+for(const [stage,stageName] of [[5,'超限機'],[6,'終極機']])test(`existing stage-${stage} legacy type-three unit retains custom name and uses shared Tyranno forms`,async({page})=>{
+ await setupAuthenticatedGame(page,[{...dead,name:'老玩家收藏',family:4,type:3,life_stage:stage,is_dead:false,is_sick:false}]);
  await expect(page.getByRole('heading',{name:'老玩家收藏'})).toBeVisible();
  await expect(page.getByTestId('mecha-details')).toHaveCount(0);
  await page.getByRole('button',{name:'機體詳細資料'}).click();
  await expect(page.getByTestId('mecha-details').getByText('鋼鐵族・重砲型',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'關閉詳細資料'}).click();
- await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'})).toBeVisible();
- await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'}).locator('image')).toHaveAttribute('href',/tyranno-robot\.png$/);
+ await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・'+stageName})).toBeVisible();
+ await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・'+stageName}).locator('image')).toHaveAttribute('href',/tyranno-robot\.png$/);
  await page.getByRole('button',{name:'變形：暴龍型態'}).click();
  await expect(page.getByRole('img',{name:'暴龍型態'})).toBeVisible();
  await expect(page.getByRole('img',{name:'暴龍型態'}).locator('image')).toHaveAttribute('href',/tyranno-rex\.png$/);
@@ -174,9 +174,9 @@ test('existing stage-six legacy type-three unit retains custom name and converts
   const info=await page.evaluate(async name=>{const img=new Image();img.src=new URL('mecha/tyranno-'+name+'.png',location.href).href;await img.decode();return [img.naturalWidth,img.naturalHeight]},name);
   expect(info).toEqual([128,128]);
  }
- await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/tyranno-rex.png',animations:'disabled'});
+ await page.getByTestId('game-shell').screenshot({path:`test-results/ui-visual/tyranno-rex-stage-${stage}.png`,animations:'disabled'});
  await page.getByRole('button',{name:'切換機器人'}).click();
- await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・終極機'})).toBeVisible();
+ await expect(page.getByRole('img',{name:'鋼鐵族・重砲型・'+stageName})).toBeVisible();
 });
 
 test('three simultaneous status warnings stay separate from each other and the machine on mobile',async({page})=>{
@@ -311,7 +311,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  await expect(home.locator('.cockpit-species')).toContainText('鋼鐵族');
  await expect(home.locator('.cockpit-species')).not.toContainText('重砲型');
  await expect(home.locator('.cockpit-species')).not.toContainText('超限機');
- await actions.getByRole('button',{name:'變形：重型坦克'}).click();
+ await actions.getByRole('button',{name:'變形：暴龍型態'}).click();
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop-vehicle.png',animations:'disabled'});
  await assertVisiblePaint(90);
  await actions.getByRole('button',{name:'切換機器人'}).click();
@@ -342,7 +342,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  expect(await home.locator('.cockpit-name h2').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/mobile.png',animations:'disabled'});
  await assertVisiblePaint(85);
- await actions.getByRole('button',{name:'變形：重型坦克'}).click();
+ await actions.getByRole('button',{name:'變形：暴龍型態'}).click();
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/mobile-vehicle.png',animations:'disabled'});
  await assertVisiblePaint(85);
 });

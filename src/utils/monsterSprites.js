@@ -12,7 +12,9 @@ export function roleOf(type,stage){return Number(stage)<3?0:Number(type)===1?1:2
 export function getMecha(family,stage,type){
  const f=FACTIONS[factionOf(family)-1],s=Math.max(1,Math.min(6,Math.trunc(Number(stage)||1))),r=roleOf(type,s);
  const role=f.roles[r-1];
- return {faction:f.id,family:f.legacy,stage:s,type:r,factionName:f.name,roleName:role?.name||'尚未分化',stageName:STAGE_NAMES[s],name:f.name+(role?'・'+role.name:'')+'・'+STAGE_NAMES[s],vehicle:f.id===2&&s===6&&r===2?'暴龍型態':role?.vehicle,skill:role?.skill,key:f.id+'_'+s+'_'+r};
+ // The approved Tyranno design is shared by the two advanced stages of this role.
+ const tyranno=f.id===2&&s>=5&&r===2;
+ return {faction:f.id,family:f.legacy,stage:s,type:r,factionName:f.name,roleName:role?.name||'尚未分化',stageName:STAGE_NAMES[s],name:f.name+(role?'・'+role.name:'')+'・'+STAGE_NAMES[s],vehicle:tyranno?'暴龍型態':role?.vehicle,spriteAsset:tyranno?{robot:'mecha/tyranno-robot.png',vehicle:'mecha/tyranno-rex.png'}:null,skill:role?.skill,key:f.id+'_'+s+'_'+r};
 }
 export function counterMultiplier(attackerFamily,defenderFamily){return factionOf(defenderFamily)===factionOf(attackerFamily)%4+1?1.2:1;}
 export const MONSTER_SPRITES=Object.freeze(Object.fromEntries(FACTIONS.flatMap(f=>[...Array.from({length:2},(_,i)=>getMecha(f.legacy,i+1,0)),...Array.from({length:8},(_,i)=>getMecha(f.legacy,3+Math.floor(i/2),i%2+1))]).map((m,i)=>[m.key,{...m,id:i+1}])));

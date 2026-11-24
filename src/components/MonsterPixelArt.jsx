@@ -8,7 +8,7 @@ export default function MonsterPixelArt({family,stage,type,isDead,isSick,isPoop,
  const m=getMecha(family,stage,type);
  const showVehicle=Boolean(vehicle&&m.stage>=4&&!isDead);
  const showSkin=!isDead&&!showVehicle&&m.stage>=2?getSkin(skin):null;
- const customSprite=m.key==='2_6_2'&&!isDead&&!showSkin?`mecha/tyranno-${showVehicle?'rex':'robot'}.png`:null;
+ const customSprite=!isDead&&!showSkin?m.spriteAsset?.[showVehicle?'vehicle':'robot']||null:null;
  const anim=!isDead&&!showVehicle&&m.stage>1?(isHappy?'animate-bounce-happy':isSick||isHungry?'animate-shake-weak':'animate-walk-side'):'';
  const statuses=isDead?[]:[
   isSick&&{key:'fault',icon:'tools',label:'系統故障',tone:'border-rose-500/50 text-rose-300'},
