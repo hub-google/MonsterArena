@@ -82,6 +82,7 @@ BEGIN
 END $$;
 RESET ROLE;
 UPDATE public.monsters SET life_stage=4 WHERE monster_id='00000000-0000-4000-8000-000000000011';
+SELECT arena_internal.refresh_unit('00000000-0000-4000-8000-000000000011');
 SET LOCAL ROLE authenticated;
 DO $$
 DECLARE r jsonb;
@@ -190,4 +191,40 @@ DO $balance$ BEGIN
 END $balance$;
 RESET ROLE;
 DO $balance$ BEGIN IF NOT EXISTS(SELECT 1 FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011' AND training_hp=30 AND training_atk=30 AND training_def=0 AND training_spd=0) THEN RAISE EXCEPTION 'training distribution failed'; END IF; END $balance$;
+-- Exercise actual transactions, not only the stat formula.
+INSERT INTO public.monsters(monster_id,user_id,name,life_stage,type,family,core_quality,combat_hp,combat_atk,combat_def,combat_spd,fullness,cleanliness,is_dead,is_sick)
+VALUES('00000000-0000-4000-8000-000000000013','00000000-0000-4000-8000-000000000001','融合測試',4,2,7,5,5000,1000,500,100,100,100,false,false);
+UPDATE public.monsters SET core_quality=5 WHERE monster_id='00000000-0000-4000-8000-000000000011';
+UPDATE public.users SET gold=2000,stamina=100 WHERE user_id='00000000-0000-4000-8000-000000000001';
+SELECT arena_internal.refresh_unit('00000000-0000-4000-8000-000000000011');
+CREATE TEMP TABLE equip_baseline ON COMMIT DROP AS SELECT combat_hp FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011';
+INSERT INTO public.user_inventory(user_id,item_id,item_type,quantity) VALUES
+ ('00000000-0000-4000-8000-000000000001','chip_hp',4,1),('00000000-0000-4000-8000-000000000001','chip_extractor',4,2)
+ ON CONFLICT(user_id,item_id) DO UPDATE SET quantity=excluded.quantity;
+SET LOCAL ROLE authenticated;
+SELECT public.game_action('equip','{"monster_id":"00000000-0000-4000-8000-000000000011","item_id":"chip_hp","slot":1}');
+RESET ROLE;
+DO $balance$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.monsters m,equip_baseline b WHERE m.monster_id='00000000-0000-4000-8000-000000000011' AND m.combat_hp>b.combat_hp) THEN RAISE EXCEPTION 'actual equip did not increase HP'; END IF;
+END $balance$;
+SET LOCAL ROLE authenticated;
+SELECT public.game_action('unequip','{"monster_id":"00000000-0000-4000-8000-000000000011","slot":1}');
+SELECT public.game_action('breed','{"parent1":"00000000-0000-4000-8000-000000000011","parent2":"00000000-0000-4000-8000-000000000013"}');
+RESET ROLE;
+DO $balance$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.monsters m,equip_baseline b WHERE m.monster_id='00000000-0000-4000-8000-000000000011' AND m.combat_hp=b.combat_hp AND m.chip_slot_1 IS NULL) THEN RAISE EXCEPTION 'actual unequip altered base HP'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.monsters WHERE parent_1_id='00000000-0000-4000-8000-000000000011' AND parent_2_id='00000000-0000-4000-8000-000000000013' AND life_stage=1 AND core_quality=5 AND training_hp+training_atk+training_def+training_spd=0 AND combat_hp=50 AND combat_atk=5 AND chip_slot_1 IS NULL AND chip_slot_2 IS NULL) THEN RAISE EXCEPTION 'core inherited inflated stats or equipment'; END IF;
+END $balance$;
+-- Reopen only the isolated fixture to test repeated raid attempts and participation.
+UPDATE public.raid_boss SET current_hp=100000,max_hp=100000,is_active=true WHERE id LIKE 'daily:%';
+DELETE FROM arena_internal.raid_contributions;
+SET LOCAL ROLE authenticated;
+SELECT public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000011","strategy":"defend"}');
+SELECT public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000011","strategy":"break"}');
+SELECT public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000011","strategy":"assault"}');
+DO $balance$ BEGIN
+ BEGIN PERFORM public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000011"}'); RAISE EXCEPTION 'fourth raid attempt accepted'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%三次%' THEN RAISE; END IF; END;
+END $balance$;
+RESET ROLE;
+DO $balance$ BEGIN IF (SELECT attempts FROM arena_internal.raid_contributions WHERE user_id='00000000-0000-4000-8000-000000000001')<>3 THEN RAISE EXCEPTION 'raid attempt count incorrect'; END IF; END $balance$;
 ROLLBACK;

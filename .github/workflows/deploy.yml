@@ -90,6 +90,7 @@ jobs:
           npm run --silent db:sql > /tmp/arena-current.sql
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-current.sql
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/game-rules-v2.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/combat-balance.sql
       - name: 檢查 Supabase 驗證服務
         run: node scripts/check-supabase-game.mjs
       - name: 建置測試站
