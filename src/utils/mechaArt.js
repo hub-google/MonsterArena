@@ -4,7 +4,7 @@ const OUT='#17233a', STEEL='#758ca5', WHITE='#e7edf4', DARK='#34445e', GLASS='#7
 const PALETTES=[
  ['#f05248','#a12633','#ffad69','#ffc253'],['#82ac50','#3c633a','#c8e27b','#ffca5a'],
  ['#479fe4','#265b99','#9cddff','#ffd673'],['#ad83e8','#6646a7','#e2c4ff','#64f1d9'],
- ['#d7dfe9','#647a95','#ffffff','#f4554d'],['#c4a15c','#75603b','#f6d68a','#94bf52'],
+ ['#d83d37','#861f32','#ff936b','#ffd15b'],['#c4a15c','#75603b','#f6d68a','#94bf52'],
  ['#63bce9','#2b699f','#c5f0ff','#f8aa52'],['#e7e4f5','#9a86bc','#ffffff','#9f74e5']
 ];
 const cache=new Map(),viewportCache=new Map();
@@ -42,7 +42,7 @@ function raster(f,r,s,vehicle){
  if(f===1&&r===2){
    wheel(5,36,20,20);wheel(39,36,20,20);
    poly([[13,43],[27,34],[39,32],[49,44],[40,47],[26,48]],DARK);
-   poly([[12,35],[18,26],[25,24],[30,32],[24,40]],WHITE);poly([[42,29],[49,31],[56,39],[40,39],[36,34]],C);
+   poly([[12,35],[18,26],[25,24],[30,32],[24,40]],H);poly([[42,29],[49,31],[56,39],[40,39],[36,34]],C);
    armor(24,29,17,14);core(28,32);poly([[30,27],[34,17],[40,14],[45,20],[40,26]],C);
    poly([[35,18],[40,16],[43,20],[39,23],[34,22]],GLASS);rect(27,23,8,3,DARK);
    poly([[9,32],[12,28],[20,28],[23,32],[22,36],[8,36]],C);detail(11,30,7,2,H);
@@ -115,7 +115,7 @@ function raster(f,r,s,vehicle){
  const both=(x,y,w,h,c)=>{detail(x,y,w,h,c);detail(64-x-w,y,w,h,c)};
  const twin=(x,y,w,h)=>{armor(x,y,w,h);armor(64-x-w,y,w,h)};
  if(k===0){wheel(5,18,13,13);wheel(46,18,13,13);if(s>=5){pair([[12,19],[8,10],[18,14],[23,21]],C);if(s===6){armor(8,8,9,13);armor(47,8,9,13)}}}
- if(k===1){wheel(13,43,11,11);wheel(40,43,11,11);if(s>=4)pair([[20,22],[9,13],[12,29],[19,34]],WHITE);if(s>=6)pair([[17,25],[6,17],[10,34]],L);}
+ if(k===1){wheel(13,43,11,11);wheel(40,43,11,11);if(s>=4)pair([[20,22],[9,13],[12,29],[19,34]],C);if(s>=6)pair([[17,25],[6,17],[10,34]],L);}
  if(k===2){if(s>=4)twin(8,16,12,18);if(s>=5){armor(5,11,13,13);armor(46,11,13,13)}if(s===6)twin(2,22,13,14);}
  if(k===3){track(6,42,12,15);track(46,42,12,15);if(s>=4){armor(5,12,10,21);rect(6,5,8,14,DARK);detail(8,6,3,10,STEEL);rect(5,3,10,5,OUT)}if(s>=5){armor(48,14,10,18);rect(50,8,7,12,DARK);detail(52,9,3,9,STEEL);rect(49,5,9,5,OUT)}if(s===6){rect(2,10,5,15,DARK);detail(3,12,2,10,STEEL)}}
  if(k===4){pair([[19,24],[8,9],[5,14],[9,31],[20,37]],C);pair([[11,15],[8,13],[12,27],[17,30]],WHITE,false);if(s>=5)pair([[10,20],[2,14],[4,33],[11,39]],L);if(s===6)both(8,26,3,7,A);}
@@ -151,7 +151,7 @@ function raster(f,r,s,vehicle){
  if(k===7){detail(30,25,3,9,A);detail(27,28,9,3,A)}
  const bx=32-shoulder-arm+1;
  if(k===0||k===4){pair([[bx,21],[bx+4,16],[32-shoulder+5,19],[32-shoulder+5,24],[bx+3,27],[bx,25]],C);pair([[bx+3,20],[bx+5,18],[32-shoulder+3,20],[32-shoulder+1,22]],H,false);}
- else if(k===1){pair([[bx,20],[bx+4,16],[32-shoulder+4,19],[32-shoulder+1,25],[bx+1,26]],WHITE);pair([[bx+2,21],[32-shoulder+2,20],[32-shoulder,23]],C,false);}
+ else if(k===1){pair([[bx,20],[bx+4,16],[32-shoulder+4,19],[32-shoulder+1,25],[bx+1,26]],C);pair([[bx+2,21],[32-shoulder+2,20],[32-shoulder,23]],C,false);}
  else if(k===2||k===3||k===5){twin(bx,17,arm+5,11);both(bx+3,19,arm,2,H);if(s>=5)both(bx+2,24,arm,2,A);}
  else {pair([[bx,19],[bx+4,16],[32-shoulder+4,18],[32-shoulder+5,24],[bx+4,27],[bx,24]],C);pair([[bx+2,19],[bx+5,18],[32-shoulder+2,19],[32-shoulder,22]],H,false);}
  rect(28,16,8,5,DARK);

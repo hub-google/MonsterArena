@@ -15,3 +15,14 @@ test('eight terminal silhouettes are distinct without color',()=>{
  assert.equal(new Set(masks).size,8);
  for(let i=0;i<4;i++){let diff=0,union=0;for(let j=0;j<masks[2*i].length;j++){const a=masks[2*i][j],b=masks[2*i+1][j];if(a==='1'||b==='1')union++;if(a!==b)diff++;}assert.ok(diff/union>0.15,'same faction needs different outlines');}
 });
+
+import { buildTurnMesh,turnAngle,TURN_PERIOD,redTint } from '../src/utils/mechaTurntable.js';
+test('疾風兩職業主色一致，所有圖鑑機體與載具可建立實心旋轉模型',()=>{
+ for(const m of Object.values(MONSTER_SPRITES))for(const vehicle of m.stage>=4?[false,true]:[false]){
+  const mesh=buildTurnMesh(getSpriteGrid(m.family,m.stage,m.type,vehicle),vehicle);assert.ok(mesh.length>0);assert.equal(mesh.length%18,0);assert.ok(mesh.every(Number.isFinite));
+  let depth=0;for(let i=2;i<mesh.length;i+=6)depth=Math.max(depth,Math.abs(mesh[i]));assert.ok(depth>0);
+ }
+ const swift=getSpriteGrid(1,4,2);assert.ok(swift.flat().includes('#d83d37'));assert.ok(!swift.flat().includes('#d7dfe9'));
+ assert.ok(redTint([180,180,180])[0]>redTint([180,180,180])[1]);
+ assert.ok(Math.abs(turnAngle(TURN_PERIOD)-turnAngle(0)-2*Math.PI)<1e-8);
+});
