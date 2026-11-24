@@ -105,28 +105,38 @@ BEGIN
 END $$;
 RESET ROLE;
 DO $$ BEGIN IF (SELECT quantity FROM public.user_inventory WHERE user_id='00000000-0000-4000-8000-000000000001' AND item_id='skin_husky')<>1 THEN RAISE EXCEPTION 'skin consumed'; END IF; IF (SELECT skin_id FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011') IS NOT NULL THEN RAISE EXCEPTION 'unequip failed'; END IF; END $$;
--- Emergency repairs preserve permanent durability, cannot restart the timer,
--- and can be completed immediately with a paid kit.
+-- Emergency repair: execute RPCs as authenticated, inspect private rows as
+-- the isolated test database owner. Never grant production table access.
 UPDATE public.monsters SET is_sick=true,repair_until=null WHERE monster_id='00000000-0000-4000-8000-000000000011';
 INSERT INTO public.user_inventory(user_id,item_id,item_type,quantity) VALUES('00000000-0000-4000-8000-000000000001','medicine_standard',2,1) ON CONFLICT(user_id,item_id) DO UPDATE SET quantity=1;
+CREATE TEMP TABLE repair_baseline ON COMMIT DROP AS SELECT monster_id, combat_hp FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011';
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT public.game_action('heal','{"monster_id":"00000000-0000-4000-8000-000000000011","item_id":"heal_basic"}');
+RESET ROLE;
 DO $repair_test$
-DECLARE before_hp numeric; mid uuid:='00000000-0000-4000-8000-000000000011'; deadline timestamptz;
 BEGIN
- SELECT combat_hp INTO before_hp FROM public.monsters WHERE monster_id=mid;
- PERFORM public.game_action('heal',jsonb_build_object('monster_id',mid,'item_id','heal_basic'));
- SELECT repair_until INTO deadline FROM public.monsters WHERE monster_id=mid;
- IF deadline IS DISTINCT FROM now()+interval '30 minutes' OR NOT EXISTS(SELECT 1 FROM public.monsters WHERE monster_id=mid AND is_sick AND combat_hp=before_hp) THEN RAISE EXCEPTION 'free repair damaged HP or wrong duration'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.monsters m JOIN repair_baseline b USING(monster_id) WHERE m.repair_until=now()+interval '30 minutes' AND m.is_sick AND m.combat_hp=b.combat_hp) THEN RAISE EXCEPTION 'free repair damaged HP or wrong duration'; END IF;
+END $repair_test$;
+SET LOCAL ROLE authenticated;
+DO $repair_test$
+DECLARE mid uuid:='00000000-0000-4000-8000-000000000011';
+BEGIN
  BEGIN PERFORM public.game_action('heal',jsonb_build_object('monster_id',mid,'item_id','heal_basic')); RAISE EXCEPTION 'repair restarted'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%緊急修復已開始%' THEN RAISE; END IF; END;
  BEGIN PERFORM public.game_action('battle',jsonb_build_object('monster_id',mid,'encounter','wild')); RAISE EXCEPTION 'repairing unit battled'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%緊急修復中%' THEN RAISE; END IF; END;
  PERFORM public.game_action('heal',jsonb_build_object('monster_id',mid,'item_id','medicine_standard'));
- IF NOT EXISTS(SELECT 1 FROM public.monsters WHERE monster_id=mid AND NOT is_sick AND repair_until IS NULL AND combat_hp=before_hp) THEN RAISE EXCEPTION 'standard repair damaged HP or did not clear timer'; END IF;
 END $repair_test$;
 RESET ROLE;
+DO $repair_test$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.monsters m JOIN repair_baseline b USING(monster_id) WHERE NOT m.is_sick AND m.repair_until IS NULL AND m.combat_hp=b.combat_hp) THEN RAISE EXCEPTION 'standard repair damaged HP or did not clear timer'; END IF;
+END $repair_test$;
 UPDATE public.monsters SET is_sick=true,repair_until=now()-interval '1 second',last_updated_at=now() WHERE monster_id='00000000-0000-4000-8000-000000000011';
 SET LOCAL ROLE authenticated;
 SELECT public.game_age_monsters();
-DO $repair_test$ BEGIN IF EXISTS(SELECT 1 FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011' AND (is_sick OR repair_until IS NOT NULL)) THEN RAISE EXCEPTION 'repair did not complete automatically'; END IF; END $repair_test$;
 RESET ROLE;
+DO $repair_test$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.monsters m JOIN repair_baseline b USING(monster_id) WHERE NOT m.is_sick AND m.repair_until IS NULL AND m.combat_hp=b.combat_hp) THEN RAISE EXCEPTION 'repair did not complete automatically or damaged HP'; END IF;
+END $repair_test$;
 ROLLBACK;
