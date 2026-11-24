@@ -111,6 +111,7 @@ export const api = {
     throwIfError(error);
     return data ?? [];
   },
+  equipSkin: (monster_id, skin_id) => action('skin_equip', { monster_id, skin_id }),
   buyItem: (item_id, quantity=1) => action('buy', { item_id, quantity }),
   rename: async (monster_id, name) => {
     const {data,error}=await supabase.rpc('game_rename_monster',{p_monster_id:monster_id,p_name:name});

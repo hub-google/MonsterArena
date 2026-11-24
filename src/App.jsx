@@ -23,6 +23,8 @@ export default function App() {
   const [loading,setLoading]=useState(true);
   const [loadError,setLoadError]=useState('');
   const [battleState,setBattleState]=useState(null);
+  const [vehicleModes,setVehicleModes]=useState({});
+  const setVehicleMode=(id,value)=>setVehicleModes(old=>({...old,[id]:value}));
   const [isOnline,setIsOnline]=useState(typeof navigator==='undefined' || navigator.onLine);
   const authUidRef=useRef(null);
   const loadVersionRef=useRef({});
@@ -31,7 +33,7 @@ export default function App() {
   const clearUser=()=>{
     setUser(null);setMonsters([]);setInventory([]);setFriends([]);
     setGuilds([]);setMyGuild(null);setActiveMonster(null);
-    setBattleState(null);setLoadError('');
+    setBattleState(null);setVehicleModes({});setLoadError('');
   };
 
   const loadUserData=async (resources=['profile','monsters','inventory','friends','guilds'])=>{
@@ -154,13 +156,13 @@ export default function App() {
     <MobileLayout isConnected={isOnline} page={page} setPage={setPage} onRefresh={()=>loadUserData().catch(console.warn)} onLogout={handleLogout}>
       <Suspense fallback={<div className="p-6 text-center text-cyan-400">載入功能中...</div>}>
       {page==='dashboard'&&<Dashboard user={user} monsters={monsters} inventory={inventory} refreshData={loadUserData}
-        activeMonster={activeMonster} setActiveMonster={setActiveMonster} setPage={setPage}/>}
+        activeMonster={activeMonster} setActiveMonster={setActiveMonster} setPage={setPage} vehicleModes={vehicleModes} setVehicleMode={setVehicleMode}/>}
       {page==='roster'&&<Roster user={user} monsters={monsters} inventory={inventory} refreshData={loadUserData}
         activeMonster={activeMonster} setActiveMonster={setActiveMonster} setPage={setPage}/>}
       {page==='arena'&&<Arena user={user} monsters={monsters} friends={friends} activeMonster={activeMonster}
-        battleState={battleState}
+        battleState={battleState} vehicleModes={vehicleModes}
         setBattleState={setBattleState} refreshData={loadUserData} setPage={setPage}/>}
-      {page==='raid'&&<Raid user={user} monsters={monsters} activeMonster={activeMonster}
+      {page==='raid'&&<Raid user={user} monsters={monsters} activeMonster={activeMonster} vehicleModes={vehicleModes}
         refreshData={loadUserData} setPage={setPage}/>}
       {page==='guild'&&<Guild user={user} guilds={guilds} myGuild={myGuild}
         refreshData={loadUserData} setPage={setPage}/>}

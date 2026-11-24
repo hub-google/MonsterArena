@@ -10,6 +10,7 @@ const shapes={
  heal:'M8 3h8v5h5v8h-5v5H8v-5H3V8h5z',
  train:'M3 8v8M6 5v14M18 5v14M21 8v8M6 12h12',
  transform:'M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5M4 16a8 8 0 0 0 14 3l3-3m0 5v-5h-5',
+ skin:'M8 3 3 6l3 5 3-2v12h6V9l3 2 3-5-5-3-4 3z',
  shop:'M3 4h2l3 12h11l3-9H6M9 21h.01M18 21h.01',
  quest:'M3 9h18v4H3zM5 13v9h14v-9M12 9v13M12 9C3 9 5 1 9 4l3 5c9 0 7-8 3-5z',
  info:'M12 11v6M12 7h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20',

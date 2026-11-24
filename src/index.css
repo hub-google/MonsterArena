@@ -236,3 +236,25 @@
 @media(max-width:360px){.cockpit-main{padding-inline:8px}.cockpit-resources{gap:3px}.cockpit-resources>span{padding:4px}.cockpit-tools .play-small{padding-inline:2px}.cockpit-species{font-size:10px}.mecha-status{font-size:10px;padding:2px 3px}}
 /* Extremely short or zoomed screens remain usable, never clip actions. */
 @media(max-width:639px) and (max-height:575px){.cockpit-main-home{overflow-y:auto}.cockpit-home{height:auto;min-height:510px}.cockpit-art{min-height:160px}}
+
+/* Cosmetics: compact portrait shop and wardrobe. */
+.skin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+.skin-card{border:1px solid #405365;background:#1b2c3d;border-radius:10px;min-width:0;padding:6px;display:flex;flex-direction:column;align-items:center;gap:4px;color:#e7eff9;font-size:12px;min-height:108px}
+.skin-card[aria-pressed=true]{border:2px solid #77d9bb;background:#203b3a}
+.skin-card>strong{font-size:13px}.skin-card>span{color:#a6e1cf}
+.skin-preview{display:block;max-width:100%;height:64px;width:64px;flex:none}
+.skin-buy{width:100%;border-radius:6px;padding:7px 2px;background:#bb8539;color:#10151e;font-weight:700;min-height:34px}
+.skin-buy:disabled{opacity:.5;cursor:default}.skin-tabs{display:flex;gap:6px}
+.skin-tabs button{flex:1;border:1px solid #405365;border-radius:8px;padding:8px;color:#bccbd8;font-weight:700}
+.skin-tabs button[aria-pressed=true]{border-color:#e8bd79;background:#3b3326;color:#f7d69c}
+.skin-shop-scroll{min-height:0;overflow-y:auto;padding-right:3px}
+.skin-dialog .skin-grid{overflow:auto;min-height:0}.skin-shop-dialog{overflow:hidden}
+.cockpit-tools .play-small{min-width:39px}
+.battle-reveal{position:relative;display:grid;place-items:center;isolation:isolate;min-width:0;width:100%;max-width:110px}
+.battle-reveal-active>.mecha-display{animation:skin-reveal-core 1.2s both}
+.battle-disguise{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;animation:skin-reveal-shell 1.2s both}
+.battle-reveal-active:after{content:'';position:absolute;inset:15%;border:2px solid #a5f5ff;border-radius:50%;pointer-events:none;animation:skin-reveal-ring 1.2s both}
+@keyframes skin-reveal-core{0%,35%{opacity:0;transform:scale(.8)}60%,100%{opacity:1;transform:scale(1)}}
+@keyframes skin-reveal-shell{0%,24%{opacity:1;transform:scale(1)}55%{opacity:.75;transform:translateY(-9px) scale(1.18);filter:brightness(1.7)}100%{opacity:0;transform:translateY(-30px) scale(1.4)}}
+@keyframes skin-reveal-ring{0%,25%{opacity:0;transform:scale(.5)}50%{opacity:1}100%{opacity:0;transform:scale(1.6)}}
+@media(prefers-reduced-motion:reduce){.battle-reveal-active>.mecha-display,.battle-disguise,.battle-reveal-active:after{animation-duration:.01ms}}

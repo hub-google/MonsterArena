@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
+import BattleReveal from '../components/BattleReveal';
+import {appearance,hasDisguise} from '../utils/skins';
 import { api, GAME_RULES_V2 } from '../utils/api';
 import {PlayButton,GameIcon} from '../components/PlayButton';
 
@@ -10,7 +12,7 @@ export default function Arena({
   monsters, 
   friends, 
   activeMonster, 
-  battleState, 
+  battleState, vehicleModes={}, 
   setBattleState, 
   refreshData, 
   setPage 
@@ -32,7 +34,7 @@ export default function Arena({
   const logsEndRef = useRef(null);
   const refreshChatRef = useRef(null);
   const challengePending = useRef(false);
-  const battleRunning = Boolean(battleState && !battleState.isOver);
+  const battleRunning = Boolean(battleState && !battleState.isOver && !battleState.revealing);
 
 
   useEffect(() => {
@@ -55,6 +57,7 @@ export default function Arena({
     };
   }, [subTab,Boolean(battleState)]);
 
+  useEffect(()=>{if(!battleState?.revealing||battleState.isOver)return;const timer=setTimeout(()=>setBattleState(prev=>prev?.revealing&&!prev.isOver?{...prev,revealing:false,logs:[...prev.logs,'解除偽裝，真身出戰！']}:prev),1200);return ()=>clearTimeout(timer);},[battleState?.battleId,battleState?.revealing,battleState?.isOver,setBattleState]);
   // Battle transcript playback is cosmetic; the database already determined the winner.
   useEffect(() => {
     if (!battleRunning) return;
@@ -115,10 +118,14 @@ export default function Arena({
         life_stage:result.enemyStage??(isBoss?6:Math.max(3,Math.min(5,Number(monster.life_stage)||3))),
         combat_hp:result.enemyMaxHp, combat_atk:result.enemyAtk,
         combat_def:result.enemyDef, combat_spd:result.enemySpd,
-        type:result.enemyType
+        type:result.enemyType, skin_id:result.enemySkin||null
       };
+      const ownLook=appearance(monster,vehicleModes[monster.monster_id]);
+      const enemyLook=appearance(enemy);
+      const revealing=hasDisguise(monster,vehicleModes[monster.monster_id])||hasDisguise(enemy);
       setShowLogs(false);
       setBattleState({
+        ownLook,enemyLook,revealing,
         battleId:result.battleId, serverWon:result.won, reward:result.reward||0, events:result.events||[], eventIndex:0,
         mA:monster, mB:enemy,
         mA_HP:result.ownMaxHp,mB_HP:result.enemyMaxHp,
@@ -150,7 +157,7 @@ export default function Arena({
         <div className="absolute inset-0 bg-red-900/10 pointer-events-none animate-pulse rounded-2xl"></div>
         
         <div className="glass-card p-4 text-center border-red-500/30">
-          <div role="status" aria-label={isBattleOver?(battleState.serverWon?'勝利':'失敗'):'戰鬥中'} className="flex flex-col items-center gap-2 text-xl font-bold"><GameIcon name={isBattleOver?(battleState.serverWon?'trophy':'heart'):'battle'} className="battle-result-icon"/>{isBattleOver?(battleState.serverWon?'戰鬥勝利':'戰鬥失敗'):'戰鬥進行中'}</div>{isBattleOver&&battleState.reward>0&&<div className="text-amber-300">🪙 +{battleState.reward}</div>}
+          <div role="status" aria-label={isBattleOver?(battleState.serverWon?'勝利':'失敗'):battleState.revealing?'解除偽裝':'戰鬥中'} className="flex flex-col items-center gap-2 text-xl font-bold"><GameIcon name={isBattleOver?(battleState.serverWon?'trophy':'heart'):'battle'} className="battle-result-icon"/>{isBattleOver?(battleState.serverWon?'戰鬥勝利':'戰鬥失敗'):battleState.revealing?'解除偽裝・真身出戰':'戰鬥進行中'}</div>{isBattleOver&&battleState.reward>0&&<div className="text-amber-300">🪙 +{battleState.reward}</div>}
         </div>
 
         <div className="glass-card p-3 flex flex-col gap-3">
@@ -160,7 +167,7 @@ export default function Arena({
             <div className="flex flex-col items-center gap-2 w-1/3">
               <span className="truncate w-full text-center text-sm font-bold text-cyan-400">{battleState.mA?.name}</span>
               <div className="my-2 w-full flex justify-center">
-                <MonsterPixelArt family={battleState.mA?.family || 1} stage={battleState.mA?.life_stage || 4} type={battleState.mA?.type} isDead={battleState.mA_HP <= 0} />
+                <BattleReveal monster={battleState.mA} look={battleState.ownLook} revealing={battleState.revealing&&Boolean(battleState.ownLook?.skin||battleState.ownLook?.vehicle)} dead={battleState.mA_HP<=0}/>
               </div>
               
               <div className="w-full space-y-2">
@@ -190,7 +197,7 @@ export default function Arena({
             <div className="flex flex-col items-center gap-2 w-1/3">
               <span className="truncate w-full text-center text-sm font-bold text-rose-400">{battleState.mB?.name}</span>
               <div className="my-2 w-full flex justify-center">
-                <MonsterPixelArt family={battleState.mB?.family || 1} stage={battleState.mB?.life_stage || 4} type={battleState.mB?.type} isDead={battleState.mB_HP <= 0} />
+                <BattleReveal monster={battleState.mB} look={battleState.enemyLook} revealing={battleState.revealing&&Boolean(battleState.enemyLook?.skin||battleState.enemyLook?.vehicle)} dead={battleState.mB_HP<=0}/>
               </div>
               
               <div className="w-full space-y-2">
@@ -231,7 +238,7 @@ export default function Arena({
             <PlayButton icon="back" label="離開戰場" short="返回" tone="blue" onClick={()=>setBattleState(null)} className="w-full"/>
           ) : (
             <button aria-label="跳過戰鬥動畫" title="跳過戰鬥動畫" onClick={() => setBattleState(prev => prev && ({
-              ...prev,isOver:true,winner:prev.serverWon?'A':'B',
+              ...prev,revealing:false,isOver:true,winner:prev.serverWon?'A':'B',
               mA_HP:prev.finalOwnHp,mB_HP:prev.finalEnemyHp,
               eventIndex:prev.events?.length||0,
               logs:[...prev.logs,`🏆 戰鬥結束！${prev.serverWon ? prev.mA.name : prev.mB.name} 獲勝！`]
@@ -245,7 +252,7 @@ export default function Arena({
   return (
     <div className="h-full flex flex-col gap-4 animate-fade-in">
       <div className="flex justify-center items-center gap-2">
-        {getFighter()?<><MonsterPixelArt family={getFighter().family} stage={getFighter().life_stage} type={getFighter().type} displaySize={64}/><span className="font-bold text-cyan-300 text-sm truncate">{getFighter().name}</span></>:<PlayButton icon="home" label="先養成機甲" short="返回" onClick={()=>setPage('dashboard')}/>}
+        {getFighter()?<><MonsterPixelArt family={getFighter().family} stage={getFighter().life_stage} type={getFighter().type} {...appearance(getFighter(),vehicleModes[getFighter().monster_id])} displaySize={64}/><span className="font-bold text-cyan-300 text-sm truncate">{getFighter().name}</span></>:<PlayButton icon="home" label="先養成機甲" short="返回" onClick={()=>setPage('dashboard')}/>}
       </div>
       <div className={'grid gap-2 '+(GAME_RULES_V2?'grid-cols-4':'grid-cols-3')}>
        {([['players','battle','野生挑戰','打'],...(GAME_RULES_V2?[['pvp','🏆','玩家對戰','賽']]:[]),['friends','social','好友名單','友'],['chat','💬','世界聊天','聊']]).map(([id,icon,label,short])=><PlayButton key={id} icon={icon} label={label} short={short} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
@@ -314,7 +321,7 @@ export default function Arena({
             {pvp?.opponents?.length===0&&<p className="text-xs text-slate-400">目前沒有登記防守的其他玩家</p>}
             {pvp?.opponents?.map(o=>(
               <div key={o.user_id} className="glass-card p-3 flex items-center gap-2 justify-between">
-                <MonsterPixelArt family={o.family} stage={o.stage} type={o.type} className="scale-75"/>
+                <MonsterPixelArt family={o.family} stage={o.stage} type={o.type} skin={o.skin_id} className="scale-75"/>
                 <div className="flex-1"><div className="text-sm font-bold">{o.username}｜{o.monster_name}</div><div className="text-xs text-slate-300">{o.points} 分・HP {Math.round(o.hp)}・攻 {Math.round(o.atk)}</div></div>
                 <button disabled={loading} onClick={()=>handleChallenge('pvp',o.user_id)} className="neon-button neon-button-danger px-3 py-2">挑戰</button>
               </div>

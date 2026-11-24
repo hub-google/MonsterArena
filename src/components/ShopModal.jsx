@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { api } from '../utils/api';
+import {SKINS,ownsSkin} from '../utils/skins';
+import SkinArt from './SkinArt';
 
-export default function ShopModal({ user, onClose, refreshData }) {
+export default function ShopModal({ user, inventory=[], initialTab='items', onClose, refreshData }) {
+  const [tab,setTab]=useState(initialTab);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -20,17 +23,17 @@ export default function ShopModal({ user, onClose, refreshData }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="glass-card w-full max-w-lg p-6 relative border-amber-500/30 flex flex-col max-h-[90vh]">
+    <div role="dialog" aria-modal="true" aria-label="商城" className="cockpit-overlay">
+      <div className="cockpit-dialog relative skin-shop-dialog">
         <button 
-          onClick={onClose}
+          onClick={onClose} aria-label="關閉商城"
           className="absolute top-4 right-4 text-slate-400 hover:text-white text-xl"
         >
           ✕
         </button>
 
         <h3 className="text-xl font-bold text-amber-400 mb-2 flex items-center gap-2">
-          <span className="text-2xl">🏪</span> 道具補給站
+          <span className="text-2xl">🏪</span> 商城
         </h3>
         
         <div className="flex justify-between items-center mb-4 text-sm font-bold bg-slate-900/50 p-3 rounded-lg border border-slate-700">
@@ -38,7 +41,8 @@ export default function ShopModal({ user, onClose, refreshData }) {
           <span className="text-amber-400">💰 {user?.gold || 0}G</span>
         </div>
 
-        <div className="space-y-3 overflow-y-auto pr-2">
+        <div className="skin-tabs" role="group" aria-label="商城分類"><button aria-pressed={tab==='items'} onClick={()=>setTab('items')}>道具</button><button aria-pressed={tab==='skins'} onClick={()=>setTab('skins')}>皮膚 · 10 款</button></div>
+        {tab==='skins'?<div className="skin-shop-scroll"><p className="text-xs text-slate-300 mb-2">永久收藏，全機體共用，不影響戰力。</p><div className="skin-grid">{SKINS.map(s=>{const owned=ownsSkin(inventory,s.id);return <div key={s.id} className="skin-card"><SkinArt id={s.id}/><strong>{s.name}</strong><button className="skin-buy" disabled={owned||loading||Number(user.gold)<s.price} aria-label={owned?s.name+' 已收藏':'購買'+s.name+' '+s.price+'G'} onClick={()=>handleBuy(s.id)}>{owned?'已收藏':s.price+'G 購買'}</button></div>})}</div></div>:<div className="space-y-3 overflow-y-auto pr-2">
           <div className="bg-slate-900/50 border border-slate-700/50 p-4 rounded-xl flex justify-between items-center hover:border-amber-500/30 transition-colors">
             <div className="flex flex-col">
               <span className="font-bold text-white text-sm">🍖 基本肉</span>
@@ -112,7 +116,7 @@ export default function ShopModal({ user, onClose, refreshData }) {
             </div>
             <button onClick={() => handleBuy('ultimate_core')} disabled={loading || user.gold < 1000} className="neon-button bg-gradient-to-r from-yellow-500 to-amber-600 text-white px-4 py-2 text-sm shadow-[0_0_10px_rgba(245,158,11,0.5)]">1000G 購買</button>
           </div>
-        </div>
+        </div>}
 
         {message && (
           <div className="mt-4 p-3 text-center text-sm font-medium animate-pulse text-cyan-200 border border-cyan-500/50 bg-cyan-900/20 rounded">

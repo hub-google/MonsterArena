@@ -1,10 +1,12 @@
+import BattleReveal from '../components/BattleReveal';
+import {appearance,hasDisguise} from '../utils/skins';
 import React, { useState, useEffect, useRef } from 'react';
 import { api, GAME_RULES_V2 } from '../utils/api';
 
 export default function Raid({ 
   user, 
   monsters, 
-  activeMonster, 
+  activeMonster, vehicleModes={}, 
   refreshData, 
   setPage 
 }) {
@@ -54,7 +56,10 @@ export default function Raid({
     try{const result=await api.claimRaid(bossId);setMessage(result.message);await refreshData(['profile']);await fetchBossStatus();}
     catch(err){setMessage(err.message);}finally{setLoading(false);}
   };
+  const [revealing,setRevealing]=useState(false);
+  const attackPending=useRef(false);
   const handleAttack = async () => {
+    if(attackPending.current)return;
     if (!selectedMonster || selectedMonster.is_dead) {
       setMessage('❌ 請選擇已孵化且未凍結的怪獸！');
       return;
@@ -64,9 +69,11 @@ export default function Raid({
       return;
     }
 
+    attackPending.current=true;
     setLoading(true);
     setMessage('');
     try {
+      if(hasDisguise(selectedMonster,vehicleModes[selectedMonster.monster_id])){setRevealing(true);await new Promise(resolve=>setTimeout(resolve,1200));setRevealing(false);}
       const data = await api.attackRaidBoss(selectedMonster.monster_id);
       setMessage(`💥 造成 ${data.damage.toLocaleString()} 點傷害！\n${data.message}`);
       await refreshData(['profile']);
@@ -74,7 +81,7 @@ export default function Raid({
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {
-      setLoading(false);
+      attackPending.current=false;setRevealing(false);setLoading(false);
     }
   };
 
@@ -155,13 +162,14 @@ export default function Raid({
         {boss && boss.is_active && (
           <div className="glass-card p-5 mt-auto">
             
-            <h4 className="text-sm font-bold text-slate-300 mb-3">準備出擊</h4>
+            <h4 className="text-sm font-bold text-slate-300 mb-3">{revealing?'解除偽裝・真身出戰':'準備出擊'}</h4>
+            {selectedMonster&&revealing&&<div className="flex justify-center"><BattleReveal monster={selectedMonster} look={appearance(selectedMonster,vehicleModes[selectedMonster.monster_id])} revealing/></div>}
             
             <div className="space-y-4">
               <div>
                 <label className="text-xs text-slate-400 mb-1 block">選擇出戰怪獸</label>
                 <select 
-                  value={selectedMonster?.monster_id || ''}
+                  disabled={loading} value={selectedMonster?.monster_id || ''}
                   onChange={(e) => setSelectedMonsterId(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-rose-500 transition-colors"
                 >

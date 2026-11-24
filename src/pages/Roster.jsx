@@ -115,7 +115,7 @@ export default function Roster({
           {monsters.length<50&&<PlayButton icon="hatch" label={hatchState.label} caption={hatchState.isRescue?'免費領取救援核心':'啟動新機械核心'} subtext={hatchState.isRescue?'':'100 金幣'} tone="green" onClick={handleHatch} disabled={loading||!hatchState.available} className="w-full play-compact"/>}
           <div className="grid grid-cols-3 gap-2" data-testid="pet-picker">
            {monsters.slice(currentPetPage*6,currentPetPage*6+6).map(m=><button key={m.monster_id} type="button" aria-label={'選擇 '+m.name} aria-pressed={selectedMonster?.monster_id===m.monster_id} onClick={()=>handleSetSelection(m.monster_id)} className={'play-encounter min-w-0 p-1 '+(selectedMonster?.monster_id===m.monster_id?'border-cyan-400':'border-slate-700')}>
-             <MonsterPixelArt family={m.family} stage={m.life_stage} type={m.type} isDead={m.is_dead} displaySize={88}/>
+             <MonsterPixelArt family={m.family} stage={m.life_stage} type={m.type} isDead={m.is_dead} skin={m.skin_id} displaySize={88}/>
              <span className="truncate w-full text-xs">{m.name}</span>{m.is_locked&&<span aria-label="已鎖定">🔒</span>}
            </button>)}
           </div>
