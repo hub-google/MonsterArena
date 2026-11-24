@@ -109,6 +109,11 @@ export default function App() {
       const nextUid=session?.user?.id??null;
       const resetUid=_event==='PASSWORD_RECOVERY' ? nextUid : getRecoveryUid();
       if(resetUid && nextUid===resetUid){
+        previousAuthId=null;
+        authUidRef.current=null;
+        api.setTransactionUser(null);setTransaction({busy:false,pending:null});
+        loadVersionRef.current={};hasLoadedProfileRef.current=false;
+        clearUser();
         setPasswordRecovery(resetUid);
         setLoading(false);
         return;
@@ -207,9 +212,9 @@ export default function App() {
     const uid=authUidRef.current;
     try{await loadUserData();api.discardExpiredTransaction(uid);setRecoveryError('');}catch(error){setRecoveryError(error.message);}
   };
-  if(passwordRecovery)return <PasswordReset recoveryUid={passwordRecovery} onDone={()=>{
-    // Reload without the recovery fragment so the regular login flow starts cleanly.
-    window.location.replace(window.location.origin+window.location.pathname);
+  if(passwordRecovery)return <PasswordReset recoveryUid={passwordRecovery} onDone={changed=>{
+    // The URL never contains a recovery token after returning to login.
+    window.location.replace(window.location.origin+window.location.pathname+(changed?'?passwordReset=success':''));
   }}/>;
   if(loading)return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-cyan-400">
     <span className="text-4xl">🤖</span><span className="mt-4">載入遊戲數據中...</span>

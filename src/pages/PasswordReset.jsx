@@ -8,8 +8,8 @@ export default function PasswordReset({recoveryUid,onDone}) {
   const [error,setError]=useState('');
   const [changed,setChanged]=useState(false);
   const valid=recoveryUid && recoveryUid!=='pending' && recoveryUid!=='invalid';
-  const finish=async()=>{
-    try {await api.logout(); onDone();}
+  const finish=async(updated=changed)=>{
+    try {await api.endPasswordRecovery(updated); onDone(updated);}
     catch {setError('登出未完成，請重試');}
   };
   const submit=async e=>{
@@ -21,7 +21,7 @@ export default function PasswordReset({recoveryUid,onDone}) {
     try{
       await api.resetPassword(password,recoveryUid);
       setChanged(true);setPassword('');setConfirm('');
-      await finish();
+      await finish(true);
     }catch(err){setError(err.message||'密碼重設失敗，請重新申請');}
     finally{setBusy(false);}
   };
@@ -41,7 +41,7 @@ export default function PasswordReset({recoveryUid,onDone}) {
         <button type="submit" disabled={busy} className="neon-button neon-button-primary py-3">{busy?'處理中…':'確認重設密碼'}</button>
       </form> : <p className="text-slate-300">{recoveryUid==='pending'?'正在驗證重設連結…':'連結無效或已過期，請返回登入重新申請。'}</p>}
       {error && <p role="alert" className="text-rose-400">{error}</p>}
-      <button type="button" disabled={busy} onClick={finish} className="text-cyan-300 underline">{changed?'返回登入':'取消並返回登入'}</button>
+      <button type="button" disabled={busy} onClick={()=>finish()} className="text-cyan-300 underline">{changed?'返回登入':'取消並返回登入'}</button>
     </section>
   </div>;
 }

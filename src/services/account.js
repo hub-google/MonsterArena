@@ -1,4 +1,4 @@
-import {supabase} from '../utils/supabaseClient.js';
+import {supabase,getRecoveryUid} from '../utils/supabaseClient.js';
 import {GAME_RULES_V2,gameRpc,gameTable,throwIfError} from './backend.js';
 import {action} from './transactions.js';
 
@@ -57,9 +57,14 @@ export const accountApi = {
     }
   },
   resetPassword: async (password, recoveryUid) => {
+    if(getRecoveryUid() !== recoveryUid) throw new Error('驗證已失效，請重新申請重設密碼');
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user || user.id !== recoveryUid) throw new Error('驗證已失效，請重新申請重設密碼');
     const { error } = await supabase.auth.updateUser({ password });
+    throwIfError(error);
+  },
+  endPasswordRecovery: async (changed) => {
+    const { error } = await supabase.auth.signOut({ scope: changed ? 'global' : 'local' });
     throwIfError(error);
   },
   logout: async () => {

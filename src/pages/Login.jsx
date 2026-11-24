@@ -15,7 +15,7 @@ export default function Login({ onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(()=>new URLSearchParams(window.location.search).get('passwordReset')==='success'?'密碼已更新，請使用新密碼登入。':'');
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -9,12 +9,24 @@ export const supabase = createClient(supabaseUrl, publishableKey, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 
-// Subscribe before React mounts so a fast recovery redirect is not lost.
+// Remember a verified recovery flow through refreshes in this tab only.
 const initialRecoveryHash = new URLSearchParams(window.location.hash.slice(1));
-export const recoveryLinkOpened = initialRecoveryHash.get('type') === 'recovery' || initialRecoveryHash.has('error_code');
+const incomingRecovery = initialRecoveryHash.get('type') === 'recovery' || initialRecoveryHash.has('error_code');
+const recoveryKey = 'ma-password-recovery:' + supabaseUrl;
+const readRecovery = () => {try {return sessionStorage.getItem(recoveryKey);} catch {return null;}};
+const writeRecovery = uid => {try {if(uid)sessionStorage.setItem(recoveryKey,uid);else sessionStorage.removeItem(recoveryKey);} catch {/* private browsing */}};
+if(incomingRecovery)writeRecovery(null);
+export const recoveryLinkOpened = incomingRecovery || Boolean(readRecovery());
 let recoveryUid = null;
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'PASSWORD_RECOVERY') recoveryUid = session?.user?.id ?? null;
-  else if (!session || (recoveryUid && session.user.id !== recoveryUid)) recoveryUid = null;
+  const uid=session?.user?.id ?? null;
+  if(event==='PASSWORD_RECOVERY' && uid){
+    recoveryUid=uid;
+    writeRecovery(uid);
+  }else if(!uid || (recoveryUid && recoveryUid!==uid)){
+    recoveryUid=null;writeRecovery(null);
+  }else if(event==='INITIAL_SESSION' && !incomingRecovery && readRecovery()===uid){
+    recoveryUid=uid;
+  }
 });
 export const getRecoveryUid = () => recoveryUid;
