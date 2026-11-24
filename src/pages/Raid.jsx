@@ -1,4 +1,6 @@
 import BattleReveal from '../components/BattleReveal';
+import MonsterPixelArt from '../components/MonsterPixelArt';
+import {GameIcon} from '../components/PlayButton';
 import {appearance,hasDisguise} from '../utils/skins';
 import React, { useState, useEffect, useRef } from 'react';
 import { api, GAME_RULES_V2 } from '../utils/api';
@@ -93,123 +95,46 @@ export default function Raid({
     }
   };
 
-  return (
-    <div className="h-full flex flex-col gap-4 animate-fade-in relative z-10">
-      <div className="absolute inset-0 bg-red-900/5 pointer-events-none rounded-2xl"></div>
-
-      {/* Header bar */}
-      <div className="glass-card p-4 flex justify-between items-center text-sm font-bold border-red-900/30">
-        <span className="text-rose-400">巨型機甲首領共鬥討伐</span>
-        <span className="text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]">🔋 {user.stamina} / {user.max_stamina ?? 100}</span>
+  const healthPct=boss?Math.max(0,Math.min(100,boss.max_hp>0?100*boss.current_hp/boss.max_hp:0)):0;
+  const phase=healthPct>60?'普通攻擊':healthPct>30?'護盾啟動':'暴走重擊';
+  return <section className="flex flex-col gap-2 min-h-full relative animate-fade-in">
+    <header className="flex justify-between items-center px-1 py-1">
+      <h2 className="text-base font-bold text-rose-300">巨型機甲首領</h2>
+      <span className="flex items-center gap-1 text-sm font-bold text-emerald-400"><GameIcon name="bolt"/> {user.stamina}/{user.max_stamina??100}</span>
+    </header>
+    {boss?<div className="glass-card border-rose-500/30 p-3 flex gap-3 items-center">
+      <div className="shrink-0" data-testid="raid-boss-art"><MonsterPixelArt family={7} stage={6} type={2} displaySize={88} isDead={!boss.is_active}/></div>
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex justify-between items-center gap-1"><span className={boss.is_active?'text-xs text-rose-300':'text-xs text-amber-300'}>{boss.is_active?'全服共鬥中':'討伐成功'}</span><span className="text-xs text-amber-300">{healthPct.toFixed(1)}%</span></div>
+        <div className="flex justify-between gap-1 text-xs font-bold"><span>耐久</span><span>{Number(boss.current_hp).toLocaleString()} / {Number(boss.max_hp).toLocaleString()}</span></div>
+        <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden" role="progressbar" aria-label="首領耐久" aria-valuenow={Number(boss.current_hp)} aria-valuemin={0} aria-valuemax={Number(boss.max_hp)||1}><div className="h-full rounded-full bg-gradient-to-r from-red-600 to-rose-400" style={{width:healthPct+'%'}}/></div>
+        {GAME_RULES_V2&&boss.is_active&&<span className="block text-xs text-slate-300">目前階段：{phase}</span>}
       </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col gap-6">
-        
-        {boss ? (
-          <div className="glass-card p-6 border-rose-500/30 relative overflow-hidden flex flex-col items-center text-center">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
-
-            {/* Boss Name */}
-            <div className="text-6xl mb-4 animate-pulse drop-shadow-[0_0_15px_rgba(225,29,72,0.6)]">👹</div>
-            <h2 className="text-2xl font-black text-rose-500 tracking-widest mb-6">
-              {boss.name?.includes('機械')||boss.name?.includes('機甲')?boss.name:'巨型機甲首領'}
-            </h2>
-
-            {/* Boss Health Bar */}
-            <div className="w-full relative z-10 mb-6">
-              <div className="flex justify-between text-sm mb-2 font-bold">
-                <span className="text-rose-400">耐久</span>
-                <span className="text-white">{boss.current_hp.toLocaleString()} <span className="text-slate-500">/ {boss.max_hp.toLocaleString()}</span></span>
-              </div>
-              <div className="w-full h-4 bg-slate-950 rounded-full overflow-hidden border border-slate-700 shadow-inner">
-                <div 
-                  className="bg-gradient-to-r from-red-600 to-rose-400 h-full transition-all duration-1000 shadow-[0_0_10px_#f43f5e]" 
-                  style={{ width: `${(boss.current_hp / boss.max_hp) * 100}%` }}
-                ></div>
-              </div>
-              <div className="mt-2 text-xs font-bold text-amber-400">
-                {((boss.current_hp / boss.max_hp) * 100).toFixed(2)}%
-              </div>
-            </div>
-
-            {/* Status indicators */}
-            <div className={`px-4 py-2 rounded-full text-sm font-bold w-full ${boss.is_active ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
-              {boss.is_active ? '🔴 全服共鬥進行中' : '🏆 巨型機甲首領已遭全服討伐成功！'}
-            </div>
-          </div>
-        ) : (
-          <div className="glass-card p-10 flex flex-col items-center justify-center h-64 border-slate-700/50 gap-4">
-            {bossError ? (
-              <>
-                <span role="alert" className="text-rose-400 text-center text-sm">巨型機甲首領資料讀取失敗：{bossError}</span>
-                <button type="button" onClick={fetchBossStatus} className="neon-button neon-button-primary px-4 py-2">重新載入</button>
-              </>
-            ) : (
-              <>
-                <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <span className="text-slate-400">正在載入巨型機甲首領數據...</span>
-              </>
-            )}
-          </div>
-        )}
-        {boss && bossError && (
-          <div role="alert" className="glass-card p-3 text-amber-300 text-sm">
-            巨型機甲首領狀態更新失敗：{bossError}
-            <button type="button" onClick={fetchBossStatus} className="ml-3 underline">重試</button>
-          </div>
-        )}
-
-        {GAME_RULES_V2&&boss&&<div className="glass-card p-3 space-y-2">
-          <div className="text-sm font-bold text-amber-300">今日傷害 {Number(boss.my_damage||0).toLocaleString()}・支援 {boss.my_support||0}・挑戰 {boss.my_attempts||0}/3</div>
-          <p className="text-xs text-slate-300">每日更新，最多三次，依有效傷害及支援分配 {boss.reward_pool}G；首次參與獎勵 20G。</p>
-          {(boss.claims||[]).map(c=><button key={c.boss_id} disabled={loading} onClick={()=>handleClaim(c.boss_id)} className="w-full neon-button neon-button-success px-3 py-2">領取 {c.boss_id.replace('daily:','')} 貢獻獎勵 {c.reward}G</button>)}
-        </div>}
-        {/* Monster selector & Attack triggers */}
-        {boss && boss.is_active && (
-          <div className="glass-card p-5 mt-auto">
-            
-            <h4 className="text-sm font-bold text-slate-300 mb-2">{revealing?'解除偽裝・真身出戰':attacking?'真身討伐中':'準備出擊'}</h4>
-            {selectedMonster&&<div className="flex justify-center" data-testid="raid-fighter"><BattleReveal monster={selectedMonster} look={appearance(selectedMonster,appearanceModes[selectedMonster.monster_id])} revealing={revealing} restored={!revealing&&!attacking} size={72}/></div>}
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">選擇出戰機甲</label>
-                <select 
-                  disabled={loading} value={selectedMonster?.monster_id || ''}
-                  onChange={(e) => setSelectedMonsterId(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-rose-500 transition-colors"
-                >
-                  {aliveMonsters.map(m => (
-                    <option key={m.monster_id} value={m.monster_id}>
-                      {m.name} (攻擊力: {Math.round(m.combat_atk)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {GAME_RULES_V2&&<div className="space-y-2"><p className="text-xs">目前階段：{boss.current_hp/boss.max_hp>.6?'普通攻擊':boss.current_hp/boss.max_hp>.3?'護盾啟動':'暴走重擊'}</p><label className="text-xs" htmlFor="raid-strategy">共鬥策略</label><select id="raid-strategy" value={strategy} onChange={e=>setStrategy(e.target.value)} className="w-full bg-slate-900 rounded-lg p-2"><option value="assault">強攻輸出（普通階段）</option><option value="break">破甲干擾（護盾階段）</option><option value="defend">防禦支援（暴走階段）</option></select></div>}
-              <button
-                onClick={handleAttack}
-                disabled={loading || user.stamina < 15 || !selectedMonster || (GAME_RULES_V2&&Number(boss.my_attempts)>=3)}
-                className="w-full neon-button neon-button-danger py-4 text-lg font-bold flex items-center justify-center gap-2"
-              >
-                <span>💥 發動討伐突襲</span>
-                <span className="text-xs bg-black/30 px-2 py-1 rounded">-15 行動電力</span>
-              </button>
-            </div>
-          </div>
-        )}
-
+    </div>:<div className="glass-card p-5 text-center text-sm">{bossError?<><span role="alert" className="text-rose-300">{bossError}</span><button onClick={fetchBossStatus} className="block underline mx-auto mt-3">重新載入</button></>:<span>正在載入首領...</span>}</div>}
+    {boss&&bossError&&<div role="alert" className="text-xs text-amber-300">狀態更新失敗 <button className="underline" onClick={fetchBossStatus}>重試</button></div>}
+    {GAME_RULES_V2&&boss&&<div className="glass-card p-2 space-y-1">
+      <div className="grid grid-cols-3 divide-x divide-slate-700 text-center text-xs text-slate-400">
+        <div>今日傷害<strong className="block text-amber-300 text-sm">{Number(boss.my_damage||0).toLocaleString()}</strong></div>
+        <div>有效支援<strong className="block text-amber-300 text-sm">{boss.my_support||0}</strong></div>
+        <div>今日挑戰<strong className="block text-amber-300 text-sm">{boss.my_attempts||0}/3</strong></div>
       </div>
-
-      {/* Log message output */}
-      {message && (
-        <div className="glass-card p-4 text-center text-sm font-medium text-rose-200 border-rose-500/50 bg-rose-900/30 mt-auto whitespace-pre-line">
-          {message}
+      <p className="text-[11px] text-slate-300 text-center">貢獻分配 {boss.reward_pool}G · 首次參與 20G</p>
+      {(boss.claims||[]).map(c=><button key={c.boss_id} disabled={loading} onClick={()=>handleClaim(c.boss_id)} className="w-full neon-button neon-button-success px-2 py-2 text-xs">領取 {c.boss_id.replace('daily:','')} 貢獻獎勵 {c.reward}G</button>)}
+    </div>}
+    {boss?.is_active&&<div className="glass-card p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        {selectedMonster&&<div className="shrink-0" data-testid="raid-fighter"><BattleReveal monster={selectedMonster} look={appearance(selectedMonster,appearanceModes[selectedMonster.monster_id])} revealing={revealing} restored={!revealing&&!attacking} size={56}/></div>}
+        <div className="flex-1 min-w-0">
+          <label className="block text-xs text-slate-400 mb-1" htmlFor="raid-fighter-select">{revealing?'解除偽裝・真身出戰':attacking?'真身討伐中':'選擇出戰機甲'}</label>
+          <select id="raid-fighter-select" disabled={loading||!selectedMonster} value={selectedMonster?.monster_id||''} onChange={e=>setSelectedMonsterId(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
+            {!selectedMonster&&<option value="">沒有可出戰的機體</option>}
+            {aliveMonsters.map(m=><option key={m.monster_id} value={m.monster_id}>{m.name} (攻擊力: {Math.round(m.combat_atk)})</option>)}
+          </select>
         </div>
-      )}
-    </div>
-  );
+      </div>
+      {GAME_RULES_V2&&<div className="space-y-1"><label className="text-xs text-slate-400" htmlFor="raid-strategy">共鬥策略</label><select id="raid-strategy" disabled={loading} value={strategy} onChange={e=>setStrategy(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm"><option value="assault">強攻輸出（普通階段）</option><option value="break">破甲干擾（護盾階段）</option><option value="defend">防禦支援（暴走階段）</option></select></div>}
+      <button onClick={handleAttack} disabled={loading||user.stamina<15||!selectedMonster||(GAME_RULES_V2&&Number(boss.my_attempts)>=3)} className="w-full neon-button neon-button-danger py-3 font-bold flex justify-center items-center gap-2"><GameIcon name="battle"/> 發動討伐突襲 <span className="text-xs">-15 行動電力</span></button>
+    </div>}
+    {message&&<div role="status" className="glass-card p-2 text-center text-xs font-medium text-rose-200 border-rose-500/30 whitespace-pre-line">{message}</div>}
+  </section>;
 }

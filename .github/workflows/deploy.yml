@@ -90,7 +90,7 @@ jobs:
             if curl -fsS "$PLAYWRIGHT_BASE_URL" >/dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/smoke.spec.js tests/authenticated-ui.spec.js --project=chromium
+          npx playwright test tests/smoke.spec.js tests/authenticated-ui.spec.js --project=chromium --output=test-results/legacy-browser
       - name: 新版瀏覽器與真實隔離 SQL 交易整合驗收
         env:
           PG_CONTAINER: ${{ job.services.postgres.id }}
@@ -106,7 +106,7 @@ jobs:
             if curl -fsS "$PLAYWRIGHT_BASE_URL" >/dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/v2-ui.spec.js --project=chromium
+          npx playwright test tests/v2-ui.spec.js --project=chromium --output=test-results/v2-browser
       - name: 準備實際發布版本
         id: build
         env:

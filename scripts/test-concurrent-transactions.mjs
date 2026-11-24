@@ -39,6 +39,12 @@ try{
  const sender=fr[0].code===0?1:2,receiver=sender===1?2:1;
  accepted(await run(receiver,"SELECT public.game_friend_action('accept',"+quote(u(sender))+");"));
  assert.equal(num("SELECT count(*) FROM public.friends WHERE user_id IN ("+quote(u(1))+","+quote(u(2))+") AND status=1"),2);
+ accepted(await run(1,action('pvp_register',{monster_id:pet(1)})));
+ accepted(await run(2,action('pvp_register',{monster_id:pet(2)})));
+ const pvp=await Promise.all([run(1,action('battle',{monster_id:pet(1),encounter:'pvp',opponent_id:u(2),request_id:request(50)})),run(2,action('battle',{monster_id:pet(2),encounter:'pvp',opponent_id:u(1),request_id:request(51)}))]);
+ pvp.forEach(accepted);
+ assert.equal(num('SELECT count(*) FROM arena_internal.pvp_results'),2);
+ assert.equal(num('SELECT count(*) FROM public.battle_records'),2);
  // Independent simultaneous boss attacks: damage cannot overrun boss HP.
  accepted(await run(1,action('raid_status')));
  db("UPDATE public.raid_boss SET current_hp=250,max_hp=250,is_active=true WHERE id LIKE 'daily:%';");
@@ -65,7 +71,7 @@ try{
  if(race[2].code!==0)rejected(race[2],/公會不存在/);else accepted(race[2]);
  assert.equal(num("SELECT gold FROM public.users WHERE user_id="+quote(u(2))),before-(race[1].code===0?25:0));
  assert.equal(num("SELECT count(*) FROM public.guild_members WHERE guild_id="+quote(guild)),0);
- console.log('CONCURRENCY PASS: 8 identical purchases, reciprocal friendship, 8 simultaneous raid attacks, duplicate raid claims, guild disband/donate/join race');
+ console.log('CONCURRENCY PASS: 8 identical purchases, reciprocal friendship, reciprocal PvP, 8 simultaneous raid attacks, duplicate raid claims, guild disband/donate/join race');
 }finally{
  // Remove only synthetic fixture identities and the raid spawned by this isolated test.
  db("DELETE FROM public.raid_boss WHERE id LIKE 'daily:%'; DELETE FROM auth.users WHERE id IN ("+Array.from({length:8},(_,k)=>quote(u(k+1))).join(',')+");");

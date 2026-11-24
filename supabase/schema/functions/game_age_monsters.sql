@@ -20,7 +20,7 @@ declare
 begin
   if v_uid is null then raise exception '請先登入'; end if;
   -- Same lock order as game_action: player first, then owned units.
-  perform 1 from public.users where user_id=v_uid for update;
+  perform 1 from public.users where user_id=v_uid FOR NO KEY UPDATE;
   if not found then raise exception '找不到使用者資料，請重新登入'; end if;
   for v_m in select * from public.monsters
     where user_id=v_uid and is_dead=false and coalesce(is_frozen,false)=false

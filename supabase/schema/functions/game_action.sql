@@ -54,7 +54,7 @@ declare
   v_strategy text;
 begin
   if v_uid is null then raise exception '請先登入'; end if;
-  select * into v_u from public.users where user_id=v_uid for update;
+  select * into v_u from public.users where user_id=v_uid FOR NO KEY UPDATE;
   if not found then raise exception '找不到使用者資料，請重新登入'; end if;
   v_u:=arena_internal.refresh_stamina(v_uid);
   p_data:=coalesce(p_data,'{}'::jsonb);

@@ -91,6 +91,8 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
  await expect(page.getByRole('button',{name:'挑戰',exact:true})).toBeEnabled();
  await page.getByRole('button',{name:'更多功能'}).click();
  await page.getByRole('button',{name:'機甲首領',exact:true}).click();
+ await expect(page.getByTestId('raid-boss-art').getByRole('img')).toBeVisible();
+ await expect(page.getByRole('button',{name:/發動討伐突襲/})).toBeInViewport({ratio:1});
  await page.getByLabel('共鬥策略').selectOption('defend');
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/v2-raid-mobile.png',animations:'disabled'});
  await page.getByRole('button',{name:/發動討伐突襲/}).click();

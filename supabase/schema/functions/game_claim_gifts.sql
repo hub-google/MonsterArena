@@ -11,7 +11,7 @@ declare
   v_count int;
 begin
   if v_uid is null then raise exception '請先登入'; end if;
-  perform 1 from public.users where user_id=v_uid for update;
+  perform 1 from public.users where user_id=v_uid FOR NO KEY UPDATE;
   with pending as (
     select gift_id from public.gifts where receiver=v_uid::text and claimed=false for update
   ), credited as (

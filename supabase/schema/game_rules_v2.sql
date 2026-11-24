@@ -258,7 +258,7 @@ REVOKE ALL ON FUNCTION arena_internal.raid_pool(bigint) FROM PUBLIC, anon, authe
 CREATE OR REPLACE FUNCTION arena_internal.refresh_stamina(p_uid uuid) RETURNS public.users LANGUAGE plpgsql SET search_path TO pg_catalog,pg_temp AS $$
 DECLARE u public.users; ticks int;
 BEGIN
- SELECT * INTO u FROM public.users WHERE user_id=p_uid FOR UPDATE;
+ SELECT * INTO u FROM public.users WHERE user_id=p_uid FOR NO KEY UPDATE;
  IF NOT FOUND THEN RETURN NULL; END IF;
  ticks:=greatest(0,floor(extract(epoch FROM (now()-coalesce(u.stamina_updated_at,now())))/600)::int);
  UPDATE public.users SET stamina=least(100,coalesce(stamina,0)+ticks),max_stamina=100,
