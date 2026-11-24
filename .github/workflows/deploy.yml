@@ -61,22 +61,3 @@ jobs:
       - name: 部署 Artifact
         id: deployment
         uses: actions/deploy-pages@v4
-
-  auth-recovery-once:
-    if: contains(github.event.head_commit.message, '[auth-e2e]')
-    name: 一次性密碼重設驗收（隔離 Auth）
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci --no-audit --no-fund
-      - uses: supabase/setup-cli@v1
-        with:
-          version: 2.79.0
-      - run: npx playwright install --with-deps chromium
-      - name: 實際寄信與瀏覽器重設（本機隔離資料）
-        run: bash scripts/test-password-recovery.sh
