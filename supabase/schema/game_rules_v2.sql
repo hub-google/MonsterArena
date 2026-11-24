@@ -1,3 +1,12 @@
+-- Arena units never die. Keep the legacy column for RPC/client compatibility only.
+-- Restore historical dead rows without changing their stats or ownership.
+UPDATE public.monsters SET is_dead=false WHERE is_dead IS DISTINCT FROM false;
+DO $immortal$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='arena_monsters_never_die' AND conrelid='public.monsters'::regclass) THEN
+    ALTER TABLE public.monsters ADD CONSTRAINT arena_monsters_never_die CHECK (is_dead IS FALSE);
+  END IF;
+END $immortal$;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS repair_until timestamptz;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS skin_id text;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS training_hp int NOT NULL DEFAULT 0 CHECK(training_hp BETWEEN 0 AND 30);
