@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {SHOP_ITEMS,ITEM_BY_ID} from '../src/utils/mechaVocabulary.js';
+test('mechanical shop retains legacy IDs and prices',()=>{assert.deepEqual(SHOP_ITEMS.map(x=>x.price),[10,50,100,200,50,300,300,300,300,500,1000]);assert.equal(new Set(SHOP_ITEMS.map(x=>x.id)).size,11);assert.equal(ITEM_BY_ID.meat_basic.name,'標準電池');assert.equal(ITEM_BY_ID.vitamin.name,'效能增幅器');assert.ok(SHOP_ITEMS.every(x=>!/肉|藥|維他命|飽食|繁衍/.test(x.name+' '+x.description)));});

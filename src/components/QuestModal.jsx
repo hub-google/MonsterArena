@@ -48,10 +48,10 @@ export default function QuestModal({ user, onClose, refreshData }) {
   );
 
   const QUEST_CONFIG = [
-    { id: 'feed_3', title: '飽餐一頓', desc: '餵食怪獸 3 次', target: 3, key: 'feed_count', reward: 100 },
-    { id: 'clean_1', title: '保持整潔', desc: '打掃環境 1 次', target: 1, key: 'clean_count', reward: 50 },
-    { id: 'train_2', title: '斯巴達訓練', desc: '訓練怪獸 2 次', target: 2, key: 'train_count', reward: 150 },
-    { id: 'battle_2', title: '初試啼聲', desc: '參與競技場戰鬥 2 次', target: 2, key: 'battle_count', reward: 150 },
+    { id: 'feed_3', title: '能源補給', desc: '為機體補充能源 3 次', target: 3, key: 'feed_count', reward: 100 },
+    { id: 'clean_1', title: '例行維護', desc: '執行機體保養 1 次', target: 1, key: 'clean_count', reward: 50 },
+    { id: 'train_2', title: '戰鬥校準', desc: '執行機體訓練 2 次', target: 2, key: 'train_count', reward: 150 },
+    { id: 'battle_2', title: '戰場演習', desc: '參與競技場戰鬥 2 次', target: 2, key: 'battle_count', reward: 150 },
   ];
 
   return (

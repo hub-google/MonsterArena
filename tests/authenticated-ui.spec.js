@@ -110,8 +110,8 @@ test('authenticated dead pet never exposes usable care or chip actions', async (
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   const calls = await setupAuthenticatedGame(page);
-  await expect(page.getByRole('status',{name:'此怪獸已死亡，無法照顧或出戰'})).toBeVisible();
-  await expect(page.getByRole('button', { name: /治療/ })).toBeDisabled();
+  await expect(page.getByRole('status',{name:'此機體核心已失效，無法維護或出戰'})).toBeVisible();
+  await expect(page.getByRole('button', { name: /修復/ })).toBeDisabled();
   await page.getByRole('button', { name: '倉庫', exact: true }).click();
   await page.getByRole('button', { name: '裝備晶片' }).click();
   await expect(page.getByText('此怪獸已死亡，無法鑲嵌或拆除晶片。')).toBeVisible();
@@ -192,12 +192,12 @@ test('mobile pictogram controls perform care, form selection, battle and navigat
  await expect(actions.getByRole('button')).toHaveCount(5);
  for(const button of await actions.getByRole('button').all()){const b=await button.boundingBox();expect(b.width).toBeGreaterThanOrEqual(44);expect(b.height).toBeGreaterThanOrEqual(44);}
  await actions.getByRole('button',{name:'補充能源'}).click();
- await page.getByRole('button',{name:'免費基礎飼料'}).click();
+ await page.getByRole('button',{name:'免費基礎充能'}).click();
  await expect(page.getByRole('progressbar',{name:'能源'})).toHaveAttribute('aria-valuenow','70');
- await actions.getByRole('button',{name:'打掃'}).click();
+ await actions.getByRole('button',{name:'保養'}).click();
  await expect(page.getByRole('progressbar',{name:'機體維護'})).toHaveAttribute('aria-valuenow','100');
- await actions.getByRole('button',{name:'治療'}).click();
- await expect(page.getByRole('button',{name:'免費急救草藥，扣減20%生命'})).toBeEnabled();
+ await actions.getByRole('button',{name:'修復'}).click();
+ await expect(page.getByRole('button',{name:'緊急修復程序，扣減20%耐久'})).toBeEnabled();
  await page.getByRole('button',{name:'取消返回'}).click();
  await actions.getByRole('button',{name:'訓練'}).click();
  await expect.poll(()=>calls.filter(x=>x==='/rest/v1/rpc/game_action').length).toBe(3);
@@ -221,7 +221,7 @@ test('cockpit shows readable labels, all main metrics and five actions within on
  await expect(home.getByText('能源',{exact:true})).toBeVisible();
  await expect(home.getByText('機體維護',{exact:true})).toBeVisible();
  await expect(home.getByTestId('combat-readouts')).toBeVisible();
- for(const label of ['補充能源','清潔保養','修復治療','機體訓練','機體變形'])await expect(actions.getByText(label,{exact:true})).toBeVisible();
+ for(const label of ['補充能源','機體保養','系統修復','機體訓練','機體變形'])await expect(actions.getByText(label,{exact:true})).toBeVisible();
  const container=await main.boundingBox();
  for(const el of [home.getByTestId('mecha-screen'),home.getByTestId('combat-readouts'),actions,...await actions.getByRole('button').all()]){
   const b=await el.boundingBox();expect(b.y).toBeGreaterThanOrEqual(container.y-1);expect(b.y+b.height).toBeLessThanOrEqual(container.y+container.height+1);
