@@ -11,18 +11,13 @@ import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
 export default function Arena({ 
   user, 
   monsters, 
-  friends, 
   activeMonster, 
   battleState, appearanceModes={}, 
   setBattleState, 
-  refreshData, 
-  setPage 
+  refreshData 
 }) {
   const [subTab, setSubTab] = useState('players');
   const [showLogs,setShowLogs]=useState(false);
-  const [chatMessage, setChatMessage] = useState('');
-  const [chatLogs, setChatLogs] = useState([]);
-  const [targetUsername, setTargetUsername] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [pvp,setPvp]=useState(null);
@@ -33,30 +28,13 @@ export default function Arena({
   useEffect(()=>{if(GAME_RULES_V2 && subTab==='pvp' && !battleState)reloadPvp();},[subTab,Boolean(battleState)]);
 
   const logsEndRef = useRef(null);
-  const refreshChatRef = useRef(null);
   const challengePending = useRef(false);
   const battleRunning = Boolean(battleState && !battleState.isOver && !battleState.revealing);
 
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatLogs, battleState?.logs]);
-
-  // Shared game chat (authenticated Supabase read-only polling)
-  useEffect(() => {
-    if(subTab!=='chat' || battleState)return;
-    const unsubscribe = api.subscribeMessages('world', (msgs) => {
-      setChatLogs(msgs.map(m => ({
-        senderName: m.username,
-        message: m.text
-      })));
-    });
-    refreshChatRef.current = unsubscribe.refresh;
-    return () => {
-      refreshChatRef.current = null;
-      unsubscribe();
-    };
-  }, [subTab,Boolean(battleState)]);
+  }, [battleState?.logs]);
 
   useEffect(()=>{if(!battleState?.revealing||battleState.isOver)return;const timer=setTimeout(()=>setBattleState(prev=>prev?.revealing&&!prev.isOver?{...prev,revealing:false,logs:[...prev.logs,'解除偽裝，真身出戰！','戰鬥開始！']}:prev),1200);return ()=>clearTimeout(timer);},[battleState?.battleId,battleState?.revealing,battleState?.isOver,setBattleState]);
   // Battle transcript playback is cosmetic; the database already determined the winner.
@@ -81,15 +59,6 @@ export default function Arena({
     }), 160);
     return () => clearInterval(interval);
   }, [battleRunning, setBattleState]);
-
-  const sendWorldChat = () => {
-    if (!chatMessage.trim() || loading) return;
-    setLoading(true);
-    api.sendMessage('world', chatMessage.trim())
-      .then(() => { setChatMessage(''); refreshChatRef.current?.(); })
-      .catch(err => setMessage(err.message))
-      .finally(() => setLoading(false));
-  };
 
   const getFighter=()=>monsters.find(m=>m.monster_id===activeMonster?.monster_id&&!m.is_dead&&Number(m.life_stage)>=2&&!m.is_frozen)
     ||monsters.find(m=>!m.is_dead&&Number(m.life_stage)>=2&&!m.is_frozen);
@@ -139,16 +108,6 @@ export default function Arena({
     } catch (err) {
       setMessage(`對戰失敗：${err.message || '請稍後重試'}`);
     } finally { challengePending.current=false; setLoading(false); }
-  };
-
-  const handleSendFriendRequest = async () => {
-    if (!targetUsername) return;
-    setLoading(true); setMessage('');
-    try {
-      const data = await api.addFriend(targetUsername);
-      setMessage(data.message); setTargetUsername(''); await refreshData(['friends']);
-    } catch (err) { setMessage(`❌ ${err.message}`); }
-    finally { setLoading(false); }
   };
 
   if (battleState) {
@@ -255,32 +214,13 @@ export default function Arena({
   return (
     <div className="h-full flex flex-col gap-4 animate-fade-in">
       <div className="flex justify-center items-center gap-2">
-        {getFighter()?<><MonsterPixelArt family={getFighter().family} stage={getFighter().life_stage} type={getFighter().type} {...appearance(getFighter(),appearanceModes[getFighter().monster_id])} displaySize={64}/><span className="font-bold text-cyan-300 text-sm truncate">{getFighter().name}</span></>:<PlayButton icon="home" label="先養成機甲" short="返回" onClick={()=>setPage('dashboard')}/>}
+        {getFighter()?<><MonsterPixelArt family={getFighter().family} stage={getFighter().life_stage} type={getFighter().type} {...appearance(getFighter(),appearanceModes[getFighter().monster_id])} displaySize={64}/><span className="font-bold text-cyan-300 text-sm truncate">{getFighter().name}</span></>:<p className="text-sm text-slate-400 text-center">請先在養成頁選擇可出戰機甲。</p>}
       </div>
-      <div className={'grid gap-2 '+(GAME_RULES_V2?'grid-cols-4':'grid-cols-3')}>
-       {([['players','battle','野生挑戰','打'],...(GAME_RULES_V2?[['pvp','🏆','玩家對戰','賽']]:[]),['friends','social','好友名單','友'],['chat','💬','世界聊天','聊']]).map(([id,icon,label,short])=><PlayButton key={id} icon={icon} label={label} short={short} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
-      </div>
-
+      {GAME_RULES_V2&&<div className="grid grid-cols-2 gap-2">
+       {([['players','battle','野生挑戰'],['pvp','🏆','玩家對戰']]).map(([id,icon,label])=><PlayButton key={id} icon={icon} label={label} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
+      </div>}
       {subTab==='players'&&<PlayButton icon="guild" label="手動戰術對戰" subtext="格擋反擊・精準暴擊・公平競技" tone="blue" disabled={!getFighter()||loading} onClick={()=>{setMessage('');setSubTab('tactical')}} className="play-compact"/>}
       <div className="flex-1 overflow-y-auto">
-        {subTab === 'chat' && (
-          <div className="flex flex-col h-full gap-4">
-            <div className="flex-1 glass-card p-4 overflow-y-auto text-sm select-text flex flex-col gap-3">
-              {chatLogs.length === 0 ? <span className="text-slate-500 text-center italic mt-10">歡迎來到世界頻道！向大家打個招呼吧！</span> : chatLogs.map((chat, idx) => (
-                <div key={idx} className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 break-words">
-                  <span className="font-bold text-cyan-400 mr-2">{chat.senderName}</span> 
-                  <span className="text-slate-200">{chat.message}</span>
-                </div>
-              ))}
-              <div ref={logsEndRef} />
-            </div>
-            <div className="flex gap-2">
-              <input type="text" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.isComposing && sendWorldChat()} placeholder="輸入訊息..." maxLength={100} className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-colors" />
-              <button onClick={sendWorldChat} disabled={loading || !chatMessage.trim()} className="neon-button neon-button-primary px-6 py-3 font-bold disabled:opacity-50">發送</button>
-            </div>
-          </div>
-        )}
-
         {subTab==='players'&&GAME_RULES_V2&&(
           <div className="flex flex-col gap-3">
             <details className="text-xs text-slate-300"><summary>挑戰說明</summary>固定敵人強度，各關每日首勝有金幣獎勵。</details>
@@ -337,32 +277,6 @@ export default function Arena({
           </div>
         )}
 
-        {subTab === 'friends' && (
-          <div className="flex flex-col gap-4">
-            <div className="glass-card p-4">
-              <h3 className="text-sm font-bold text-emerald-400 mb-3">新增好友</h3>
-              <div className="flex gap-2 items-center">
-                <input type="text" value={targetUsername} onChange={(e) => setTargetUsername(e.target.value)} placeholder="輸入玩家帳號名稱..." className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 outline-none text-white focus:border-emerald-500 transition-colors" />
-                <button onClick={handleSendFriendRequest} disabled={loading || !targetUsername} className="neon-button neon-button-success px-6 py-3 font-bold disabled:opacity-50">發送邀請</button>
-              </div>
-            </div>
-            
-            <div className="glass-card p-4 flex flex-col gap-2">
-              <h3 className="text-sm font-bold text-slate-300 mb-2 border-b border-slate-700 pb-2">好友列表</h3>
-              {friends.length === 0 ? <span className="text-center italic mt-4 text-slate-500">尚無好友。前往世界頻道認識新朋友吧！</span> : friends.map(f => (
-                <div key={f.friend_id} className="flex justify-between items-center p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg">
-                  <span className="font-bold text-white flex items-center gap-2">🤝 {f.friend_name}</span>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${f.status === 0 ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                      ✅ 已成為好友
-                    </span>
-                    
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {message && <div className="glass-card p-3 text-center text-sm font-medium animate-pulse text-indigo-200 border-indigo-500/50 bg-indigo-900/20 mt-auto">{message}</div>}

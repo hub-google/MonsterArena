@@ -14,7 +14,7 @@ export default function Roster({
   refreshData, 
   activeMonster, 
   setActiveMonster, 
-  setPage, appearanceModes={} 
+  appearanceModes={} 
 }) {
   const [selectedMonsterId, setSelectedMonsterId] = useState(activeMonster?.monster_id || monsters[0]?.monster_id);
   const [loading, setLoading] = useState(false);
@@ -122,7 +122,6 @@ export default function Roster({
           </div>
           {petPages>1&&<div className="page-controls"><button className="play-arrow" aria-label="上一頁機體" disabled={!currentPetPage} onClick={()=>setPetPage(currentPetPage-1)}>‹</button><span>{currentPetPage+1} / {petPages}</span><button className="play-arrow" aria-label="下一頁機體" disabled={currentPetPage>=petPages-1} onClick={()=>setPetPage(currentPetPage+1)}>›</button></div>}
           {selectedMonster&&<>
-           <PlayButton icon="home" label="回家照顧選定機體" caption="回家照顧" tone="blue" onClick={()=>{handleSetSelection(selectedMonster.monster_id);setPage('dashboard')}} className="w-full play-compact"/>
            <details className="glass-card p-3"><summary className="cursor-pointer text-sm">機體管理 · {selectedMonster.name}</summary>
             <div className="text-xs text-slate-400 my-2">{getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).name}・G{selectedMonster.generation}</div>
             {selectedMonster.is_rescue&&<div className="text-xs text-cyan-300">免費救援機體（放生無金幣獎勵）</div>}

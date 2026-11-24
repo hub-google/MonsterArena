@@ -2,7 +2,7 @@ import React from 'react';
 import {SKINS,ownsSkin} from '../utils/skins';
 import SkinArt from './SkinArt';
 import {PlayButton} from './PlayButton';
-export default function SkinWardrobe({monster,inventory,onEquip,onClose,onShop,loading,error}){
+export default function SkinWardrobe({monster,inventory,onEquip,onClose,loading,error}){
  const owned=SKINS.filter(s=>ownsSkin(inventory,s.id));
  return <div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="皮膚衣櫃"><section className="cockpit-dialog skin-dialog">
  <div className="dialog-heading"><h2>皮膚衣櫃 · {owned.length}/10</h2><button onClick={onClose} aria-label="關閉衣櫃">×</button></div>
@@ -11,6 +11,6 @@ export default function SkinWardrobe({monster,inventory,onEquip,onClose,onShop,l
  {!owned.length&&<p className="text-center text-sm text-slate-300 py-5">尚無皮膚，商城最低 50G。</p>}
  {error&&<p role="alert" className="text-sm text-rose-300">{error}</p>}
  <PlayButton icon="robot" label="卸下皮膚" disabled={loading||!monster.skin_id} onClick={()=>onEquip(null)} className="w-full play-compact"/>
- <PlayButton icon="shop" label="前往皮膚商城" onClick={onShop} tone="blue" className="w-full play-compact"/>
+ <p className="text-xs text-slate-400 text-center">新皮膚請至商城的皮膚分類購買。</p>
  </section></div>;
 }

@@ -212,7 +212,7 @@
 .cockpit-stats strong{grid-column:1/-1;text-align:center;font-size:16px;line-height:1.15;color:#f3f6f8;font-variant-numeric:tabular-nums}
 .cockpit-record{display:flex;align-items:center;justify-content:space-between;gap:3px;padding:0 2px;font-size:11px;color:#a8bac7}
 .cockpit-record span{display:flex;align-items:center;gap:4px}.cockpit-record .game-icon{width:13px;height:13px}
-.cockpit-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.cockpit-actions{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.cockpit-actions>.play-button{grid-column:span 2}.cockpit-actions>.play-button:nth-child(n+4){grid-column:span 3}
 .cockpit-actions .play-button{min-height:54px;gap:3px;padding:5px 3px}.cockpit-actions .play-caption{font-size:13px}
 .cockpit-feedback-slot{min-height:18px;display:flex;justify-content:space-between;align-items:center;gap:4px;font-size:11px;color:#a8bac7}
 .play-feedback{display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.3;min-width:0}.play-feedback .game-icon{width:15px;height:15px}.play-feedback span{overflow-wrap:anywhere}
@@ -260,3 +260,13 @@
 @keyframes skin-reveal-shell{0%,24%{opacity:1;transform:scale(1)}55%{opacity:.9;transform:translate(calc(var(--peel-direction)*12px),-5px) rotate(calc(var(--peel-direction)*12deg));filter:brightness(1.4)}100%{opacity:0;transform:translate(calc(var(--peel-direction)*32px),-24px) rotate(calc(var(--peel-direction)*22deg))}}
 @keyframes skin-reveal-ring{0%,25%{opacity:0;transform:scale(.5)}50%{opacity:1}100%{opacity:0;transform:scale(1.6)}}
 @media(prefers-reduced-motion:reduce){.battle-reveal-active>.mecha-display,.battle-disguise,.battle-reveal-active:after{animation-duration:.01ms}}
+
+/* Catalog: one independent transformation control per eligible entry. */
+.catalog-hint{font-size:11px;color:#9eb4c5;text-align:right}
+.catalog-entry{display:flex;gap:4px;overflow:hidden;justify-content:stretch}
+.catalog-art-button{min-height:0;min-width:0;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:100%;color:inherit}
+.catalog-art-button .mecha-display{display:grid;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr);align-items:center;justify-items:stretch;flex:1 1 0;min-height:0;width:100%}
+.catalog-art-button .mecha-display>svg{width:100%;height:100%;max-height:104px;min-height:0}
+.catalog-transform{flex-shrink:0;width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;gap:3px;border:1px solid #507184;background:#233e4c;color:#dbf3ff;font-size:12px;font-weight:600;border-radius:7px;touch-action:manipulation}
+.catalog-transform[aria-pressed=true]{background:#374361;border-color:#9a9bd4}.catalog-transform .game-icon{width:16px;height:16px}
+.catalog-transform-placeholder{display:grid;place-items:center;min-height:44px;font-size:10px;color:#869aa9;flex-shrink:0;text-align:center}

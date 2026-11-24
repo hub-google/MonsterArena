@@ -189,7 +189,7 @@ test('mobile pictogram controls perform care, form selection, battle and navigat
  await page.setViewportSize({width:360,height:800});await page.emulateMedia({reducedMotion:'reduce'});
  const calls=await setupAuthenticatedGame(page,[{...dead,name:'小機甲',family:4,type:3,life_stage:6,is_dead:false,is_sick:true,fullness:20,cleanliness:20}]);
  const actions=page.getByTestId('care-actions');
- await expect(actions.getByRole('button')).toHaveCount(6);
+ await expect(actions.getByRole('button')).toHaveCount(5);
  for(const button of await actions.getByRole('button').all()){const b=await button.boundingBox();expect(b.width).toBeGreaterThanOrEqual(44);expect(b.height).toBeGreaterThanOrEqual(44);}
  await actions.getByRole('button',{name:'補充能源'}).click();
  await page.getByRole('button',{name:'免費基礎飼料'}).click();
@@ -201,7 +201,7 @@ test('mobile pictogram controls perform care, form selection, battle and navigat
  await page.getByRole('button',{name:'取消返回'}).click();
  await actions.getByRole('button',{name:'訓練'}).click();
  await expect.poll(()=>calls.filter(x=>x==='/rest/v1/rpc/game_action').length).toBe(3);
- await actions.getByRole('button',{name:'開始戰鬥'}).click();
+ await page.getByRole('button',{name:'競技',exact:true}).click();
  await expect(page.getByTestId('wild-challenges')).toBeVisible();
  await page.getByRole('button',{name:'挑戰野外失控機甲'}).click();
  await expect(page.getByRole('status',{name:'勝利'})).toBeVisible();
@@ -212,7 +212,7 @@ test('mobile pictogram controls perform care, form selection, battle and navigat
  await expect(page.getByRole('button',{name:'世界王',exact:true})).toBeVisible();
 });
 
-test('cockpit shows readable labels, all main metrics and six actions within one mobile viewport',async({page})=>{
+test('cockpit shows readable labels, all main metrics and five actions within one mobile viewport',async({page})=>{
  await page.setViewportSize({width:360,height:640});await page.emulateMedia({reducedMotion:'reduce'});
  await setupAuthenticatedGame(page,[{...dead,name:'機甲測試',family:4,type:3,life_stage:6,is_dead:false,is_sick:true,fullness:20,cleanliness:20}]);
  const main=page.getByTestId('game-main'),home=page.getByTestId('cockpit-home'),actions=page.getByTestId('care-actions');
@@ -221,7 +221,7 @@ test('cockpit shows readable labels, all main metrics and six actions within one
  await expect(home.getByText('能源',{exact:true})).toBeVisible();
  await expect(home.getByText('機體維護',{exact:true})).toBeVisible();
  await expect(home.getByTestId('combat-readouts')).toBeVisible();
- for(const label of ['補充能源','清潔保養','修復治療','機體訓練','開始戰鬥','機體變形'])await expect(actions.getByText(label,{exact:true})).toBeVisible();
+ for(const label of ['補充能源','清潔保養','修復治療','機體訓練','機體變形'])await expect(actions.getByText(label,{exact:true})).toBeVisible();
  const container=await main.boundingBox();
  for(const el of [home.getByTestId('mecha-screen'),home.getByTestId('combat-readouts'),actions,...await actions.getByRole('button').all()]){
   const b=await el.boundingBox();expect(b.y).toBeGreaterThanOrEqual(container.y-1);expect(b.y+b.height).toBeLessThanOrEqual(container.y+container.height+1);
@@ -331,7 +331,7 @@ test('skin shop, permanent wardrobe, first-step reveal and vehicle restoration',
  await page.getByRole('button',{name:'穿戴哈士奇'}).click();
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：哈士奇');
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/skin-home.png',animations:'disabled'});
- await page.getByRole('button',{name:'開始戰鬥'}).click();
+ await page.getByRole('button',{name:'競技',exact:true}).click();
  await page.getByRole('button',{name:'挑戰野外失控機甲'}).click();
  await expect(page.getByTestId('battle-reveal')).toBeVisible();
  await expect(page.getByRole('button',{name:'跳過戰鬥動畫'})).toBeDisabled();
@@ -346,7 +346,7 @@ test('skin shop, permanent wardrobe, first-step reveal and vehicle restoration',
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：機器人');
  await page.getByRole('button',{name:'變形：重型坦克'}).click();
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：重型坦克');
- await page.getByRole('button',{name:'開始戰鬥'}).click();
+ await page.getByRole('button',{name:'競技',exact:true}).click();
  await page.getByRole('button',{name:'挑戰野外失控機甲'}).click();
  await expect(page.getByTestId('battle-reveal')).toBeVisible();
  await expect(page.getByRole('status',{name:'勝利'})).toBeVisible({timeout:10000});
@@ -413,5 +413,52 @@ test('manual tactical duel is playable with timing, energy and no economy writes
  await expect(duel.getByTestId('tactical-hp-0')).toHaveText('100 / 100');
  await duel.getByRole('button',{name:'離開戰術對戰'}).click();
  await expect(page.getByRole('button',{name:'手動戰術對戰'})).toBeVisible();
+ expect(calls).not.toContain('/rest/v1/rpc/game_action');
+});
+
+test('single feature entrances and independent catalog transformation previews',async({page})=>{
+ await page.setViewportSize({width:360,height:640});await page.emulateMedia({reducedMotion:'reduce'});
+ const calls=await setupAuthenticatedGame(page,[{...dead,name:'圖鑑測試',family:4,type:3,life_stage:6,is_dead:false,is_sick:false}]);
+ const home=page.getByTestId('cockpit-home'),nav=page.getByRole('navigation',{name:'遊戲導覽'}),main=page.getByTestId('game-main');
+ await expect(home.getByRole('button',{name:'開始戰鬥'})).toHaveCount(0);
+ await expect(nav.getByRole('button',{name:'競技',exact:true})).toHaveCount(1);
+ await expect(home.getByRole('button',{name:'改名',exact:true})).toHaveCount(1);
+ await home.getByRole('button',{name:'機體詳細資料'}).click();
+ await expect(home.getByRole('button',{name:'改名',exact:true})).toHaveCount(1);
+ await page.getByRole('button',{name:'關閉詳細資料'}).click();
+ await nav.getByRole('button',{name:'競技',exact:true}).click();
+ await expect(main.getByRole('button',{name:'好友名單'})).toHaveCount(0);
+ await expect(main.getByRole('button',{name:'世界聊天'})).toHaveCount(0);
+ await expect(main.getByRole('button',{name:'手動戰術對戰'})).toBeVisible();
+ await nav.getByRole('button',{name:'更多功能'}).click();
+ await page.getByRole('button',{name:'社交',exact:true}).click();
+ await expect(main.getByRole('button',{name:/好友/})).toBeVisible();
+ await expect(main.getByRole('button',{name:/頻道/})).toBeVisible();
+ await nav.getByRole('button',{name:'倉庫',exact:true}).click();
+ await expect(main.getByRole('button',{name:'回家照顧選定機體'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'圖鑑',exact:true}).click();
+ await page.getByRole('button',{name:'鋼鐵族',exact:true}).click();
+ const first=page.getByTestId('catalog-2_4_1'),second=page.getByTestId('catalog-2_4_2'),early=page.getByTestId('catalog-2_3_1');
+ await expect(early.locator('.catalog-transform')).toHaveCount(0);
+ await expect(first.getByRole('img',{name:'鋼鐵族・堡壘型・戰鬥機'})).toBeVisible();
+ await expect(second.getByRole('img',{name:'鋼鐵族・重砲型・戰鬥機'})).toBeVisible();
+ await first.getByRole('button',{name:'變身：鋼鐵族・堡壘型・戰鬥機'}).click();
+ await expect(first.getByRole('img',{name:'裝甲運輸車'})).toBeVisible();
+ await expect(second.getByRole('img',{name:'鋼鐵族・重砲型・戰鬥機'})).toBeVisible();
+ await second.getByRole('button',{name:'變身：鋼鐵族・重砲型・戰鬥機'}).click();
+ await expect(second.getByRole('img',{name:'重型坦克'})).toBeVisible();
+ await first.getByRole('button',{name:'還原：鋼鐵族・堡壘型・戰鬥機'}).click();
+ await expect(first.getByRole('img',{name:'鋼鐵族・堡壘型・戰鬥機'})).toBeVisible();
+ await expect(second.getByRole('img',{name:'重型坦克'})).toBeVisible();
+ const bounds=await main.boundingBox();
+ for(const btn of await main.locator('.catalog-transform').all()){const b=await btn.boundingBox();expect(b.height).toBeGreaterThanOrEqual(44);expect(b.y+b.height).toBeLessThanOrEqual(bounds.y+bounds.height+1);}
+ expect(await main.evaluate(el=>el.scrollHeight-el.clientHeight)).toBeLessThanOrEqual(2);
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/catalog-mobile.png',animations:'disabled'});
+ await page.setViewportSize({width:1280,height:800});
+ await expect.poll(()=>page.getByTestId('game-shell').evaluate(el=>el.getBoundingClientRect().width)).toBeCloseTo(400,0);
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/catalog-desktop.png',animations:'disabled'});
+ await second.getByRole('button',{name:'鋼鐵族・重砲型・戰鬥機',exact:true}).click();
+ await expect(page.getByRole('dialog').getByRole('img',{name:'重型坦克'})).toBeVisible();
+ await page.getByRole('button',{name:'關閉圖鑑詳情'}).click();
  expect(calls).not.toContain('/rest/v1/rpc/game_action');
 });

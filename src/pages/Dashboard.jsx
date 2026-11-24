@@ -124,7 +124,6 @@ export default function Dashboard({
   };
 
   const equipSkin=async id=>{if(loading)return;setLoading(true);setWardrobeError('');try{await api.equipSkin(monster.monster_id,id);setAppearanceMode(monster.monster_id,id?'skin':'robot');await refreshData(['monsters']);setShowWardrobe(false);}catch(err){setWardrobeError(err.message||'造型更新失敗');}finally{setLoading(false);}};
-  const canBattle=!monster.is_dead&&Number(monster.life_stage)>=2&&!monster.is_frozen;
   const care=canCareForMonster(monster);
   const formLabel=nextMode==='skin'?'恢復偽裝':nextMode==='robot'?'切換機器人':'變形：'+(mecha.vehicle||'載具');
   const formCaption=nextMode==='skin'?'恢復偽裝':nextMode==='robot'?'切換機器人':'機體變形';
@@ -192,10 +191,9 @@ export default function Dashboard({
       <PlayButton icon="clean" label="打掃" caption="清潔保養" tone="blue" onClick={()=>handleAction(api.clean,monster.monster_id)} disabled={loading||!care} className={monster.cleanliness<40&&care?'play-needed':''}/>
       <PlayButton icon="heal" label="治療" caption="修復治療" tone="red" onClick={()=>{setShowFeedMenu(false);setShowHealMenu(v=>!v)}} disabled={loading || !canHealMonster(monster)} className={monster.is_sick&&!monster.is_dead?'play-needed':''} selected={showHealMenu}/>
       <PlayButton icon="train" label="訓練" caption="機體訓練" tone="orange" onClick={()=>handleAction(api.train,monster.monster_id)} disabled={loading||!care}/>
-      <PlayButton icon="battle" label="開始戰鬥" tone="blue" onClick={()=>setPage('arena')} disabled={loading||!canBattle} className="cockpit-primary"/>
       <PlayButton icon="transform" label={formLabel} caption={formCaption} tone="purple" onClick={()=>setAppearanceMode(monster.monster_id,nextMode)} disabled={!nextMode||loading} selected={currentMode==='vehicle'}/>
     </div>
-    <div className="cockpit-feedback-slot">{message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極進化條件':' '}</span>}{ready&&<button className="cockpit-link" onClick={()=>setShowDetails(true)}><GameIcon name="evolve"/>進化</button>}</div>
+    <div className="cockpit-feedback-slot">{message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極進化條件，請開啟詳情':' '}</span>}</div>
     </div>
     {showDetails&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="機體詳細資料">
      <section className="cockpit-dialog" data-testid="mecha-details">
@@ -203,7 +201,6 @@ export default function Dashboard({
       <div className="text-sm">{mecha.factionName}・{mecha.roleName}</div><div className="text-sm text-slate-400">{speciesName}・G{monster.generation}・{Math.floor((monster.age_days||0)*10)/10} 天</div>
       {monster.is_rescue&&<div className="text-sm text-cyan-300">免費救援機體，放生不提供金幣。</div>}
       <div className="cockpit-stats">{stats.map(([icon,label,value])=><div key={label}><GameIcon name={icon}/><span>{label}</span><strong>{Math.round(value||0)}</strong></div>)}</div>
-      <PlayButton icon="edit" label="改名" onClick={handleRename} className="play-compact w-full"/>
       {monster.life_stage===5&&<><PlayButton icon="evolve" label="究極進化（需核心、50戰及70%勝率）" caption="終極進化" tone="purple" onClick={()=>{setShowDetails(false);handleAction(api.evolve,monster.monster_id)}} disabled={loading || monster.is_dead || getItemQty('ultimate_core') === 0 || monster.battles < 50 || monster.wins/monster.battles<0.7} className="w-full"/><p className="text-xs text-slate-400">進化條件：核心、50 場戰鬥、70% 勝率</p></>}
      </section>
     </div>}
@@ -211,10 +208,10 @@ export default function Dashboard({
      <section className="cockpit-dialog" data-testid="item-menu">
       <div className="dialog-heading"><h2>{showFeedMenu?'選擇補給':'選擇修復道具'}</h2><button onClick={closeItems} aria-label="取消返回">×</button></div>
       <div className="grid grid-cols-2 gap-2">{(showFeedMenu?foodChoices:healingChoices).map(([id,icon,label,count,tone])=><PlayButton key={id} icon={icon} label={label} caption={id==='heal_basic'?'急救草藥':label} subtext={id==='heal_basic'?'免費 · 生命 -20%':typeof count==='number'?'庫存 '+count:count} tone={tone} onClick={()=>doItem(showFeedMenu?api.feed:api.heal,id)} disabled={loading||count===0||(showFeedMenu?!care:!canHealMonster(monster))}/>)}</div>
-      <PlayButton icon="shop" label="購買道具" onClick={()=>{closeItems();setShopTab('items');setShowShop(true)}} tone="blue" className="w-full play-compact"/>
+      <p className="text-xs text-slate-400">需要更多道具時，請至養成頁上方商城購買。</p>
      </section>
     </div>}
-    {showWardrobe&&canWearSkin(monster)&&<SkinWardrobe monster={monster} inventory={inventory} loading={loading} error={wardrobeError} onEquip={equipSkin} onClose={()=>setShowWardrobe(false)} onShop={()=>{setShowWardrobe(false);setShopTab('skins');setShowShop(true)}}/>}
+    {showWardrobe&&canWearSkin(monster)&&<SkinWardrobe monster={monster} inventory={inventory} loading={loading} error={wardrobeError} onEquip={equipSkin} onClose={()=>setShowWardrobe(false)}/>}
     {showShop&&<ShopModal user={user} inventory={inventory} initialTab={shopTab} onClose={()=>setShowShop(false)} refreshData={refreshData}/>}
     {showQuests&&<QuestModal user={user} onClose={()=>setShowQuests(false)} refreshData={refreshData}/>}
   </div>;
