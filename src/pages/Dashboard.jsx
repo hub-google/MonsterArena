@@ -1,3 +1,7 @@
+import DetailsDialog from '../components/care/DetailsDialog.jsx';
+import TrainingDialog from '../components/care/TrainingDialog.jsx';
+import CareItemDialog from '../components/care/CareItemDialog.jsx';
+import CheckoutDialog from '../components/care/CheckoutDialog.jsx';
 import {useRepairCountdown} from '../hooks/useRepairCountdown.js';
 import {getItemQuantity} from '../utils/inventory.js';
 import React, { useState, useEffect } from 'react';
@@ -232,46 +236,10 @@ export default function Dashboard({
     </div>
     <div className="cockpit-feedback-slot">{monster.repair_until?<span role="status">緊急修復中 · 剩餘 {Math.floor(repairSeconds/60)}:{String(repairSeconds%60).padStart(2,'0')} · 耐久不變</span>:message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極升級條件，請開啟詳情':' '}</span>}</div>
     </div>
-    {showDetails&&!checkout&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="機體詳細資料">
-     <section className="cockpit-dialog" data-testid="mecha-details">
-      <div className="dialog-heading"><h2>機體詳細資料</h2><button onClick={()=>setShowDetails(false)} aria-label="關閉詳細資料">×</button></div>
-      <div className="text-sm">{mecha.factionName}・{mecha.roleName}</div><div className="text-sm text-slate-400">{speciesName}・G{monster.generation}・{Math.floor((monster.age_days||0)*10)/10} 天</div>
-      {monster.is_rescue&&<div className="text-sm text-cyan-300">免費救援機體，拆解不提供金幣。</div>}
-      <div className="cockpit-stats">{stats.map(([icon,label,value])=><div key={label}><GameIcon name={icon}/><span>{label}</span><strong>{Math.round(value||0)}</strong></div>)}</div>
-      {monster.life_stage===5&&<><PlayButton icon="evolve" label="終極升級（需核心、50戰及70%勝率）" caption="終極升級" tone="purple" onClick={()=>{if(getItemQty('ultimate_core')===0){openCheckout('ultimate_core');return;}setShowDetails(false);handleAction(api.evolve,monster.monster_id)}} disabled={loading || monster.is_dead || Boolean(monster.repair_until) || monster.battles < 50 || monster.wins/monster.battles<0.7} className="w-full"/><p className="text-xs text-slate-400">升級條件：核心、50 場戰鬥、70% 勝率</p></>}
-     </section>
-    </div>}
-    {showTrain&&GAME_RULES_V2&&!checkout&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="選擇訓練項目"><div className="cockpit-dialog">
-       <div className="dialog-heading"><h2>機體訓練</h2><button aria-label="關閉訓練" onClick={()=>setShowTrain(false)}>×</button></div>
-       <p className="text-sm">已分配 {allocated}/60 · <strong className="text-amber-300">可分配 {unspent} 點</strong></p>
-       <p className="text-xs text-slate-400">每次訓練消耗 10 行動電力、10 能源。配點不額外消耗資源，單項上限 30。</p>
-       <div className="grid grid-cols-2 gap-2">
-         <PlayButton icon="train" label={trainingFull?'維持訓練':'開始訓練'} subtext={trainingFull?'完成每日任務':'獲得 1 點'} disabled={trainingBlocked} onClick={()=>trainAction(api.train,monster.monster_id,trainingFull?'practice':'pool',false)}/>
-         <PlayButton icon="cpu" label="使用效能增幅器" tone="blue" subtext={allocated+unspent>=59?'剩餘點數不足':boostQty>0?'庫存 '+boostQty+' · 獲得 2 點':ITEM_BY_ID.vitamin.price+'G 購買並訓練 · +2 點'} disabled={trainingBlocked||allocated+unspent>=59} onClick={()=>boostQty>0?trainAction(api.train,monster.monster_id,'pool',true):openCheckout('vitamin','train')}/>
-       </div>
-       {(monster.is_sick||monster.fullness<20||monster.repair_until||user.stamina<10)&&<p className="text-xs text-amber-300">目前無法訓練，仍可分配已取得的點數。</p>}
-       <h3 className="text-sm font-bold">分配屬性點數</h3>
-       <div className="grid grid-cols-2 gap-2">{trainingStats.map(([k,n,icon])=><PlayButton key={k} icon={icon} label={n+' +1'} subtext={(monster['training_'+k]||0)+'/30'} disabled={loading||unspent<1||Number(monster['training_'+k]||0)>=30} onClick={()=>trainAction(api.allocateTraining,monster.monster_id,k)}/>)}</div>
-       {trainMessage&&<ActionFeedback message={trainMessage}/>}
-       </div></div>}
-    {(showFeedMenu||showHealMenu)&&!checkout&&!monster.is_dead&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label={showFeedMenu?'選擇補給':'選擇修復道具'}>
-     <section className="cockpit-dialog" data-testid="item-menu">
-      <div className="dialog-heading"><h2>{showFeedMenu?'選擇補給':'選擇修復道具'}</h2><button onClick={closeItems} aria-label="取消返回">×</button></div>
-      <div className="grid grid-cols-2 gap-2">{(showFeedMenu?foodChoices:healingChoices).map(([id,icon,label,count,tone])=><PlayButton key={id} icon={icon} label={label} caption={id==='heal_basic'?'緊急修復':label} subtext={id==='heal_basic'?monster.repair_until?'修復進行中':'免費 · 30 分鐘':count===0?'庫存 0 · '+ITEM_BY_ID[id].price+'G 購買':typeof count==='number'?'庫存 '+count:count} tone={tone} onClick={()=>count===0?openCheckout(id):doItem(showFeedMenu?api.feed:api.heal,id)} disabled={loading||(showFeedMenu?!care:!canHealMonster(monster))||(id==='heal_basic'&&Boolean(monster.repair_until))}/>)}</div>
-      <p className="text-xs text-slate-400">{showHealMenu?'兩種方式均不扣減永久耐久；標準修復套件可立即完成，庫存不足可購買後立即修復。':'庫存不足時，確認購買後立即使用。'}</p>{message&&<ActionFeedback message={message}/>}
-     </section>
-    </div>}
-    {checkout&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="購買確認">
-    <section className="cockpit-dialog" data-testid="quick-checkout">
-      <div className="dialog-heading"><h2>購買確認</h2><button disabled={loading} onClick={()=>setCheckout(null)} aria-label="取消購買">×</button></div>
-      <div className="flex items-center gap-3 text-cyan-300"><GameIcon name={checkout.icon}/><strong>{checkout.name}</strong></div>
-      <p className="text-sm text-slate-300">{checkout.use==='train'?'購買 1 個效能增幅器並立即訓練，消耗 10 行動電力、10 能源，獲得 2 點可分配點數。':checkout.description}</p>
-      <div className="grid grid-cols-2 gap-2 text-sm"><span>購買數量</span><strong className="text-right">1</strong><span>應付金額</span><strong className="text-right text-amber-300">{checkout.price}G</strong><span>目前金幣</span><strong className="text-right">{user.gold}G</strong></div>
-      {Number(user.gold)<checkout.price&&<p role="status" className="text-rose-300 text-sm">金幣不足，還需 {checkout.price-Number(user.gold)}G</p>}
-      {checkoutMessage&&<ActionFeedback message={checkoutMessage}/>}
-      <button type="button" disabled={loading||Number(user.gold)<checkout.price} onClick={buyMissing} className="neon-button neon-button-primary w-full py-3">{loading?'交易處理中…':(checkout.use==='train'?'購買並訓練 ':checkout.use?'購買並使用 ':'確認購買 ')+checkout.price+'G'}</button>
-      <button type="button" disabled={loading} onClick={()=>setCheckout(null)} className="neon-button w-full py-2">取消</button>
-    </section></div>}
+    {showDetails&&!checkout&&<DetailsDialog {...{mecha,speciesName,monster,stats,setShowDetails,getItemQty,openCheckout,handleAction,loading}}/>}
+    {showTrain&&GAME_RULES_V2&&!checkout&&<TrainingDialog {...{setShowTrain,allocated,unspent,trainingFull,trainingBlocked,trainAction,monster,boostQty,ITEM_BY_ID,openCheckout,user,trainingStats,loading,trainMessage}}/>}
+    {(showFeedMenu||showHealMenu)&&!checkout&&!monster.is_dead&&<CareItemDialog {...{showFeedMenu,showHealMenu,closeItems,foodChoices,healingChoices,monster,ITEM_BY_ID,openCheckout,doItem,loading,care,message}}/>}
+    {checkout&&<CheckoutDialog {...{checkout,setCheckout,loading,user,checkoutMessage,buyMissing}}/>}
     {showWardrobe&&canWearSkin(monster)&&<SkinWardrobe monster={monster} inventory={inventory} loading={loading} error={wardrobeError} onEquip={equipSkin} onClose={()=>setShowWardrobe(false)}/>}
     {showShop&&<ShopModal user={user} inventory={inventory} initialTab={shopTab} onClose={()=>setShowShop(false)} refreshData={refreshData}/>}
     {showQuests&&<QuestModal user={user} onClose={()=>setShowQuests(false)} refreshData={refreshData}/>}

@@ -32,7 +32,7 @@ npm run build
 ```text
 src/                  前端程式
   pages/              各功能頁面
-  components/         共用畫面元件
+  components/         共用畫面元件（care、battle、social）
   hooks/              共用 React 狀態與副作用
   services/           後端連線與各領域 API
   styles/             座艙、皮膚與圖鑑樣式

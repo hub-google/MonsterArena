@@ -4,8 +4,8 @@ import { GAME_FUNCTIONS } from '../supabase/schema/manifest.mjs';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const api = [read('src/utils/api.js'), ...readdirSync(new URL('../src/services/', import.meta.url)).filter(name=>name.endsWith('.js')).map(name=>read('src/services/'+name))].join('\n');
-const arena = read('src/pages/Arena.jsx');
-const dashboard = read('src/pages/Dashboard.jsx');
+const arena = [read('src/pages/Arena.jsx'),read('src/components/battle/BattleScreen.jsx'),read('src/hooks/useBattlePlayback.js')].join('\n');
+const dashboard = [read('src/pages/Dashboard.jsx'),...readdirSync(new URL('../src/components/care/',import.meta.url)).filter(name=>name.endsWith('.jsx')).map(name=>read('src/components/care/'+name))].join('\n');
 const roster = read('src/pages/Roster.jsx');
 const pkg = JSON.parse(read('package.json'));
 
@@ -69,7 +69,7 @@ assert.match(roster, /getHatchState/);
 assert.match(dashboard, /此機體核心已失效/);
 assert.match(dashboard, /disabled=\{loading \|\| !canHealMonster\(monster\)\}/);
 assert.match(roster, /!canManageMonsterChips\(selectedMonster\)/);
-assert.match(read('src/pages/Social.jsx'), /disabled=\{sendingChat \|\| !chatMessage\.trim\(\)\}/);
+assert.match(read('src/components/social/ChatPanel.jsx'), /disabled=\{sendingChat \|\| !chatMessage\.trim\(\)\}/);
 assert.match(dashboard, /if\(getItemQty\('ultimate_core'\)===0\)\{openCheckout\('ultimate_core'\);return;\}/);
 assert.match(dashboard, /disabled=\{loading \|\| monster\.is_dead \|\| Boolean\(monster\.repair_until\) \|\| monster\.battles < 50/);
 assert.match(units, /repair_until=now\(\)\+interval '30 minutes'/);

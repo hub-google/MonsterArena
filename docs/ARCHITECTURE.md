@@ -5,7 +5,10 @@
 - `src/App.jsx`：登入 session、各資料資源載入／刷新、交易恢復及頁面導覽。
 - `src/hooks/useOnlineStatus.js`：瀏覽器網路狀態。
 - `src/components/TransactionRecoveryDialog.jsx`：交易恢復畫面，不直接操作資料庫。
-- `src/pages/`：養成、倉庫、競技、戰術對戰、世界王、公會、社交與圖鑑。
+- `src/pages/`：養成、倉庫、競技、戰術對戰、世界王、公會、社交與圖鑑的狀態、操作與導覽。
+- `src/components/care/`：機體詳細資料、訓練、補給／修復及購買確認。
+- `src/components/battle/`：戰鬥畫面與播放控制介面。
+- `src/components/social/`：廣場、好友及聊天畫面。
 - `src/utils/api.js`：唯一前端資料服務入口（穩定 facade），不再混放所有領域實作。
 - `src/services/`：backend（環境與命名空間）、transactions（交易入口）、account、units、economy、battle、guild、social。`supabaseClient.js` 管理連線，`transactionJournal.js`、`transactionTransport.js` 負責安全交易重送。
 - `src/hooks/useGameAction.js`：倉庫與公會共用交易回饋；`useRepairCountdown.js`：修復倒數；`useBattlePlayback.js`：伺服器戰鬥結果的播放。
