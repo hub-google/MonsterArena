@@ -14,7 +14,7 @@ declare
 begin
   if v_uid is null then raise exception '請先登入'; end if;
   select * into v_profile from public.users where user_id=v_uid;
-  if found then return v_profile; end if;
+  if found then return arena_internal.refresh_stamina(v_uid); end if;
   select email, raw_user_meta_data into v_auth from auth.users where id=v_uid;
   if not found then raise exception '登入帳號不存在'; end if;
   v_name:=left(trim(coalesce(v_auth.raw_user_meta_data->>'username','')),24);

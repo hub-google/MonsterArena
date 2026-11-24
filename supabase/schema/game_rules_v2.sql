@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS arena_internal.raid_contributions (
   PRIMARY KEY(boss_id,user_id)
 );
 ALTER TABLE arena_internal.raid_contributions ADD COLUMN IF NOT EXISTS attempts int NOT NULL DEFAULT 0 CHECK(attempts>=0);
+ALTER TABLE arena_internal.raid_contributions ADD COLUMN IF NOT EXISTS support bigint NOT NULL DEFAULT 0 CHECK(support>=0);
 CREATE INDEX IF NOT EXISTS arena_raid_contributions_user ON arena_internal.raid_contributions(user_id,boss_id);
 CREATE TABLE IF NOT EXISTS arena_internal.pvp_defenders (
   user_id uuid PRIMARY KEY REFERENCES public.users(user_id) ON DELETE CASCADE,
@@ -128,13 +129,56 @@ RETURNS void LANGUAGE sql SET search_path TO pg_catalog,pg_temp AS $$
 $$;
 REVOKE ALL ON FUNCTION arena_internal.refresh_unit(uuid) FROM PUBLIC, anon, authenticated;
 
+-- Co-op: each assault has ten rounds, phase-appropriate tactics and bounded support.
+CREATE OR REPLACE FUNCTION arena_internal.raid_attempt(p_hp double precision,p_atk double precision,p_def double precision,p_spd double precision,p_phase int,p_strategy text)
+RETURNS jsonb LANGUAGE plpgsql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
+DECLARE own_hp double precision:=p_hp; hit int; incoming int; dealt int:=0; support int:=0; turns int:=0; raw int; factor numeric;
+BEGIN
+ IF p_strategy IS NULL OR p_strategy NOT IN ('assault','defend','break') THEN RAISE EXCEPTION '無效共鬥策略'; END IF;
+ FOR i IN 1..10 LOOP
+  IF own_hp<=0 THEN EXIT; END IF;
+  turns:=turns+1;
+  raw:=greatest(1,floor((CASE p_phase WHEN 1 THEN 12 WHEN 2 THEN 15 ELSE 18 END)*100/(100+p_def)*(CASE WHEN i%3=0 THEN 1.8 ELSE 1 END)));
+  incoming:=raw;
+  factor:=CASE p_strategy WHEN 'assault' THEN CASE p_phase WHEN 1 THEN 1.35 WHEN 2 THEN .8 ELSE .95 END WHEN 'defend' THEN CASE p_phase WHEN 3 THEN 1.12 ELSE .85 END ELSE CASE p_phase WHEN 2 THEN 1.45 ELSE .9 END END;
+  hit:=greatest(1,floor(p_atk*100/(100+30)*factor*(.9+least(.2,p_spd/180))));
+  IF p_strategy='defend' THEN incoming:=ceil(raw*(CASE WHEN p_phase=3 THEN .35 ELSE .5 END)); support:=support+least(raw-incoming,ceil(own_hp));
+  ELSIF p_strategy='break' AND i%3=0 THEN incoming:=0;support:=support+raw;
+  END IF;
+  IF p_strategy<>'assault' AND p_phase=2 AND i%3=0 THEN support:=support+5; END IF;
+  dealt:=dealt+hit; own_hp:=greatest(0,own_hp-incoming);
+ END LOOP;
+ RETURN jsonb_build_object('damage',dealt,'support',support,'rounds',turns,'ownHp',floor(own_hp));
+END $$;
+REVOKE ALL ON FUNCTION arena_internal.raid_attempt(double precision,double precision,double precision,double precision,int,text) FROM PUBLIC, anon, authenticated;
+CREATE OR REPLACE FUNCTION arena_internal.raid_pool(p_hp bigint) RETURNS int LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
+ SELECT greatest(150,least(5000,ceil(p_hp/6.0)::int));
+$$;
+REVOKE ALL ON FUNCTION arena_internal.raid_pool(bigint) FROM PUBLIC, anon, authenticated;
+-- Replenish stamina from elapsed time; discard time spent at the cap.
+CREATE OR REPLACE FUNCTION arena_internal.refresh_stamina(p_uid uuid) RETURNS public.users LANGUAGE plpgsql SET search_path TO pg_catalog,pg_temp AS $$
+DECLARE u public.users; ticks int;
+BEGIN
+ SELECT * INTO u FROM public.users WHERE user_id=p_uid FOR UPDATE;
+ IF NOT FOUND THEN RETURN NULL; END IF;
+ ticks:=greatest(0,floor(extract(epoch FROM (now()-coalesce(u.stamina_updated_at,now())))/600)::int);
+ UPDATE public.users SET stamina=least(100,coalesce(stamina,0)+ticks),max_stamina=100,
+ stamina_updated_at=CASE WHEN coalesce(stamina,0)+ticks>=100 OR stamina_updated_at IS NULL THEN now() ELSE least(now(),stamina_updated_at+ticks*interval '10 minutes') END,
+ last_login_at=now() WHERE user_id=p_uid RETURNING * INTO u;
+ RETURN u;
+END $$;
+REVOKE ALL ON FUNCTION arena_internal.refresh_stamina(uuid) FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION arena_internal.ensure_raid(p_day text)
 RETURNS text LANGUAGE plpgsql SET search_path TO pg_catalog,pg_temp AS $$
 DECLARE v_id text:='daily:'||p_day; v_hp int;
 BEGIN
   IF NOT EXISTS(SELECT 1 FROM public.raid_boss WHERE id=v_id) THEN
-    SELECT greatest(3000,least(100000000,count(*)*1200))::int INTO v_hp FROM public.users u
-      WHERE u.last_login_at>=now()-interval '7 days' AND EXISTS(SELECT 1 FROM public.monsters m WHERE m.user_id=u.user_id AND NOT coalesce(m.is_dead,false) AND m.life_stage>=2);
+    SELECT greatest(250,least(100000000,coalesce(sum(q.best)*2.2,250)))::int INTO v_hp FROM
+ (SELECT u.user_id,max((arena_internal.raid_attempt(f.hp,f.atk,f.def,f.spd,1,'assault')->>'damage')::int) best
+ FROM public.users u JOIN public.monsters m USING(user_id) CROSS JOIN LATERAL arena_internal.unit_stats(m) f
+ WHERE u.last_login_at>=now()-interval '1 day' AND NOT coalesce(m.is_dead,false) AND NOT coalesce(m.is_frozen,false) AND m.life_stage>=2
+ GROUP BY u.user_id) q;
     INSERT INTO public.raid_boss(id,name,current_hp,max_hp,is_active)
     VALUES(v_id,'巨型機甲首領',v_hp,v_hp,true) ON CONFLICT(id) DO NOTHING;
   END IF;
@@ -143,19 +187,6 @@ END $$;
 REVOKE ALL ON FUNCTION arena_internal.ensure_raid(text) FROM PUBLIC, anon, authenticated;
 CREATE INDEX IF NOT EXISTS arena_chat_channel_cursor ON public.messages(channel,timestamp DESC,message_id DESC);
 CREATE INDEX IF NOT EXISTS arena_battle_user_created ON public.battle_records(user_id,created_at DESC);
-
--- Combat-stage budget: bounded effective values preserve stored legacy inventory and stats.
-CREATE OR REPLACE FUNCTION arena_internal.fighter_stats(p_stage int,p_hp double precision,p_atk double precision,p_def double precision,p_spd double precision)
-RETURNS TABLE(hp double precision,atk double precision,def double precision,spd double precision)
-LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
- SELECT floor(least(v.hp*1.25,greatest(v.hp,coalesce(p_hp,0)))),
- floor(least(v.atk*1.25,greatest(v.atk,coalesce(p_atk,0)))),
- floor(least(v.def*1.25,greatest(v.def,coalesce(p_def,0)))),
- floor(least(v.spd*1.25,greatest(v.spd,coalesce(p_spd,0))))
- FROM (VALUES (2,100,20,15,15),(3,125,25,20,20),(4,160,32,25,25),(5,200,40,30,30),(6,240,48,36,36)) v(stage,hp,atk,def,spd)
- WHERE v.stage=greatest(2,least(6,coalesce(p_stage,2)));
-$$;
-REVOKE ALL ON FUNCTION arena_internal.fighter_stats(int,double precision,double precision,double precision,double precision) FROM PUBLIC, anon, authenticated;
 
 -- Authoritative deterministic tactical PvE transcript, matching the browser practice rules.
 -- The client may submit choices only; HP, damage, result and reward are computed here.

@@ -66,7 +66,7 @@ DECLARE r jsonb;
 BEGIN
  r:=public.game_action('battle','{"monster_id":"00000000-0000-4000-8000-000000000012","encounter":"wild"}');
  IF (r->>'enemyMaxHp')::numeric<>80 OR (r->>'enemyAtk')::numeric<>16 OR NOT (r->>'won')::boolean OR (r->>'reward')::int<>10 THEN RAISE EXCEPTION 'fixed difficulty or clear reward failed'; END IF;
- PERFORM public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000012"}');
+ PERFORM public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000012","strategy":"break"}');
  r:=public.game_action('raid_status');
  IF (r->>'current_hp')::int<>0 OR jsonb_array_length(r->'claims')<>1 THEN RAISE EXCEPTION 'daily raid settlement failed'; END IF;
  PERFORM public.game_action('raid_claim',jsonb_build_object('boss_id',r->>'id'));

@@ -77,10 +77,15 @@ declare
   v_attempts int;
   v_points int;
   v_allocated int;
+  v_support int;
+  v_phase int;
+  v_raid_result jsonb;
+  v_strategy text;
 begin
   if v_uid is null then raise exception '請先登入'; end if;
   select * into v_u from public.users where user_id=v_uid for update;
   if not found then raise exception '找不到使用者資料，請重新登入'; end if;
+  v_u:=arena_internal.refresh_stamina(v_uid);
   p_data:=coalesce(p_data,'{}'::jsonb);
   if jsonb_typeof(p_data)<>'object' then raise exception '操作參數錯誤'; end if;
   if p_action='capabilities' then
@@ -89,9 +94,9 @@ begin
   if p_action='raid_status' then
     v_boss_id:=arena_internal.ensure_raid(v_date);
     select * into v_boss from public.raid_boss where id=v_boss_id;
-    select damage into v_contribution from arena_internal.raid_contributions where boss_id=v_boss_id and user_id=v_uid;
-    return to_jsonb(v_boss)||jsonb_build_object('my_damage',coalesce(v_contribution,0),'claims',
-      coalesce((select jsonb_agg(jsonb_build_object('boss_id',r.boss_id,'damage',r.damage,'reward',floor(5000::numeric*r.damage/b.max_hp)) order by b.created_at desc)
+    select damage,attempts,support into v_contribution,v_attempts,v_support from arena_internal.raid_contributions where boss_id=v_boss_id and user_id=v_uid;
+    return to_jsonb(v_boss)||jsonb_build_object('my_damage',coalesce(v_contribution,0),'my_attempts',coalesce(v_attempts,0),'my_support',coalesce(v_support,0),'reward_pool',arena_internal.raid_pool(v_boss.max_hp),'claims',
+      coalesce((select jsonb_agg(jsonb_build_object('boss_id',r.boss_id,'damage',r.damage,'reward',floor(arena_internal.raid_pool(b.max_hp)::numeric*(r.damage+r.support)/greatest(1,(SELECT sum(x.damage+x.support) FROM arena_internal.raid_contributions x WHERE x.boss_id=b.id)))) order by b.created_at desc)
         from arena_internal.raid_contributions r join public.raid_boss b on b.id=r.boss_id
         where r.user_id=v_uid and r.claimed_at is null and b.current_hp=0),'[]'::jsonb));
   end if;
@@ -364,9 +369,9 @@ begin
     v_boss_id:=p_data->>'boss_id';
     select * into v_boss from public.raid_boss where id=v_boss_id;
     if not found or v_boss.current_hp<>0 then raise exception '世界王尚未討伐成功'; end if;
-    select damage into v_contribution from arena_internal.raid_contributions where boss_id=v_boss_id and user_id=v_uid and claimed_at is null for update;
+    select damage+support into v_contribution from arena_internal.raid_contributions where boss_id=v_boss_id and user_id=v_uid and claimed_at is null for update;
     if not found then raise exception '沒有可領取的討伐獎勵'; end if;
-    v_reward:=floor(5000::numeric*v_contribution/v_boss.max_hp)::int;
+    v_reward:=floor(arena_internal.raid_pool(v_boss.max_hp)::numeric*v_contribution/greatest(1,(SELECT sum(x.damage+x.support) FROM arena_internal.raid_contributions x WHERE x.boss_id=v_boss.id)))::int;
     update arena_internal.raid_contributions set claimed_at=now() where boss_id=v_boss_id and user_id=v_uid;
     update public.users set gold=coalesce(gold,0)+v_reward where user_id=v_uid;
     v_result:=jsonb_build_object('message','領取討伐貢獻獎勵 '||v_reward||'G','reward',v_reward);
@@ -378,17 +383,17 @@ begin
     SELECT coalesce(attempts,0) INTO v_attempts FROM arena_internal.raid_contributions WHERE boss_id=v_boss.id AND user_id=v_uid;
     IF coalesce(v_attempts,0)>=3 THEN RAISE EXCEPTION '今日世界王已達三次挑戰上限'; END IF;
     SELECT * INTO v_fighter FROM arena_internal.unit_stats(v_m);
-    -- Ten-turn contribution, endurance and speed matter as well as attack.
-    v_damage:=least(v_boss.current_hp,greatest(1,floor(10*v_fighter.atk*100/(100+30)
-      *(0.8+least(0.4,(v_fighter.hp/240+v_fighter.def/36)/5))
-      *(0.9+least(0.2,v_fighter.spd/180))
-      *(CASE WHEN v_boss.current_hp>v_boss.max_hp*0.6 THEN 1 WHEN v_boss.current_hp>v_boss.max_hp*0.3 THEN 0.9 ELSE 0.85 END))::int));
+    v_strategy:=coalesce(p_data->>'strategy','assault');
+    v_phase:=CASE WHEN v_boss.current_hp>v_boss.max_hp*.6 THEN 1 WHEN v_boss.current_hp>v_boss.max_hp*.3 THEN 2 ELSE 3 END;
+    v_raid_result:=arena_internal.raid_attempt(v_fighter.hp,v_fighter.atk,v_fighter.def,v_fighter.spd,v_phase,v_strategy);
+    v_damage:=least(v_boss.current_hp,(v_raid_result->>'damage')::int);
+    v_support:=least(v_damage,(v_raid_result->>'support')::int);
     v_remaining:=greatest(0,v_boss.current_hp-v_damage);
-    update public.raid_boss set current_hp=v_remaining,is_active=v_remaining>0 where id=v_boss.id;
-    insert into arena_internal.raid_contributions(boss_id,user_id,damage,attempts) values(v_boss.id,v_uid,v_damage,1)
-      on conflict(boss_id,user_id) do update set damage=arena_internal.raid_contributions.damage+excluded.damage, attempts=arena_internal.raid_contributions.attempts+1;
-    update public.users set stamina=stamina-15 where user_id=v_uid;
-    v_result:=jsonb_build_object('message',case when v_remaining=0 then '討伐成功！可依傷害貢獻領取獎勵' else '造成傷害！' end,'damage',v_damage);
+    UPDATE public.raid_boss SET current_hp=v_remaining,is_active=v_remaining>0 WHERE id=v_boss.id;
+    INSERT INTO arena_internal.raid_contributions(boss_id,user_id,damage,attempts,support) VALUES(v_boss.id,v_uid,v_damage,1,v_support)
+      ON CONFLICT(boss_id,user_id) DO UPDATE SET damage=arena_internal.raid_contributions.damage+excluded.damage,attempts=arena_internal.raid_contributions.attempts+1,support=arena_internal.raid_contributions.support+excluded.support;
+    UPDATE public.users SET stamina=stamina-15,gold=gold+CASE WHEN coalesce(v_attempts,0)=0 THEN 20 ELSE 0 END WHERE user_id=v_uid;
+    v_result:=v_raid_result||jsonb_build_object('message',CASE WHEN v_remaining=0 THEN '討伐成功！可領取貢獻獎勵' ELSE '共鬥完成' END,'damage',v_damage,'support',v_support,'participationReward',CASE WHEN coalesce(v_attempts,0)=0 THEN 20 ELSE 0 END);
   elsif p_action='battle' then
     -- Ignore legacy caller-provided battleId and won. The server owns all outcomes.
     -- The owning user row is FOR UPDATE locked above, serializing requests across tabs.
