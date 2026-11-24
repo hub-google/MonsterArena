@@ -283,6 +283,20 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  await assertSingleColumn();
  await assertVisiblePaint(150);
  await shell.screenshot({path:'test-results/ui-visual/desktop-tall.png',animations:'disabled'});
+ // Compare actual relative positions at the same logical phone dimensions.
+ const layoutSignature=()=>shell.evaluate(el=>{
+  const origin=el.getBoundingClientRect();
+  return ['.cockpit-header','.cockpit-toolbar','.cockpit-hero','.cockpit-readouts','.cockpit-actions','.cockpit-nav'].map(selector=>{
+   const r=el.querySelector(selector).getBoundingClientRect();return [r.x-origin.x,r.y-origin.y,r.width,r.height];
+  });
+ });
+ const desktopLayout=await layoutSignature();
+ await page.setViewportSize({width:400,height:780});
+ await assertSingleColumn();
+ await assertVisiblePaint(150);
+ const phoneLayout=await layoutSignature();
+ for(let i=0;i<desktopLayout.length;i++)for(let j=0;j<4;j++)expect(Math.abs(desktopLayout[i][j]-phoneLayout[i][j])).toBeLessThanOrEqual(2);
+ await shell.screenshot({path:'test-results/ui-visual/mobile-matched.png',animations:'disabled'});
  await page.setViewportSize({width:360,height:640});
  await assertSingleColumn();
  await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();

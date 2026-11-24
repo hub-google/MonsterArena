@@ -51,6 +51,8 @@ jobs:
           echo '驗證完成：只剩 main' >> "$GITHUB_STEP_SUMMARY"
   build-deploy:
     runs-on: ubuntu-latest
+    outputs:
+      index_sha: ${{ steps.build.outputs.index_sha }}
     services:
       postgres:
         image: postgres:17
@@ -91,7 +93,10 @@ jobs:
       - name: 檢查 Supabase 驗證服務
         run: node scripts/check-supabase-game.mjs
       - name: 建置測試站
-        run: npm run build
+        id: build
+        run: |
+          npm run build
+          echo "index_sha=$(sha256sum dist/index.html | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
       - name: 安裝測試瀏覽器
         run: npx playwright install --with-deps chromium
       - name: 測試建置後網頁
@@ -140,3 +145,20 @@ jobs:
       - name: 部署 Artifact
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: 驗證公開網頁為本次建置版本
+        env:
+          EXPECTED_SHA: ${{ needs.build-deploy.outputs.index_sha }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          test -n "$EXPECTED_SHA"
+          test -n "$PAGE_URL"
+          for i in $(seq 1 15); do
+            if curl -fsSL --max-time 10 "${PAGE_URL%/}/?arena_build=${GITHUB_SHA}" -o /tmp/arena-live.html && [ "$(sha256sum /tmp/arena-live.html | cut -d ' ' -f 1)" = "$EXPECTED_SHA" ]; then
+              echo "公開網頁版本確認成功：$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "公開網頁尚未回傳本次建置版本" >&2
+          exit 1

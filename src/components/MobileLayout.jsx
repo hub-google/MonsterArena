@@ -3,7 +3,7 @@ import {PlayButton,GameIcon} from './PlayButton';
 export default function MobileLayout({children,page,setPage,isConnected,onRefresh,onLogout}) {
  const [more,setMore]=useState(false);
  // The desktop is the same portrait game, fitted to the available height.
- const fit=()=>Math.min(1,Math.max(0.1,(window.innerHeight-12)/760));
+ const fit=()=>Math.min(1,Math.max(0.1,(window.innerHeight-12)/780));
  const [arenaFit,setArenaFit]=useState(fit);
  useEffect(()=>{const resize=()=>setArenaFit(fit());window.addEventListener('resize',resize);resize();return()=>window.removeEventListener('resize',resize)},[]);
  const tabs=[['dashboard','home','養成','家'],['roster','roster','倉庫','包'],['arena','battle','競技','打'],['pokedex','pokedex','圖鑑','圖']];
