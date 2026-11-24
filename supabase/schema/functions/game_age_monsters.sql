@@ -14,7 +14,6 @@ declare
   v_age double precision;
   v_stage integer;
   v_type smallint;
-  v_decay double precision;
   v_dirty_hours double precision;
   v_dirty_ticks int;
   v_hunger_loss double precision;
@@ -33,8 +32,6 @@ begin
            when v_age>=0.05 then 2 else 1 end);
     v_type:=coalesce(v_m.type,0);
     if v_stage>=3 and v_type=0 then v_type:=1+floor(random()*2)::int; end if;
-    v_decay:=power(0.99::double precision,
-      greatest(0,floor(v_age-30)::int)-greatest(0,floor(v_prev_age-30)::int));
     -- Integer cleanliness decreases on elapsed 15-minute boundaries, not refresh count.
     v_dirty_ticks:=floor(v_age*96)::int-floor(v_prev_age*96)::int;
     v_dirty_hours:=greatest(0.0,v_hours-greatest(0.0,(coalesce(v_m.cleanliness,0)-30)/4.0));
@@ -47,9 +44,6 @@ begin
       type=v_type,
       is_sick=coalesce(is_sick,false) or
         (v_dirty_hours>0 and random()<1-power(0.96::double precision,v_dirty_hours)),
-      combat_atk=greatest(1,coalesce(combat_atk,1)*v_decay),
-      combat_def=greatest(0,coalesce(combat_def,1)*v_decay),
-      combat_spd=greatest(1,coalesce(combat_spd,1)*v_decay),
       last_updated_at=now()
     where monster_id=v_m.monster_id and user_id=v_uid;
   end loop;

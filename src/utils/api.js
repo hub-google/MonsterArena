@@ -17,7 +17,7 @@ const usernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9_]/g, '')}@
 const legacyUsernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@monsterarena.app`;
 const throwIfError = error => { if (error) throw new Error(presentGameMessage(error.message)); };
 const action = async (p_action, p_data = {}) => {
-  const args={p_action,p_data:GAME_RULES_V2?{...p_data,request_id:crypto.randomUUID()}:p_data};
+  const args={p_action,p_data:GAME_RULES_V2?{...p_data,request_id:p_data.request_id||crypto.randomUUID()}:p_data};
   let {data,error}=await supabase.rpc('game_action',args);
   // The isolated V2 server caches the transaction result under the same UUID.
   // Never retry legacy mutations or business-rule rejections.
@@ -131,6 +131,7 @@ export const api = {
   },
   claimQuest: quest_id => action('claim', { quest_id }),
   startBattle: (monster_id, encounter='wild', opponent_id) => action('battle', { monster_id, encounter, ...(opponent_id?{opponent_id}:{}) }),
+  settleBossTactics: (monster_id,moves,request_id) => action('battle',{monster_id,encounter:'boss',moves,request_id}),
   getPvp: () => action('pvp_list'),
   registerPvp: monster_id => action('pvp_register',{monster_id}),
   unregisterPvp: () => action('pvp_unregister'),

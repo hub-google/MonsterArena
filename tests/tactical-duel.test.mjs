@@ -28,3 +28,32 @@ test('AI is deterministic and affordable; duel terminates at cap and cannot adva
  for(let i=0;i<MAX_ROUNDS&&!s.result;i++){const a=chooseEnemy(s);assert.equal(a,chooseEnemy(s));assert.ok(a!=='break'||s.energy[1]>=2);s=resolveRound(s,'charge');}
  assert.ok(s.result);assert.equal(resolveRound(s,'attack'),s);
 });
+
+import {initialBossDuel,resolveBossRound,bossHint,balancedFighter,BOSS_STATS} from '../src/utils/tacticalDuel.js';
+test('ultimate boss is beatable through the advertised eight-turn strategy',()=>{
+ let s=initialBossDuel({life_stage:6});
+ for(const move of ['attack','attack','guard','special','attack','guard','special','attack'])s=resolveBossRound(s,move);
+ assert.equal(s.result,'win');
+ assert.equal(s.hp[0],134);
+ assert.equal(s.hp[1],0);
+ assert.equal(s.history.length,8);
+});
+test('mindless attack loses and guard has a real strategic effect',()=>{
+ let s=initialBossDuel({life_stage:6});
+ while(!s.result)s=resolveBossRound(s,'attack');
+ assert.equal(s.result,'loss');
+ s=initialBossDuel({life_stage:6});
+ assert.equal(resolveBossRound(s,'special'),s);
+ s=resolveBossRound(resolveBossRound(s,'attack'),'attack');
+ assert.match(bossHint(s),/重擊/);
+ s=resolveBossRound(s,'guard');
+ assert.equal(s.phase,'stunned');
+ assert.equal(s.hp[0],168);
+ assert.equal(s.hp[1],198);
+});
+test('legacy stats cannot exceed 125% of stage base and fights never mutate monster',()=>{
+ const m=Object.freeze({life_stage:5,combat_hp:1725,combat_atk:2000,combat_def:200,combat_spd:200});
+ assert.deepEqual(balancedFighter(m),{hp:250,atk:50,def:37,spd:37});
+ assert.equal(initialBossDuel(m).hp[1],BOSS_STATS.hp);
+ assert.equal(m.combat_hp,1725);
+});

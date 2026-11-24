@@ -160,7 +160,7 @@ export default function Raid({
 
         {GAME_RULES_V2&&boss&&<div className="glass-card p-3 space-y-2">
           <div className="text-sm font-bold text-amber-300">今日傷害貢獻：{Number(boss.my_damage||0).toLocaleString()}</div>
-          <p className="text-xs text-slate-300">每天台灣時間更新巨型機甲首領；成功討伐後按有效傷害分配 5,000G，不再只獎勵最後一擊。</p>
+          <p className="text-xs text-slate-300">每天台灣時間更新巨型機甲首領；按近期活躍人數固定耐久，每人每日三次挑戰，成功討伐後按有效傷害分配 5,000G。</p>
           {(boss.claims||[]).map(c=><button key={c.boss_id} disabled={loading} onClick={()=>handleClaim(c.boss_id)} className="w-full neon-button neon-button-success px-3 py-2">領取 {c.boss_id.replace('daily:','')} 貢獻獎勵 {c.reward}G</button>)}
         </div>}
         {/* Monster selector & Attack triggers */}

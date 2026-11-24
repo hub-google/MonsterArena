@@ -1,6 +1,15 @@
 -- Run only against an isolated database initialized by fixture.sql.
 \set ON_ERROR_STOP on
 BEGIN;
+DO $$
+DECLARE r jsonb;
+BEGIN
+ r:=arena_internal.boss_tactics(6,240,48,36,36,'["attack","attack","guard","special","attack","guard","special","attack"]');
+ IF NOT (r->>'won')::boolean OR (r->>'ownHp')::int<>134 OR (r->>'enemyHp')::int<>0 THEN RAISE EXCEPTION 'boss strategy mismatch'; END IF;
+ r:=arena_internal.boss_tactics(6,240,48,36,36,'["attack","attack","attack","attack","attack","attack","attack"]');
+ IF (r->>'won')::boolean THEN RAISE EXCEPTION 'mindless attack should lose'; END IF;
+ BEGIN PERFORM arena_internal.boss_tactics(6,240,48,36,36,'["special"]'); RAISE EXCEPTION 'illegal move accepted'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%無效戰術%' THEN RAISE; END IF; END;
+END $$;
 INSERT INTO auth.users(id,email) VALUES
  ('00000000-0000-4000-8000-000000000001','a@example.invalid'),
  ('00000000-0000-4000-8000-000000000002','b@example.invalid');
@@ -36,7 +45,7 @@ BEGIN
   END;
   PERFORM public.game_action('pvp_register','{"monster_id":"00000000-0000-4000-8000-000000000011"}');
   r:=public.game_action('battle','{"monster_id":"00000000-0000-4000-8000-000000000011","encounter":"wild"}');
-  IF (r->>'enemyMaxHp')::numeric<>45 OR (r->>'enemyAtk')::numeric<>5 THEN RAISE EXCEPTION 'wild stats incorrect'; END IF;
+  IF (r->>'enemyMaxHp')::numeric<>80 OR (r->>'enemyAtk')::numeric<>16 THEN RAISE EXCEPTION 'wild stats incorrect'; END IF;
   PERFORM public.game_age_monsters();
   PERFORM public.game_action('raid_status');
 END $$;
@@ -47,7 +56,7 @@ BEGIN
  IF (SELECT count(*) FROM arena_internal.gold_ledger WHERE user_id='00000000-0000-4000-8000-000000000001' AND action='buy')<>1 THEN RAISE EXCEPTION 'duplicate ledger'; END IF;
  IF (SELECT cleanliness FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011')<>99 THEN RAISE EXCEPTION 'elapsed cleanliness failed'; END IF;
 END $$;
-UPDATE public.raid_boss SET current_hp=100,max_hp=100 WHERE id LIKE 'daily:%';
+UPDATE public.raid_boss SET current_hp=500,max_hp=500 WHERE id LIKE 'daily:%';
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SELECT public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000011"}');
@@ -56,7 +65,7 @@ DO $$
 DECLARE r jsonb;
 BEGIN
  r:=public.game_action('battle','{"monster_id":"00000000-0000-4000-8000-000000000012","encounter":"wild"}');
- IF (r->>'enemyMaxHp')::numeric<>45 OR (r->>'enemyAtk')::numeric<>5 OR NOT (r->>'won')::boolean OR (r->>'reward')::int<>10 THEN RAISE EXCEPTION 'fixed difficulty or clear reward failed'; END IF;
+ IF (r->>'enemyMaxHp')::numeric<>80 OR (r->>'enemyAtk')::numeric<>16 OR NOT (r->>'won')::boolean OR (r->>'reward')::int<>10 THEN RAISE EXCEPTION 'fixed difficulty or clear reward failed'; END IF;
  PERFORM public.game_action('raid','{"monster_id":"00000000-0000-4000-8000-000000000012"}');
  r:=public.game_action('raid_status');
  IF (r->>'current_hp')::int<>0 OR jsonb_array_length(r->'claims')<>1 THEN RAISE EXCEPTION 'daily raid settlement failed'; END IF;
@@ -87,7 +96,7 @@ END $$;
 RESET ROLE;
 DO $$
 BEGIN
- IF (SELECT sum(damage) FROM arena_internal.raid_contributions)<>100 THEN RAISE EXCEPTION 'overkill damage counted'; END IF;
+ IF (SELECT sum(damage) FROM arena_internal.raid_contributions)<>500 THEN RAISE EXCEPTION 'overkill damage counted'; END IF;
  IF (SELECT sum(amount) FROM arena_internal.gold_ledger WHERE action='raid_claim')>5000 THEN RAISE EXCEPTION 'reward pool overflow'; END IF;
  IF (SELECT age_days FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000012')<49.99 THEN RAISE EXCEPTION 'offline age lost'; END IF;
 END $$;

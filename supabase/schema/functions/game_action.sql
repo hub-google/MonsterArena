@@ -72,6 +72,9 @@ declare
   v_boss_id text;
   v_contribution bigint;
   v_pvp boolean:=false;
+  v_fighter record;
+  v_tactical jsonb;
+  v_attempts int;
 begin
   if v_uid is null then raise exception '請先登入'; end if;
   select * into v_u from public.users where user_id=v_uid for update;
@@ -386,10 +389,10 @@ begin
       (v_m.combat_def+v_m2.combat_def)/2*v_bonus,
       (v_m.combat_spd+v_m2.combat_spd)/2*v_bonus,0,0,false,now());
   elsif p_action='pvp_register' then
+    SELECT * INTO v_fighter FROM arena_internal.fighter_stats(v_m.life_stage,v_m.combat_hp,v_m.combat_atk,v_m.combat_def,v_m.combat_spd);
     insert into arena_internal.pvp_defenders(user_id,monster_id,monster_name,family,stage,type,hp,atk,def,spd)
       values(v_uid,v_mon_id,coalesce(v_m.name,'怪獸'),coalesce(v_m.family,1),v_m.life_stage,coalesce(v_m.type,0),
-      greatest(1,coalesce(v_m.combat_hp,1)),greatest(1,coalesce(v_m.combat_atk,1)),
-      greatest(0,coalesce(v_m.combat_def,0)),greatest(1,coalesce(v_m.combat_spd,1)))
+      v_fighter.hp,v_fighter.atk,v_fighter.def,v_fighter.spd)
       on conflict(user_id) do update set monster_id=excluded.monster_id,monster_name=excluded.monster_name,
       family=excluded.family,stage=excluded.stage,type=excluded.type,hp=excluded.hp,atk=excluded.atk,def=excluded.def,spd=excluded.spd,updated_at=now();
     v_result:=jsonb_build_object('message','防守怪獸已登記');
@@ -411,13 +414,18 @@ begin
     v_boss_id:=arena_internal.ensure_raid(v_date);
     select * into v_boss from public.raid_boss where id=v_boss_id for update;
     if not coalesce(v_boss.is_active,false) then raise exception '今日世界王已被討伐'; end if;
-    v_damage:=least(v_boss.current_hp,greatest(1,round((v_m.combat_atk*20*
-      1
-      *(0.9+random()*0.2))::numeric)::int));
+    SELECT coalesce(attempts,0) INTO v_attempts FROM arena_internal.raid_contributions WHERE boss_id=v_boss.id AND user_id=v_uid;
+    IF coalesce(v_attempts,0)>=3 THEN RAISE EXCEPTION '今日世界王已達三次挑戰上限'; END IF;
+    SELECT * INTO v_fighter FROM arena_internal.fighter_stats(v_m.life_stage,v_m.combat_hp,v_m.combat_atk,v_m.combat_def,v_m.combat_spd);
+    -- Ten-turn contribution, endurance and speed matter as well as attack.
+    v_damage:=least(v_boss.current_hp,greatest(1,floor(10*v_fighter.atk*100/(100+30)
+      *(0.8+least(0.4,(v_fighter.hp/240+v_fighter.def/36)/5))
+      *(0.9+least(0.2,v_fighter.spd/180))
+      *(CASE WHEN v_boss.current_hp>v_boss.max_hp*0.6 THEN 1 WHEN v_boss.current_hp>v_boss.max_hp*0.3 THEN 0.9 ELSE 0.85 END))::int));
     v_remaining:=greatest(0,v_boss.current_hp-v_damage);
     update public.raid_boss set current_hp=v_remaining,is_active=v_remaining>0 where id=v_boss.id;
-    insert into arena_internal.raid_contributions(boss_id,user_id,damage) values(v_boss.id,v_uid,v_damage)
-      on conflict(boss_id,user_id) do update set damage=arena_internal.raid_contributions.damage+excluded.damage;
+    insert into arena_internal.raid_contributions(boss_id,user_id,damage,attempts) values(v_boss.id,v_uid,v_damage,1)
+      on conflict(boss_id,user_id) do update set damage=arena_internal.raid_contributions.damage+excluded.damage, attempts=arena_internal.raid_contributions.attempts+1;
     update public.users set stamina=stamina-15 where user_id=v_uid;
     v_result:=jsonb_build_object('message',case when v_remaining=0 then '討伐成功！可依傷害貢獻領取獎勵' else '造成傷害！' end,'damage',v_damage);
   elsif p_action='battle' then
@@ -433,7 +441,8 @@ begin
     select count(*) into v_count from public.battle_records where user_id=v_uid
       and created_at>=date_trunc('day',now() at time zone 'Asia/Taipei') at time zone 'Asia/Taipei';
     if v_count>=30 then raise exception '今日已達 30 場挑戰上限'; end if;
-    v_own_max_hp:=greatest(1,coalesce(v_m.combat_hp,1));
+    SELECT * INTO v_fighter FROM arena_internal.fighter_stats(v_m.life_stage,v_m.combat_hp,v_m.combat_atk,v_m.combat_def,v_m.combat_spd);
+    v_own_max_hp:=v_fighter.hp;
     v_own_hp:=v_own_max_hp;
     v_pvp:=v_encounter='pvp';
     if v_pvp then
@@ -455,16 +464,22 @@ begin
       v_enemy_max_hp:=v_enc.hp;v_enemy_atk:=v_enc.atk;v_enemy_def:=v_enc.def;v_enemy_spd:=v_enc.spd;
     end if;
     v_enemy_hp:=v_enemy_max_hp;
+    IF v_encounter='boss' AND NOT (p_data ? 'moves') THEN RAISE EXCEPTION '首領挑戰需要戰術指令'; END IF;
+    IF v_encounter='boss' THEN
+      v_tactical:=arena_internal.boss_tactics(v_m.life_stage,v_m.combat_hp,v_m.combat_atk,v_m.combat_def,v_m.combat_spd,p_data->'moves');
+      v_own_hp:=(v_tactical->>'ownHp')::double precision; v_enemy_hp:=(v_tactical->>'enemyHp')::double precision;
+      v_won:=(v_tactical->>'won')::boolean; v_events:=v_tactical->'events';
+    ELSE
     v_own_faction:=(case coalesce(v_m.family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end);
     v_enemy_faction:=(case coalesce(v_enemy_family,1) when 1 then 1 when 2 then 1 when 4 then 2 when 5 then 2 when 6 then 3 when 7 then 3 when 3 then 4 when 8 then 4 else 1 end);
     v_own_role:=case when coalesce(v_m.life_stage,1)<3 then 0 else (v_own_faction-1)*2+case when v_m.type=1 then 1 else 2 end end;
     v_enemy_role:=case when coalesce(v_enemy_stage,1)<3 then 0 else (v_enemy_faction-1)*2+case when v_enemy_type=1 then 1 else 2 end end;
-    v_player_first:=coalesce(v_m.combat_spd,1)>=v_enemy_spd;
+    v_player_first:=v_fighter.spd>v_enemy_spd OR (v_fighter.spd=v_enemy_spd AND random()<0.5);
     for v_round in 1..100 loop
       for v_step in 1..2 loop
         if (v_step=1 and v_player_first) or (v_step=2 and not v_player_first) then
           v_damage_a:=greatest(1,floor(
-            greatest(1,(greatest(1,coalesce(v_m.combat_atk,1))) *
+            greatest(1,(v_fighter.atk) *
               (case when v_enemy_role=7 and mod(v_round,3)=0 then 1
                     when v_own_role=1 and mod(v_round,3)=1 then 1.25
                     when v_own_role=2 and mod(v_round,2)=0 then 1.15
@@ -472,7 +487,7 @@ begin
                     when v_own_role=5 then 1.08
                     when v_own_role=6 and mod(v_round,3)=0 then 1.30 else 1 end) *
               (case when v_own_role=5 then 1 else 0.9+random()*0.2 end)
-              - (v_enemy_def)*0.5*(case when v_own_role=4 and mod(v_round,3)=0 and not (v_enemy_role=7 and mod(v_round,3)=0) then 0.60 else 1 end))
+              *100/(100+v_enemy_def*(case when v_own_role=4 and mod(v_round,3)=0 and not (v_enemy_role=7 and mod(v_round,3)=0) then 0.60 else 1 end)))
             * (case when v_enemy_faction=mod(v_own_faction,4)+1 then 1.2 else 1 end)
             * (case when v_enemy_role=3 then 0.88 when v_enemy_role=7 and mod(v_round,3)=0 then 0.85 else 1 end)
           )::int);
@@ -492,7 +507,7 @@ begin
                     when v_enemy_role=5 then 1.08
                     when v_enemy_role=6 and mod(v_round,3)=0 then 1.30 else 1 end) *
               (case when v_enemy_role=5 then 1 else 0.9+random()*0.2 end)
-              - (coalesce(v_m.combat_def,0))*0.5*(case when v_enemy_role=4 and mod(v_round,3)=0 and not (v_own_role=7 and mod(v_round,3)=0) then 0.60 else 1 end))
+              *100/(100+v_fighter.def*(case when v_enemy_role=4 and mod(v_round,3)=0 and not (v_own_role=7 and mod(v_round,3)=0) then 0.60 else 1 end)))
             * (case when v_own_faction=mod(v_enemy_faction,4)+1 then 1.2 else 1 end)
             * (case when v_own_role=3 then 0.88 when v_own_role=7 and mod(v_round,3)=0 then 0.85 else 1 end)
           )::int);
@@ -509,7 +524,8 @@ begin
     end loop;
     -- A battle is bounded to avoid excessive RPC work with extreme stats.
     v_won:=case when v_enemy_hp<=0 then true when v_own_hp<=0 then false
-      else v_own_hp/v_own_max_hp >= v_enemy_hp/v_enemy_max_hp end;
+      else v_own_hp/v_own_max_hp > v_enemy_hp/v_enemy_max_hp end;
+    END IF;
     v_battle:=gen_random_uuid()::text;
     insert into public.battle_records(user_id,battle_id,monster_id,won)
       values(v_uid,v_battle,v_mon_id,v_won);

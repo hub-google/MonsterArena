@@ -82,7 +82,7 @@ export default function Arena({
     try {
       const result=await api.startBattle(monster.monster_id,encounter,opponentId);
       const enemy={
-        name:encounter==='pvp'?result.enemyName:({wild:'失控巡邏機',stage2:'重裝防衛機',stage3:'高速突擊機',stage4:'深淵重型戰機',boss:'終極機甲首領'}[encounter]||result.enemyName),
+        name:result.enemyName||'敵方機甲',
         // Opponent artwork must not reuse the player's own species or stage.
         family:result.enemyFamily??(isBoss?7:3),
         life_stage:result.enemyStage??(isBoss?6:Math.max(3,Math.min(5,Number(monster.life_stage)||3))),
@@ -209,6 +209,7 @@ export default function Arena({
     );
   }
 
+  if(subTab==='boss-tactical'&&getFighter())return <TacticalDuel key="boss" boss monster={getFighter()} mode={appearanceModes[getFighter().monster_id]} onSettle={GAME_RULES_V2?async (moves,requestId)=>{const r=await api.settleBossTactics(getFighter().monster_id,moves,requestId);await refreshData(['profile','monsters']).catch(()=>{});return r;}:undefined} onExit={()=>setSubTab('players')}/>;
   if(subTab==='tactical'&&getFighter())return <TacticalDuel monster={getFighter()} mode={appearanceModes[getFighter().monster_id]} onExit={()=>setSubTab('players')}/>;
 
   return (
@@ -220,22 +221,23 @@ export default function Arena({
        {([['players','battle','失控機甲挑戰'],['pvp','🏆','玩家對戰']]).map(([id,icon,label])=><PlayButton key={id} icon={icon} label={label} selected={subTab===id} onClick={()=>{setSubTab(id);setMessage('')}} className="play-compact"/>)}
       </div>}
       {subTab==='players'&&<PlayButton icon="guild" label="手動戰術對戰" subtext="格擋反擊・精準暴擊・公平競技" tone="blue" disabled={!getFighter()||loading} onClick={()=>{setMessage('');setSubTab('tactical')}} className="play-compact"/>}
+      {subTab==='players'&&!GAME_RULES_V2&&<PlayButton icon="battle" label="首領戰術挑戰" subtext="預判蓄力・格擋反擊・硬直輸出" tone="red" disabled={!getFighter()||loading} onClick={()=>{setMessage('');setSubTab('boss-tactical')}} className="play-compact"/>}
       <div className="flex-1 overflow-y-auto">
         {subTab==='players'&&GAME_RULES_V2&&(
           <div className="flex flex-col gap-3">
             <details className="text-xs text-slate-300"><summary>挑戰說明</summary>固定敵人強度，各關每日首勝有金幣獎勵。</details>
             {[
-              ['wild','失控巡邏機',45,5,2,4,10],
-              ['stage2','重裝防衛機',120,15,12,8,30],
-              ['stage3','高速突擊機',200,27,16,25,60],
-              ['stage4','深淵重型戰機',340,45,32,30,100],
-              ['boss','終極機甲首領',550,70,48,50,200]
+              ['wild','廢棄機械兵',80,16,12,12,10],
+              ['stage2','失控巡邏機',115,23,18,18,30],
+              ['stage3','重裝守衛',180,26,38,18,60],
+              ['stage4','疾風獵手',175,38,22,42,100],
+              ['boss','終極機甲首領',300,52,40,35,200]
             ].map(([id,name,hp,atk,def,spd,reward],i)=>(
               <div className="glass-card p-3 flex justify-between items-center gap-2" key={id}>
                 <div><div className="font-bold text-amber-300">第 {i+1} 關｜{name}</div>
                   <div className="text-xs text-slate-300" >耐久 {hp}・攻 {atk}・防 {def}・速 {spd}</div>
                   <div className="text-xs text-emerald-300">每日首勝 {reward}G</div></div>
-                <PlayButton icon="battle" label={'挑戰'+name} short="打" tone="red" disabled={loading||!getFighter()} onClick={()=>handleChallenge(id)} className="play-compact"/>
+                <PlayButton icon="battle" label={'挑戰'+name} short="打" tone="red" disabled={loading||!getFighter()} onClick={()=>id==='boss'?setSubTab('boss-tactical'):handleChallenge(id)} className="play-compact"/>
               </div>
             ))}
           </div>

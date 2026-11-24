@@ -60,3 +60,64 @@ export function resolveRound(s,player,grade='good',enemy=chooseEnemy(s),enemyGra
  const result=ended?(hp[0]===hp[1]?'draw':hp[0]>hp[1]?'win':'loss'):null;
  return {hp,energy,round:s.round+1,result,history:[...s.history,{player,enemy,grade,damage,heal,notes}]};
 }
+
+/* Tactical PvE: deterministic, capped stage power and telegraphed boss moves.
+ * Practice is deliberately local: no gold, records or ranked results are written.
+ */
+export const BOSS_STATS=Object.freeze({hp:300,atk:52,def:40,spd:35});
+export const STAGE_STATS=Object.freeze({
+ 2:[100,20,15,15],3:[125,25,20,20],4:[160,32,25,25],5:[200,40,30,30],6:[240,48,36,36]
+});
+export const BOSS_ACTIONS=Object.freeze({
+ attack:{label:'普通攻擊',icon:'battle',tone:'red',hint:'傷害 100% · 能源 +1'},
+ guard:{label:'格擋反擊',icon:'guild',tone:'blue',hint:'減傷 50% · 重擊時反擊並硬直'},
+ special:{label:'特殊技能',icon:'bolt',tone:'red',hint:'傷害 180% · 能源 −2'},
+ break:{label:'破甲攻擊',icon:'tools',tone:'blue',hint:'傷害 70% · 蓄力時削弱重擊 · 能源 −1'}
+});
+export const BOSS_MAX_ROUNDS=20;
+export const bossDamage=(attack,defense)=>Math.max(1,Math.floor(attack*100/(100+Math.max(0,defense))));
+export function balancedFighter(monster={}){
+ const stage=Math.max(2,Math.min(6,Math.floor(Number(monster.life_stage)||2)));
+ const base=STAGE_STATS[stage];
+ const keys=['combat_hp','combat_atk','combat_def','combat_spd'];
+ // Historical outliers cannot trivialize the encounter. Training only adds up to 25% per stat.
+ const values=base.map((v,i)=>Math.floor(Math.min(v*1.25,Math.max(v,Number(monster[keys[i]])||0))));
+ return {hp:values[0],atk:values[1],def:values[2],spd:values[3]};
+}
+export function initialBossDuel(monster={}){
+ const fighter=balancedFighter(monster);
+ return {kind:'boss',fighter,hp:[fighter.hp,BOSS_STATS.hp],maxHp:[fighter.hp,BOSS_STATS.hp],
+  energy:[0,0],round:1,history:[],result:null,phase:'attack',weakened:false};
+}
+export function bossHint(s){
+ return ({attack:'首領舉起武器，準備普通攻擊',charge:'首領正在蓄力！下一回合將發動超載重擊',heavy:'超載重擊即將發動！使用格擋反擊可使首領硬直',stunned:'首領硬直，無法攻擊！趁機發動特殊技能'})[s.phase];
+}
+export function canBossMove(s,move){
+ return !s.result&&Object.hasOwn(BOSS_ACTIONS,move)&&s.energy[0]>=(move==='special'?2:move==='break'?1:0);
+}
+export function resolveBossRound(s,move){
+ if(!canBossMove(s,move))return s;
+ const hp=[...s.hp],energy=[...s.energy],damage=[0,0],notes=[];
+ const hit=bossDamage(s.fighter.atk,BOSS_STATS.def),enemyHit=bossDamage(BOSS_STATS.atk,s.fighter.def);
+ let nextPhase={attack:'charge',charge:'heavy',heavy:'attack',stunned:'charge'}[s.phase];
+ let weakened=s.weakened;
+ if(move==='attack'){damage[1]=hit;energy[0]=Math.min(5,energy[0]+1);}
+ if(move==='special'){damage[1]=Math.floor(hit*1.8);energy[0]-=2;}
+ if(move==='break'){damage[1]=Math.max(1,Math.floor(hit*.7));energy[0]--;if(s.phase==='charge'){weakened=true;notes.push('破甲成功：下次重擊傷害降低 35%');}}
+ let incoming=s.phase==='attack'?enemyHit:s.phase==='heavy'?Math.floor(enemyHit*1.8):0;
+ if(s.phase==='heavy'&&weakened){incoming=Math.floor(incoming*.65);weakened=false;}
+ if(move==='guard'&&incoming>0){
+  incoming=Math.ceil(incoming*.5);energy[0]=Math.min(5,energy[0]+1);
+  damage[1]=s.phase==='heavy'?hit:Math.floor(hit*.5);
+  if(s.phase==='heavy'){nextPhase='stunned';notes.push('成功格擋超載重擊！首領下一回合硬直');}
+  else notes.push('格擋成功，減傷 50% 並反擊');
+ }
+ // Speed decides lethal priority; a guard counter can only occur after surviving the hit.
+ if(move!=='guard'&&s.fighter.spd>=BOSS_STATS.spd&&damage[1]>=hp[1])incoming=0;
+ damage[0]=Math.min(hp[0],incoming);hp[0]-=damage[0];
+ if(hp[0]===0&&(move==='guard'||s.fighter.spd<BOSS_STATS.spd))damage[1]=0;
+ damage[1]=Math.min(hp[1],damage[1]);hp[1]-=damage[1];
+ const result=hp[1]===0&&hp[0]>0?'win':hp[0]===0||s.round>=BOSS_MAX_ROUNDS?'loss':null;
+ return {...s,hp,energy,phase:nextPhase,weakened,round:s.round+1,result,
+  history:[...s.history,{player:move,enemy:s.phase,grade:'good',damage,heal:[0,0],notes}]};
+}

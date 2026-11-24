@@ -546,3 +546,29 @@ test('emergency repair retains HP, blocks repeat and battles, and standard kit c
  await expect(actions.getByRole('button',{name:'訓練',exact:true})).toBeEnabled();
  await expect(hp).toContainText('500');
 });
+
+test('tactical boss rewards reading the attack telegraph',async({page})=>{
+ await page.setViewportSize({width:360,height:640});
+ await page.emulateMedia({reducedMotion:'reduce'});
+ const calls=await setupAuthenticatedGame(page,[{...dead,name:'究極試驗機',life_stage:6,is_dead:false,is_sick:false,combat_hp:240,combat_atk:48,combat_def:36,combat_spd:36,chip_slot_1:null,chip_slot_1_val:0}]);
+ await page.getByRole('button',{name:'競技',exact:true}).click();
+ await page.getByRole('button',{name:'首領戰術挑戰'}).click();
+ const duel=page.getByTestId('tactical-duel');
+ await expect(duel.getByTestId('tactical-hp-0')).toHaveText('240 / 240');
+ await expect(duel.getByTestId('tactical-hp-1')).toHaveText('300 / 300');
+ await expect(duel.getByRole('button',{name:'特殊技能'})).toBeDisabled();
+ for(const move of ['普通攻擊','普通攻擊'])await duel.getByRole('button',{name:move,exact:true}).click();
+ await expect(duel.getByRole('status')).toContainText('超載重擊');
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/boss-telegraph-mobile.png',animations:'disabled'});
+ await duel.getByRole('button',{name:'格擋反擊',exact:true}).click();
+ await expect(duel.getByRole('status')).toContainText('硬直');
+ for(const move of ['特殊技能','普通攻擊','格擋反擊','特殊技能','普通攻擊'])await duel.getByRole('button',{name:move,exact:true}).click();
+ await expect(duel.getByRole('status')).toContainText('戰鬥勝利');
+ await expect(duel.getByTestId('tactical-hp-0')).toHaveText('134 / 240');
+ await expect(duel.getByTestId('tactical-hp-1')).toHaveText('0 / 300');
+ await page.setViewportSize({width:1280,height:550});
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/boss-short-desktop.png',animations:'disabled'});
+ await page.setViewportSize({width:1280,height:900});
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/boss-desktop.png',animations:'disabled'});
+ expect(calls).not.toContain('/rest/v1/rpc/game_action');
+});

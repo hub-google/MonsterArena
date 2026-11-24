@@ -1,5 +1,6 @@
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS repair_until timestamptz;
 ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS skin_id text;
+ALTER TABLE public.monsters ADD COLUMN IF NOT EXISTS repair_until timestamptz;
 -- Arena next game rules. Private tables are never exposed via PostgREST.
 -- Compose before canonical RPCs; deploy only through a reviewed, isolated migration.
 CREATE SCHEMA IF NOT EXISTS arena_internal;
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS arena_internal.raid_contributions (
   damage bigint NOT NULL CHECK(damage>=0), claimed_at timestamptz,
   PRIMARY KEY(boss_id,user_id)
 );
+ALTER TABLE arena_internal.raid_contributions ADD COLUMN IF NOT EXISTS attempts int NOT NULL DEFAULT 0 CHECK(attempts>=0);
 CREATE INDEX IF NOT EXISTS arena_raid_contributions_user ON arena_internal.raid_contributions(user_id,boss_id);
 CREATE TABLE IF NOT EXISTS arena_internal.pvp_defenders (
   user_id uuid PRIMARY KEY REFERENCES public.users(user_id) ON DELETE CASCADE,
@@ -89,11 +91,11 @@ CREATE OR REPLACE FUNCTION arena_internal.encounter(p_name text)
 RETURNS TABLE(name text,kind int,family int,stage int,hp double precision,atk double precision,def double precision,spd double precision,reward int)
 LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
   SELECT v.name,v.kind,v.family,v.stage,v.hp,v.atk,v.def,v.spd,v.reward FROM (VALUES
-    ('wild','野生訓練怪獸',0,3,3,45::double precision,5::double precision,2::double precision,4::double precision,10),
-    ('stage2','岩甲守衛',2,4,4,120,15,12,8,30),
-    ('stage3','疾風獵手',1,5,4,200,27,16,25,60),
-    ('stage4','深淵巨獸',3,6,5,340,45,32,30,100),
-    ('boss','究極體王怪',1,7,6,550,70,48,50,200)
+    ('wild','廢棄機械兵',0,3,2,80::double precision,16::double precision,12::double precision,12::double precision,10),
+    ('stage2','失控巡邏機',2,4,3,115,23,18,18,30),
+    ('stage3','重裝守衛',2,4,4,180,26,38,18,60),
+    ('stage4','疾風獵手',1,5,5,175,38,22,42,100),
+    ('boss','終極機甲首領',1,7,6,300,52,40,35,200)
   ) AS v(id,name,kind,family,stage,hp,atk,def,spd,reward)
   WHERE v.id=p_name;
 $$;
@@ -101,14 +103,69 @@ REVOKE ALL ON FUNCTION arena_internal.encounter(text) FROM PUBLIC, anon, authent
 
 CREATE OR REPLACE FUNCTION arena_internal.ensure_raid(p_day text)
 RETURNS text LANGUAGE plpgsql SET search_path TO pg_catalog,pg_temp AS $$
-DECLARE v_id text:='daily:'||p_day;
+DECLARE v_id text:='daily:'||p_day; v_hp int;
 BEGIN
   IF NOT EXISTS(SELECT 1 FROM public.raid_boss WHERE id=v_id) THEN
+    SELECT greatest(3000,least(100000000,count(*)*1200))::int INTO v_hp FROM public.users u
+      WHERE u.last_login_at>=now()-interval '7 days' AND EXISTS(SELECT 1 FROM public.monsters m WHERE m.user_id=u.user_id AND NOT coalesce(m.is_dead,false) AND m.life_stage>=2);
     INSERT INTO public.raid_boss(id,name,current_hp,max_hp,is_active)
-    VALUES(v_id,'數碼世界王',500000,500000,true) ON CONFLICT(id) DO NOTHING;
+    VALUES(v_id,'巨型機甲首領',v_hp,v_hp,true) ON CONFLICT(id) DO NOTHING;
   END IF;
   RETURN v_id;
 END $$;
 REVOKE ALL ON FUNCTION arena_internal.ensure_raid(text) FROM PUBLIC, anon, authenticated;
 CREATE INDEX IF NOT EXISTS arena_chat_channel_cursor ON public.messages(channel,timestamp DESC,message_id DESC);
 CREATE INDEX IF NOT EXISTS arena_battle_user_created ON public.battle_records(user_id,created_at DESC);
+
+-- Combat-stage budget: bounded effective values preserve stored legacy inventory and stats.
+CREATE OR REPLACE FUNCTION arena_internal.fighter_stats(p_stage int,p_hp double precision,p_atk double precision,p_def double precision,p_spd double precision)
+RETURNS TABLE(hp double precision,atk double precision,def double precision,spd double precision)
+LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
+ SELECT floor(least(v.hp*1.25,greatest(v.hp,coalesce(p_hp,0)))),
+ floor(least(v.atk*1.25,greatest(v.atk,coalesce(p_atk,0)))),
+ floor(least(v.def*1.25,greatest(v.def,coalesce(p_def,0)))),
+ floor(least(v.spd*1.25,greatest(v.spd,coalesce(p_spd,0))))
+ FROM (VALUES (2,100,20,15,15),(3,125,25,20,20),(4,160,32,25,25),(5,200,40,30,30),(6,240,48,36,36)) v(stage,hp,atk,def,spd)
+ WHERE v.stage=greatest(2,least(6,coalesce(p_stage,2)));
+$$;
+REVOKE ALL ON FUNCTION arena_internal.fighter_stats(int,double precision,double precision,double precision,double precision) FROM PUBLIC, anon, authenticated;
+
+-- Authoritative deterministic tactical PvE transcript, matching the browser practice rules.
+-- The client may submit choices only; HP, damage, result and reward are computed here.
+CREATE OR REPLACE FUNCTION arena_internal.boss_tactics(p_stage int,p_hp double precision,p_atk double precision,p_def double precision,p_spd double precision,p_moves jsonb)
+RETURNS jsonb LANGUAGE plpgsql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
+DECLARE f record; own_hp int; enemy_hp int:=300; en int:=0; phase text:='attack'; next_phase text; move text;
+ incoming int; outgoing int; hit int; enemy_hit int; weakened boolean:=false; n int:=0;
+ result text; events jsonb:='[]'::jsonb;
+BEGIN
+ IF jsonb_typeof(p_moves) IS DISTINCT FROM 'array' OR jsonb_array_length(p_moves) NOT BETWEEN 1 AND 20 THEN RAISE EXCEPTION '戰術指令數量錯誤'; END IF;
+ SELECT * INTO f FROM arena_internal.fighter_stats(p_stage,p_hp,p_atk,p_def,p_spd);
+ own_hp:=f.hp; hit:=greatest(1,floor(f.atk*100/140)); enemy_hit:=greatest(1,floor(52*100/(100+f.def)));
+ FOR move IN SELECT jsonb_array_elements_text(p_moves) LOOP
+  IF result IS NOT NULL THEN RAISE EXCEPTION '戰鬥已結束，不可追加指令'; END IF;
+  IF move IS NULL OR move NOT IN ('attack','guard','special','break') OR (move='special' AND en<2) OR (move='break' AND en<1) THEN RAISE EXCEPTION '無效戰術指令或能源不足'; END IF;
+  n:=n+1; outgoing:=0; next_phase:=CASE phase WHEN 'attack' THEN 'charge' WHEN 'charge' THEN 'heavy' WHEN 'heavy' THEN 'attack' ELSE 'charge' END;
+  CASE move
+   WHEN 'attack' THEN outgoing:=hit; en:=least(5,en+1);
+   WHEN 'special' THEN outgoing:=floor(hit*1.8); en:=en-2;
+   WHEN 'break' THEN outgoing:=greatest(1,floor(hit*.7)); en:=en-1; IF phase='charge' THEN weakened:=true; END IF;
+   ELSE NULL;
+  END CASE;
+  incoming:=CASE phase WHEN 'attack' THEN enemy_hit WHEN 'heavy' THEN floor(enemy_hit*1.8) ELSE 0 END;
+  IF phase='heavy' AND weakened THEN incoming:=floor(incoming*.65); weakened:=false; END IF;
+  IF move='guard' AND incoming>0 THEN
+   incoming:=ceil(incoming*.5); en:=least(5,en+1); outgoing:=CASE WHEN phase='heavy' THEN hit ELSE floor(hit*.5) END;
+   IF phase='heavy' THEN next_phase:='stunned'; END IF;
+  END IF;
+  IF move<>'guard' AND f.spd>=35 AND outgoing>=enemy_hp THEN incoming:=0; END IF;
+  incoming:=least(own_hp,incoming); own_hp:=own_hp-incoming;
+  IF own_hp=0 AND (move='guard' OR f.spd<35) THEN outgoing:=0; END IF;
+  outgoing:=least(enemy_hp,outgoing); enemy_hp:=enemy_hp-outgoing;
+  events:=events||jsonb_build_array(jsonb_build_object('move',move,'phase',phase,'damage',outgoing,'received',incoming,'ownHp',own_hp,'enemyHp',enemy_hp,'energy',en));
+  phase:=next_phase;
+  IF enemy_hp=0 AND own_hp>0 THEN result:='win'; ELSIF own_hp=0 OR n>=20 THEN result:='loss'; END IF;
+ END LOOP;
+ IF result IS NULL THEN RAISE EXCEPTION '戰鬥尚未結束'; END IF;
+ RETURN jsonb_build_object('won',result='win','ownHp',own_hp,'enemyHp',enemy_hp,'ownMaxHp',f.hp,'enemyMaxHp',300,'events',events);
+END $$;
+REVOKE ALL ON FUNCTION arena_internal.boss_tactics(int,double precision,double precision,double precision,double precision,jsonb) FROM PUBLIC, anon, authenticated;
