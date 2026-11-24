@@ -24,6 +24,15 @@ try {
     process.exit(1);
   }
   console.log('Supabase Auth is reachable for the existing Game project.');
+  if(process.argv.includes('--preview')){
+    const health=await fetch('https://'+project+'.supabase.co/rest/v1/rpc/arena_preview_health',{
+      method:'POST',headers:{apikey:key,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)
+    });
+    if(!health.ok)throw Error('Arena preview endpoint unavailable: HTTP '+health.status);
+    const info=await health.json();
+    if(info.namespace!=='arena_preview'||info.version!==2||info.combatBalance!==3)throw Error('Wrong Arena preview rules');
+    console.log('Arena preview V2 health endpoint confirmed.');
+  }
 } catch(error) {
   console.error('Supabase preflight failed:',error.message);
   process.exit(1);

@@ -12,3 +12,5 @@
 ## 2026-11-24 V2 測試隔離
 
 新增的 arena_internal schema 不對 anon/authenticated/PUBLIC 開放；內部表啟用 RLS，公開 RPC 仍驗證 auth.uid() 及資源歸屬。只有自選登記的防守快照與排行榜安全欄位可由 RPC 取得。測試版 SQL 不自動套用共用 Game；GitHub Actions 使用空白 PostgreSQL fixture，沒有真實玩家資料。交易 UUID 可在七天內回傳同一結果，不得以相同 UUID 提交不同內容。
+
+main 公開測試站使用 `arena_preview_*` 表及 RPC，內部 `arena_preview_internal` 不公開。原始 Game 表及 RPC 完全不動；所有新表啟用 RLS、瀏覽器僅有授權讀取，交易由 owner-checked RPC 執行。只共用 Auth，不同步測試與正式資料；公開 health RPC 不回傳玩家資訊。CI 驗證跨帳號隔離及測試交易不會修改原始 Game。

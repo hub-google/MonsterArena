@@ -82,3 +82,13 @@ test('one catalog generates V2 SQL and client rewards with stable legacy prices'
  for(const x of QUEST_CATALOG)assert.ok(sql.includes("('"+x.id+"','"+x.key+"',"+x.target+","+x.reward+")"));
  for(const x of GUILD_SHOP)assert.ok(sql.includes("('"+x.id+"',"+x.price+","+x.itemType+")"));
 });
+
+import { namespaceSql, previewBootstrapSql, PREVIEW_TABLES } from '../scripts/preview-namespace.mjs';
+test('preview namespaces every game table and RPC but never touches Auth or grants',()=>{
+ for(const t of PREVIEW_TABLES)assert.equal(namespaceSql('public.'+t),'public.arena_preview_'+t);
+ assert.equal(namespaceSql('auth.users public.game_action arena_internal.x FROM PUBLIC'),'auth.users public.arena_preview_game_action arena_preview_internal.x FROM PUBLIC');
+ assert.equal(namespaceSql('RETURNS users REFERENCES guilds(id)'),'RETURNS public.arena_preview_users REFERENCES public.arena_preview_guilds(id)');
+ const sql=previewBootstrapSql('CREATE TABLE public."users" (user_id uuid);');
+ assert.ok(sql.includes('CREATE TABLE public."arena_preview_users"'));
+ assert.ok(PREVIEW_TABLES.every(t=>sql.includes('ALTER TABLE public.arena_preview_'+t+' ENABLE ROW LEVEL SECURITY')));
+});

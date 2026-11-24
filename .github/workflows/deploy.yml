@@ -58,6 +58,11 @@ jobs:
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-current.sql
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/game-rules-v2.sql
           docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/combat-balance.sql
+          npm run --silent db:sql -- --preview-bootstrap > /tmp/arena-preview.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-preview.sql
+          npm run --silent db:sql -- --preview-test tests/sql/game-rules-v2.sql > /tmp/arena-preview-test.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < /tmp/arena-preview-test.sql
+          docker exec -i "$PG_CONTAINER" psql -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/preview-isolation.sql
       - name: 檢查 Supabase 驗證服務
         run: node scripts/check-supabase-game.mjs
       - name: 建置舊版相容測試站
@@ -78,6 +83,7 @@ jobs:
         env:
           PG_CONTAINER: ${{ job.services.postgres.id }}
           VITE_ARENA_V2: 'true'
+          VITE_ARENA_PREVIEW: 'true'
           VITE_SUPABASE_URL: https://arena-v2-ci.supabase.co
           VITE_SUPABASE_ANON_KEY: sb_publishable_arena_ci_only
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4174/monster-arena-web/
@@ -102,7 +108,9 @@ jobs:
             VITE_ARENA_V2=true npm run build
             echo '已配置獨立新版測試後端' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo '未配置獨立測試後端；公開站仍使用既有後端' >> "$GITHUB_STEP_SUMMARY"
+            node scripts/check-supabase-game.mjs --preview
+            VITE_ARENA_V2=true VITE_ARENA_PREVIEW=true npm run build
+            echo '已確認獨立 Arena 測試命名空間，公開站啟用新版規則' >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "index_sha=$(sha256sum dist/index.html | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
       - name: 保存實際瀏覽器 UI 截圖

@@ -1,10 +1,17 @@
 import {presentGameMessage} from './mechaVocabulary';
 import { supabase, supabaseUrl } from './supabaseClient';
 
-// Rules V2 must use an explicitly configured isolated backend, never the shared Game project.
-export const GAME_RULES_V2 = import.meta.env.VITE_ARENA_V2 === 'true' &&
-  Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) &&
-  !['fanffwnhkxpfhttylntw','unapiwajmgqqtdkixaab'].some(ref=>supabaseUrl.includes(ref));
+// The preview namespace is isolated from the original Game tables, while
+// retaining the same Supabase Auth accounts. Independent test projects also work.
+const ARENA_PREVIEW=import.meta.env.VITE_ARENA_PREVIEW==='true';
+const explicitBackend=Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+const originalGame=supabaseUrl.includes('fanffwnhkxpfhttylntw');
+const otherShared=supabaseUrl.includes('unapiwajmgqqtdkixaab');
+export const GAME_RULES_V2=import.meta.env.VITE_ARENA_V2==='true' &&
+  (ARENA_PREVIEW ? !otherShared && (originalGame||explicitBackend) : explicitBackend && !originalGame && !otherShared);
+const gameResource=name=>ARENA_PREVIEW?'arena_preview_'+name:name;
+const gameRpc=(name,args)=>supabase.rpc(gameResource(name),args);
+const gameTable=name=>supabase.from(gameResource(name));
 
 // All economy mutations go through authenticated PostgreSQL transactions.
 // Direct client updates are reserved for owner-controlled presentation state.
@@ -18,11 +25,11 @@ const legacyUsernameEmail = name => `${name.toLowerCase().replace(/[^a-z0-9]/g, 
 const throwIfError = error => { if (error) throw new Error(presentGameMessage(error.message)); };
 const action = async (p_action, p_data = {}) => {
   const args={p_action,p_data:GAME_RULES_V2?{...p_data,request_id:p_data.request_id||crypto.randomUUID()}:p_data};
-  let {data,error}=await supabase.rpc('game_action',args);
+  let {data,error}=await gameRpc('game_action',args);
   // The isolated V2 server caches the transaction result under the same UUID.
   // Never retry legacy mutations or business-rule rejections.
   if(GAME_RULES_V2 && error && !error.code && /fetch|network|timeout/i.test(error.message??'')){
-    ({data,error}=await supabase.rpc('game_action',args));
+    ({data,error}=await gameRpc('game_action',args));
   }
   if(error && !error.code && /fetch|network|timeout/i.test(error.message??'')){
     throw new Error('交易結果尚未確認，請先重新整理資料，不要立即重複操作。');
@@ -45,7 +52,7 @@ export const api = {
     });
     throwIfError(error);
     if (data.session) {
-      const result = await supabase.rpc('game_ensure_profile');
+      const result = await gameRpc('game_ensure_profile');
       throwIfError(result.error);
     }
     return { user: data.user, requiresEmailConfirmation: !data.session };
@@ -79,13 +86,13 @@ export const api = {
     throwIfError(error);
   },
   getMe: async () => {
-    const { data, error } = await supabase.rpc('game_ensure_profile');
+    const { data, error } = await gameRpc('game_ensure_profile');
     throwIfError(error);
     if(GAME_RULES_V2){const caps=await action('capabilities');if(caps.combatBalance!==3)throw new Error('測試後端未部署目前戰鬥平衡版本');}
-    const giftResult = await supabase.rpc('game_claim_gifts');
+    const giftResult = await gameRpc('game_claim_gifts');
     throwIfError(giftResult.error);
     if (giftResult.data > 0) {
-      const refresh = await supabase.from('users').select('*').eq('user_id',data.user_id).single();
+      const refresh = await gameTable('users').select('*').eq('user_id',data.user_id).single();
       throwIfError(refresh.error);
       return refresh.data;
     }
@@ -93,9 +100,9 @@ export const api = {
   },
   getMonsters: async (uid) => {
     uid = uid ?? await getUid();
-    const aged=await supabase.rpc('game_age_monsters');
+    const aged=await gameRpc('game_age_monsters');
     throwIfError(aged.error);
-    const { data, error } = await supabase.from('monsters').select('*').eq('user_id', uid);
+    const { data, error } = await gameTable('monsters').select('*').eq('user_id', uid);
     throwIfError(error);
     return (data ?? []).sort((a,b) => Number(a.is_dead)-Number(b.is_dead) || b.life_stage-a.life_stage);
   },
@@ -112,14 +119,14 @@ export const api = {
   breed: (parent1, parent2, useCatalyst=false) => action('breed', { parent1, parent2, useCatalyst }),
   getInventory: async (uid) => {
     uid = uid ?? await getUid();
-    const { data, error } = await supabase.from('user_inventory').select('*').eq('user_id', uid).order('item_id');
+    const { data, error } = await gameTable('user_inventory').select('*').eq('user_id', uid).order('item_id');
     throwIfError(error);
     return data ?? [];
   },
   equipSkin: (monster_id, skin_id) => action('skin_equip', { monster_id, skin_id }),
   buyItem: (item_id, quantity=1) => action('buy', { item_id, quantity }),
   rename: async (monster_id, name) => {
-    const {data,error}=await supabase.rpc('game_rename_monster',{p_monster_id:monster_id,p_name:name});
+    const {data,error}=await gameRpc('game_rename_monster',{p_monster_id:monster_id,p_name:name});
     throwIfError(error);
     return data;
   },
@@ -128,7 +135,7 @@ export const api = {
   },
   getDailyQuests: async () => {
     const uid = await getUid();
-    const { data, error } = await supabase.from('daily_quests').select('*')
+    const { data, error } = await gameTable('daily_quests').select('*')
       .eq('quest_id', getQuestId(uid)).maybeSingle();
     throwIfError(error);
     return data ?? { feed_count:0, clean_count:0, train_count:0, battle_count:0, claimed:[] };
@@ -143,15 +150,15 @@ export const api = {
   getGuilds: async (uid) => {
     uid = uid ?? await getUid();
     const [guildResult, memberResult] = await Promise.all([
-      supabase.from('guilds').select('*').order('created_at', { ascending: false }).limit(100),
-      supabase.from('guild_members').select('*,guilds(*)').eq('user_id', uid).maybeSingle()
+      gameTable('guilds').select('*').order('created_at', { ascending: false }).limit(100),
+      gameTable('guild_members').select(ARENA_PREVIEW?'*,guilds:arena_preview_guilds(*)':'*,guilds(*)').eq('user_id', uid).maybeSingle()
     ]);
     throwIfError(guildResult.error);throwIfError(memberResult.error);
     const guilds = guildResult.data ?? [];
     const leaderIds = [...new Set(guilds.map(g => g.leader_id).filter(Boolean))];
     let usernames = {};
     if (leaderIds.length) {
-      const { data, error } = await supabase.rpc('game_public_profiles',{p_user_ids:leaderIds});
+      const { data, error } = await gameRpc('game_public_profiles',{p_user_ids:leaderIds});
       throwIfError(error);
       usernames = Object.fromEntries((data ?? []).map(u => [u.user_id,u.username]));
     }
@@ -167,7 +174,7 @@ export const api = {
   buyGuildShop: item_id => action('guild_buy', { item_id }),
   getRaidStatus: async () => {
     if(GAME_RULES_V2)return action('raid_status');
-    const { data, error } = await supabase.from('raid_boss').select('*')
+    const { data, error } = await gameTable('raid_boss').select('*')
       .order('created_at', { ascending: false }).limit(1).maybeSingle();
     throwIfError(error);
     return data ?? { name:'機械紀元首領',current_hp:0,max_hp:500000,is_active:false };
@@ -175,7 +182,7 @@ export const api = {
   attackRaidBoss: (monster_id,strategy='assault') => action('raid', { monster_id,...(GAME_RULES_V2?{strategy}:{}) }),
   searchPlayers: async typeFilter => {
     // Public plaza exposes only a safe projection, never other players' private genes/stats.
-    const { data, error } = await supabase.rpc('game_plaza_monsters', {
+    const { data, error } = await gameRpc('game_plaza_monsters', {
       p_type: typeFilter ? 10 + Number(typeFilter) : null
     });
     throwIfError(error);
@@ -187,7 +194,7 @@ export const api = {
       if(group.monsters.length<3) group.monsters.push(m);
     });
     if (grouped.size) {
-      const {data:users,error:ue} = await supabase.rpc('game_public_profiles',{p_user_ids:[...grouped.keys()]});
+      const {data:users,error:ue} = await gameRpc('game_public_profiles',{p_user_ids:[...grouped.keys()]});
       throwIfError(ue);
       (users??[]).forEach(u=>{const p=grouped.get(u.user_id);if(p)p.username=u.username;});
     }
@@ -195,19 +202,19 @@ export const api = {
   },
   getFriends: async (uid) => {
     uid = uid ?? await getUid();
-    const { data, error } = await supabase.from('friends').select('*')
+    const { data, error } = await gameTable('friends').select('*')
       .eq('user_id',uid).eq('status',1);
     throwIfError(error);
     return (data??[]).map(f=>({...f,friend_id:f.friend_uid,friend_name:f.friend_name||'好友'}));
   },
   getFriendRequests: async () => {
     const uid=await getUid();
-    const {data,error}=await supabase.from('friends').select('friend_record_id,user_id,friend_uid,status')
+    const {data,error}=await gameTable('friends').select('friend_record_id,user_id,friend_uid,status')
       .eq('friend_uid',uid).eq('status',0);
     throwIfError(error);
     const incoming=data??[];
     if(!incoming.length)return [];
-    const {data:people,error:peopleError}=await supabase.rpc('game_public_profiles',{p_user_ids:incoming.map(x=>x.user_id)});
+    const {data:people,error:peopleError}=await gameRpc('game_public_profiles',{p_user_ids:incoming.map(x=>x.user_id)});
     throwIfError(peopleError);
     const names=Object.fromEntries((people??[]).map(p=>[p.user_id,p.username]));
     return incoming.map(f=>({...f,friend_name:names[f.user_id]||'玩家'}));
@@ -217,20 +224,20 @@ export const api = {
     const name=target.trim();
     if(!name)throw new Error('請輸入好友 UUID 或使用者名稱');
     const isUuid=/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(name);
-    const {data:profiles,error}=await supabase.rpc('game_public_profiles',
+    const {data:profiles,error}=await gameRpc('game_public_profiles',
       isUuid?{p_user_ids:[name]}:{p_username:name});
     throwIfError(error);
     const peer=profiles?.find(p=>p.username===name)||profiles?.[0];
     if(!peer)throw new Error('找不到該玩家');
     if(peer.user_id===uid)throw new Error('不能加自己');
-    const {data,error:requestError}=await supabase.rpc('game_friend_action',{
+    const {data,error:requestError}=await gameRpc('game_friend_action',{
       p_mode:'request',p_peer:peer.user_id
     });
     throwIfError(requestError);
     return data??{message:'好友邀請已送出'};
   },
   acceptFriend: async friend_id => {
-    const {data,error}=await supabase.rpc('game_friend_action',{p_mode:'accept',p_peer:friend_id});
+    const {data,error}=await gameRpc('game_friend_action',{p_mode:'accept',p_peer:friend_id});
     throwIfError(error);
     return data??{message:'已接受好友邀請'};
   },
@@ -248,7 +255,7 @@ export const api = {
       try{
         // The UI only displays the most recent 50 messages. Fetch that exact
         // window instead of an incremental timestamp cursor that can stall on ties.
-        const {data,error}=await supabase.from('messages')
+        const {data,error}=await gameTable('messages')
           .select('message_id,channel,user_id,username,text,timestamp')
           .eq('channel',channel).order('timestamp',{ascending:false})
           .order('message_id',{ascending:false}).limit(50);

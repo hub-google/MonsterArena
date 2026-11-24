@@ -39,20 +39,22 @@ npm run db:sql > /tmp/arena-functions.sql
 
 ## 遊戲規則 V2（隔離測試）
 
+main 公開站使用 Game 內獨立 `arena_preview_*` 資料表／RPC 及不公開的 `arena_preview_internal` schema。共用 Auth，首次只複製既有 Arena 玩家資產快照；正式資料與測試資料自此分開，不互相同步。不增加付費專案、不改正式站、不修改原有資料表及 RPC。SQL 由同一份現行規則產生：`npm run db:sql -- --preview`；首次建立才使用 `--preview-bootstrap`，禁止重複執行。
+
 - 固定五關 PvE、每日首勝、每日挑戰上限；敵人不再隨玩家能力等比變強。
 - 非即時 PVP 防守快照、每人每日五場且同對手每日一次、按月賽季排行榜。
 - 每日世界王、有效傷害與支援貢獻、依規模分配最高 5,000G 獎池及防重複領取。
 - 依實際時間老化和清潔度、生病機率；交易 UUID 防重複扣款、私有金幣流水。
 - `tests/sql/fixture.sql` 只用真實表結構 metadata 產出，不包含玩家資料；CI 使用臨時 PostgreSQL 容器驗證。
-- 瀏覽器 V2 僅於設定 `VITE_ARENA_V2=true`、`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY` 且指向非原本 Game 專案時啟用。main GitHub Pages 預設仍使用既有後端，避免波及 release。不得將共用資料庫當成隔離測試庫。
+- main GitHub Pages 預設以 `VITE_ARENA_V2=true`、`VITE_ARENA_PREVIEW=true` 連接獨立測試命名空間；既有 public Game 表／RPC 不得用於 V2。另可設定獨立專案的 URL 與 publishable key，不能直接使用任一共用專案的原有遊戲資料表。
 
 ### 戰鬥平衡與手動首領
-- main 預設後端：競技頁「首領戰術挑戰」可操作練習，不計金幣、戰績或排名；舊共用後端不改動。
+- 舊版相容測試模式的首領戰術挑戰僅練習；main 公開站走隔離 V2 並正常結算。舊正式站共用後端不改動。
 - 隔離 V2：各階段八職業基準、每回合速度機率、比例減傷、保留陣營克制與職業技能、固定六關，首領由 SQL 重算完整戰術指令。訓練總配點60／單項30，核心品質0–5%、晶片各5%；不繼承訓練與裝備。舊能力原值保留於 legacy_combat，舊訓練次數轉成最多60點。
 - 世界王依近24小時活躍機體的預估有效傷害固定每日耐久，每帳號每日三次；10回合攻防破甲策略、支援分數、首次參與20G及總額受限的獎池。
 - V2 取消老化永久能力衰退、統一體力上限及回復、調整商城／任務／關卡經濟。競技依現有防守機體即時能力，僅允許相差不超過一階且戰力比例不超過1.45倍的對手。
 - 平衡測試：每階28種職業配對各10,000次（JavaScript鏡像），隔離PostgreSQL直接執行實際戰鬥核心（完全體每配對10,000次，其餘階段各1,000次），並驗證各階平均勝率、克制優勢與各職業首領攻略。
-- V2 不得直接套用至共用 Game。
+- V2 不得直接套用至共用 Game 的原始表／RPC；只可使用獨立命名空間或獨立專案。
 
 ## 開發與驗收
 
@@ -68,9 +70,9 @@ npm run build
 npm run dev
 ```
 
-`main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。另以隔離 PostgreSQL 容器、兩組測試身分實測 V2 SQL 權限及交易。新版另外建置 V2 前端，瀏覽器使用隔離 PostgreSQL 實際 RPC 交易驗收訓練、商城、首領結算、屬性配對與世界王；登入傳輸仍為測試身分。真正 Supabase Auth 多帳號及公開新版後端仍須線上驗收。設置 repository variables `ARENA_TEST_SUPABASE_URL` 與 `ARENA_TEST_SUPABASE_PUBLISHABLE_KEY` 後才發布 V2，禁止指向兩個現有共用專案。
+`main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。另以隔離 PostgreSQL 容器、兩組測試身分實測 V2 SQL 權限及交易。新版另外建置 V2 前端，瀏覽器使用隔離 PostgreSQL 實際 RPC 交易驗收訓練、商城、首領結算、屬性配對與世界王；登入傳輸仍為測試身分。真正 Supabase Auth 多帳號仍須線上驗收。發布前必須取得新版命名空間 health 回應，不能默默回退成舊版。若選擇其他獨立測試專案，再設定 repository variables `ARENA_TEST_SUPABASE_URL` 與 `ARENA_TEST_SUPABASE_PUBLISHABLE_KEY`。
 
-**部署隔離：**依 2026-11-24 指示，Repository 僅保留 `main`；GitHub Pages 改採 Artifact 部署，不再建立 `gh-pages`。本次不部署 Cloudflare 正式站，不變更 DNS/Worker 或共用 Supabase 資料。詳細安全說明見 `docs/SECURITY.md`。
+**部署隔離：**依 2026-11-24 指示，Repository 僅保留 `main`；GitHub Pages 改採 Artifact 部署，不再建立 `gh-pages`。不部署 Cloudflare 正式站、不變更 DNS/Worker 或原始共用 Supabase 資料；只維護 Arena 專屬 preview 命名空間。詳細安全說明見 `docs/SECURITY.md`。
 
 ## 原始碼優先的修復規範
 

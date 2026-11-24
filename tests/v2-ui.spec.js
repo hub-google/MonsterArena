@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {execFileSync} from 'node:child_process';
+import {namespaceSql} from '../scripts/preview-namespace.mjs';
 import {initialBossDuel,resolveBossRound} from '../src/utils/tacticalDuel.js';
 // Auth transport is isolated. Every mutation uses the actual PostgreSQL RPC under
 // the authenticated role; no real Supabase account or production data is used.
@@ -11,7 +12,7 @@ const user={id:uid,email:'v2-ui@example.invalid',aud:'authenticated',role:'authe
 const literal=s=>"'"+String(s).replaceAll("'","''")+"'";
 function db(statement,as=null){
  if(!process.env.PG_CONTAINER)throw Error('isolated PG_CONTAINER is required');
- return execFileSync('docker',['exec','-i',process.env.PG_CONTAINER,'psql','-X','-qAt','-U','postgres','-d','arena_test','-v','ON_ERROR_STOP=1'],{input:(as?'SET ROLE authenticated; SET request.jwt.claim.sub='+literal(as)+';\n':'')+statement+'\n',encoding:'utf8',timeout:15000}).trim();
+ return execFileSync('docker',['exec','-i',process.env.PG_CONTAINER,'psql','-X','-qAt','-U','postgres','-d','arena_test','-v','ON_ERROR_STOP=1'],{input:(as?'SET ROLE authenticated; SET request.jwt.claim.sub='+literal(as)+';\n':'') +namespaceSql(statement)+'\n',encoding:'utf8',timeout:15000}).trim();
 }
 const value=(q,as=null)=>JSON.parse(db('SELECT '+q+';',as)||'null');
 const action=(name,data={},as=uid)=>value('public.game_action('+literal(name)+','+literal(JSON.stringify(data))+'::jsonb)',as);
@@ -27,7 +28,9 @@ test('V2 browser training, economy, boss settlement, affinity and raid use the r
  await page.addInitScript(session=>localStorage.setItem('sb-arena-v2-ci-auth-token',JSON.stringify(session)),{access_token:'eyJhbGciOiJIUzI1NiJ9.'+payload+'.test-signature',token_type:'bearer',refresh_token:'test',expires_at:now+36000,expires_in:36000,user});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route(host+'/**',async route=>{
-  const req=route.request(),path=new URL(req.url()).pathname;
+  const req=route.request(),rawPath=new URL(req.url()).pathname;
+  if(rawPath.startsWith('/rest/v1/'))expect(rawPath).toMatch(/^\/rest\/v1\/(?:rpc\/)?arena_preview_/);
+  const path=rawPath.replace('/rest/v1/rpc/arena_preview_','/rest/v1/rpc/').replace('/rest/v1/arena_preview_','/rest/v1/');
   if(req.method()==='OPTIONS')return reply(route,{});
   try{
    if(path==='/auth/v1/user')return reply(route,user);
