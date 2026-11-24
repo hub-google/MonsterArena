@@ -41,7 +41,7 @@ function json(route, body, status = 200) {
   });
 }
 
-async function setupAuthenticatedGame(page, initialPets=[dead]) {
+async function setupAuthenticatedGame(page, initialPets=[dead], profileOverrides={}) {
   const now = Math.floor(Date.now() / 1000);
   const payload = Buffer.from(JSON.stringify({
     sub: uid, aud: 'authenticated', role: 'authenticated',
@@ -65,7 +65,7 @@ async function setupAuthenticatedGame(page, initialPets=[dead]) {
     if (request.method() === 'OPTIONS') return json(route, {});
     calls.push(path);
     if (path === '/auth/v1/user') return json(route, user);
-    if (path === '/rest/v1/rpc/game_ensure_profile') return json(route, profile);
+    if (path === '/rest/v1/rpc/game_ensure_profile') return json(route, {...profile,...profileOverrides});
     if (path === '/rest/v1/rpc/game_claim_gifts') return json(route, 0);
     if (path === '/rest/v1/rpc/game_age_monsters') return json(route, null);
     if (path === '/rest/v1/monsters') return json(route, pets);
@@ -235,7 +235,7 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
  await mkdir('test-results/ui-visual',{recursive:true});
  await page.emulateMedia({reducedMotion:'reduce'});
  await page.setViewportSize({width:1280,height:550});
- await setupAuthenticatedGame(page,[{...dead,name:'鋼鐵族・重砲型・超限機',family:4,type:3,life_stage:5,is_dead:false,is_sick:true,fullness:0,cleanliness:0,combat_hp:1725,combat_atk:78,combat_def:71,combat_spd:37,age_days:119.9,battles:3,wins:1}]);
+ await setupAuthenticatedGame(page,[{...dead,name:'鋼鐵族・重砲型・超限機',family:4,type:3,life_stage:5,is_dead:false,is_sick:true,fullness:0,cleanliness:0,combat_hp:1725,combat_atk:78,combat_def:71,combat_spd:37,age_days:119.9,battles:3,wins:1}],{gold:99088711,stamina:85});
  const main=page.getByTestId('game-main'),screen=page.getByTestId('mecha-screen'),home=page.getByTestId('cockpit-home'),actions=page.getByTestId('care-actions');
  const assertVisiblePaint=async(minimum)=>{
   const sprite=screen.locator('svg[role="img"]');
@@ -258,16 +258,19 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
   }
   expect(await main.evaluate(el=>el.scrollHeight-el.clientHeight)).toBeLessThanOrEqual(2);
  };
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop.png',animations:'disabled'});
  await assertVisiblePaint(150);
  expect((await page.getByTestId('game-shell').boundingBox()).width).toBeGreaterThan(800);
  await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
  await expect(home.locator('.cockpit-species')).not.toContainText('鋼鐵族');
- await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop.png',animations:'disabled'});
  await actions.getByRole('button',{name:'變形：重型坦克'}).click();
- await assertVisiblePaint(150);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop-vehicle.png',animations:'disabled'});
+ await assertVisiblePaint(150);
  await actions.getByRole('button',{name:'切換機器人'}).click();
  await page.setViewportSize({width:360,height:640});
- await assertVisiblePaint(85);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/mobile.png',animations:'disabled'});
+ await assertVisiblePaint(85);
+ await actions.getByRole('button',{name:'變形：重型坦克'}).click();
+ await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/mobile-vehicle.png',animations:'disabled'});
+ await assertVisiblePaint(85);
 });

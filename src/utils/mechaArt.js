@@ -7,7 +7,7 @@ const PALETTES=[
  ['#d7dfe9','#647a95','#ffffff','#f4554d'],['#c4a15c','#75603b','#f6d68a','#94bf52'],
  ['#63bce9','#2b699f','#c5f0ff','#f8aa52'],['#e7e4f5','#9a86bc','#ffffff','#9f74e5']
 ];
-const cache=new Map();
+const cache=new Map(),viewportCache=new Map();
 function raster(f,r,s,vehicle){
  const pixels=Array.from({length:128},()=>Array(128).fill(''));
  const idx=r===2?f+3:f-1, [C,L,H,A]=PALETTES[idx];
@@ -56,6 +56,15 @@ export function spritePaths(family,stage,type,vehicle=false){
  const m=getMecha(family,stage,type),key=m.key+(vehicle&&m.stage>=4?'_v':'');
  if(cache.has(key))return cache.get(key);
  const pix=raster(m.faction,m.type,m.stage,vehicle&&m.stage>=4), paths={};
- for(let y=0;y<128;y++){for(let x=0;x<128;){const c=pix[y][x];let end=x+1;while(end<128&&pix[y][end]===c)end++;if(c)paths[c]=(paths[c]||'')+'M'+x+' '+y+'h'+(end-x)+'v1h-'+(end-x)+'z';x=end;}}
+ let left=128,top=128,right=0,bottom=0;
+ for(let y=0;y<128;y++){for(let x=0;x<128;){const c=pix[y][x];let end=x+1;while(end<128&&pix[y][end]===c)end++;if(c){paths[c]=(paths[c]||'')+'M'+x+' '+y+'h'+(end-x)+'v1h-'+(end-x)+'z';left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,end);bottom=Math.max(bottom,y+1);}x=end;}}
+ // Trim transparent margins only when the cockpit requests a fitted vehicle.
+ const pad=6;viewportCache.set(key,[left-pad,top-pad,right-left+pad*2,bottom-top+pad*2].join(' '));
  const result=Object.entries(paths).map(([color,d])=>({color,d}));cache.set(key,result);return result;
+}
+
+export function spriteViewport(family,stage,type,vehicle=false){
+ const m=getMecha(family,stage,type),key=m.key+(vehicle&&m.stage>=4?'_v':'');
+ spritePaths(family,stage,type,vehicle);
+ return viewportCache.get(key)||'0 0 128 128';
 }

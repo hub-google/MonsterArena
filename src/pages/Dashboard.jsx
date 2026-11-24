@@ -164,7 +164,7 @@ export default function Dashboard({
       <div data-testid="mecha-screen" className="cockpit-art">
         <MonsterPixelArt family={monster.family} stage={monster.life_stage} type={monster.type}
           isDead={monster.is_dead} isSick={monster.is_sick} isPoop={monster.cleanliness<40}
-          isHappy={actionEmote==='happy'} isHungry={monster.fullness<30} displaySize={220} vehicle={vehicle&&canTransform}/>
+          isHappy={actionEmote==='happy'} isHungry={monster.fullness<30} displaySize={220} fitVehicle vehicle={vehicle&&canTransform}/>
       </div>
       <div className="cockpit-meta"><span data-testid="mecha-current-form">目前形態：{vehicle&&canTransform?mecha.vehicle:'機器人'}</span><span>{Math.max(index,0)+1}/{monsters.length}</span></div>
     </section>
