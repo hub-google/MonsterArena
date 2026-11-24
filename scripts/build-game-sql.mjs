@@ -11,7 +11,8 @@ const chunks = GAME_FUNCTIONS.map(({ name }) => {
   return readFileSync(file, 'utf8').trim();
 });
 const battle=readFileSync(new URL('../supabase/schema/battle_settlement.sql',import.meta.url),'utf8').trim();
-const canonical=[prelude,buildCatalogSql(),battle,...chunks].join('\n\n');
+const domains=['unit_actions.sql','economy_actions.sql'].map(file=>readFileSync(new URL('../supabase/schema/'+file,import.meta.url),'utf8').trim());
+const canonical=[prelude,buildCatalogSql(),battle,...domains,...chunks].join('\n\n');
 const mode=process.argv[2];
 if(mode==='--preview-test'){
  const path=process.argv[3];
