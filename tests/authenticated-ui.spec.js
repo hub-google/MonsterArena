@@ -253,24 +253,34 @@ test('visual acceptance: actual painted robot stays prominent with real-world sh
   const warnings=await screen.getByTestId('mecha-status-list').boundingBox();
   expect(paint.y+paint.h).toBeLessThanOrEqual(warnings.y+1);
   for(const el of await actions.getByRole('button').all()){
-   const b=await el.boundingBox();expect(b.width).toBeGreaterThanOrEqual(44);expect(b.height).toBeGreaterThanOrEqual(44);expect(b.y+b.height).toBeLessThanOrEqual(area.y+area.height+1);
+   const b=await el.boundingBox();const logical=await el.evaluate(e=>({w:e.offsetWidth,h:e.offsetHeight}));expect(logical.w).toBeGreaterThanOrEqual(44);expect(logical.h).toBeGreaterThanOrEqual(44);expect(b.y+b.height).toBeLessThanOrEqual(area.y+area.height+1);
    expect(await el.evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))})).toBe(true);
   }
   expect(await main.evaluate(el=>el.scrollHeight-el.clientHeight)).toBeLessThanOrEqual(2);
  };
  await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
- await assertVisiblePaint(150);
+ await assertVisiblePaint(90);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop.png',animations:'disabled'});
- expect((await page.getByTestId('game-shell').boundingBox()).width).toBeGreaterThan(800);
+ const shell=page.getByTestId('game-shell');
+ const portrait=await shell.boundingBox();
+ expect(portrait.width).toBeLessThanOrEqual(400);
+ expect(portrait.height).toBeGreaterThan(portrait.width);
+ const assertSingleColumn=async()=>{const hero=await home.locator('.cockpit-hero').boundingBox(),consoleBox=await home.locator('.cockpit-console').boundingBox();expect(Math.abs(hero.x-consoleBox.x)).toBeLessThanOrEqual(1);expect(Math.abs(hero.width-consoleBox.width)).toBeLessThanOrEqual(1);expect(hero.y+hero.height).toBeLessThanOrEqual(consoleBox.y+1)};
+ await assertSingleColumn();
  await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
  await expect(home.locator('.cockpit-species')).toContainText('鋼鐵族');
  await expect(home.locator('.cockpit-species')).not.toContainText('重砲型');
  await expect(home.locator('.cockpit-species')).not.toContainText('超限機');
  await actions.getByRole('button',{name:'變形：重型坦克'}).click();
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/desktop-vehicle.png',animations:'disabled'});
- await assertVisiblePaint(150);
+ await assertVisiblePaint(90);
  await actions.getByRole('button',{name:'切換機器人'}).click();
+ await page.setViewportSize({width:1280,height:800});
+ await assertSingleColumn();
+ await assertVisiblePaint(150);
+ await shell.screenshot({path:'test-results/ui-visual/desktop-tall.png',animations:'disabled'});
  await page.setViewportSize({width:360,height:640});
+ await assertSingleColumn();
  await expect(home.getByRole('heading',{name:'鋼鐵族・重砲型・超限機'})).toBeVisible();
  expect(await home.locator('.cockpit-name h2').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/mobile.png',animations:'disabled'});

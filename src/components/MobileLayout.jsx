@@ -2,11 +2,15 @@ import React,{useState,useEffect} from 'react';
 import {PlayButton,GameIcon} from './PlayButton';
 export default function MobileLayout({children,page,setPage,isConnected,onRefresh,onLogout}) {
  const [more,setMore]=useState(false);
+ // The desktop is the same portrait game, fitted to the available height.
+ const fit=()=>Math.min(1,Math.max(0.1,(window.innerHeight-12)/760));
+ const [arenaFit,setArenaFit]=useState(fit);
+ useEffect(()=>{const resize=()=>setArenaFit(fit());window.addEventListener('resize',resize);resize();return()=>window.removeEventListener('resize',resize)},[]);
  const tabs=[['dashboard','home','養成','家'],['roster','roster','倉庫','包'],['arena','battle','競技','打'],['pokedex','pokedex','圖鑑','圖']];
  const extras=[['raid','raid','世界王','王'],['guild','guild','公會','隊'],['social','social','社交','友']];
  useEffect(()=>setMore(false),[page]);
  const go=id=>{setMore(false);setPage(id)};
- return <div data-testid="game-shell" className={'arena-shell '+(page==='dashboard'?'arena-shell-home':'')}>
+ return <div data-testid="game-shell" className="arena-shell" style={{'--arena-fit':arenaFit}}>
    <header className="cockpit-header">
     <div className="cockpit-brand"><GameIcon name="robot"/><span>MONSTER <strong>ARENA</strong></span></div>
     <span title={isConnected?'瀏覽器在線':'瀏覽器離線'} aria-label={isConnected?'瀏覽器在線':'瀏覽器離線'} className={'w-2.5 h-2.5 rounded-full '+(isConnected?'bg-emerald-400':'bg-rose-500')}/>
