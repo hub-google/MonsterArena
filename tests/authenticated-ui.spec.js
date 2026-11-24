@@ -69,7 +69,10 @@ async function setupAuthenticatedGame(page, initialPets=[dead], profileOverrides
     if (path === '/auth/v1/user') return json(route, user);
     if (path === '/rest/v1/rpc/game_ensure_profile') return json(route, currentProfile);
     if (path === '/rest/v1/rpc/game_claim_gifts') return json(route, 0);
-    if (path === '/rest/v1/rpc/game_age_monsters') return json(route, null);
+    if (path === '/rest/v1/rpc/game_age_monsters') {
+      pets=pets.map(p=>p.repair_until&&new Date(p.repair_until).getTime()<=Date.now()?{...p,repair_until:null,is_sick:false}:p);
+      return json(route,null);
+    }
     if (path === '/rest/v1/monsters') return json(route, pets);
     if (path === '/rest/v1/user_inventory') return json(route, currentInventory);
     if (path === '/rest/v1/daily_quests') return json(route,{feed_count:0,clean_count:0,train_count:0,battle_count:0,claimed:[]});
@@ -90,7 +93,20 @@ async function setupAuthenticatedGame(page, initialPets=[dead], profileOverrides
         }];
         return json(route, { message: '核心啟動成功！' });
       }
-      if(['feed','clean','heal','train'].includes(args.p_action)){
+      if(args.p_action==='heal'){
+        const free=args.p_data.item_id==='heal_basic';
+        if(!free){const item=currentInventory.find(i=>i.item_id==='medicine_standard');if(!item||item.quantity<1)return json(route,{message:'道具不足'},400);item.quantity--;}
+        pets=pets.map(p=>p.monster_id===args.p_data.monster_id?{...p,is_sick:free,repair_until:free?new Date(Date.now()+1800000).toISOString():null}:p);
+        return json(route,{message:free?'緊急修復已開始，30 分鐘後自動完成，耐久不變':'標準修復完成，耐久不變'});
+      }
+      if(args.p_action==='buy'&&args.p_data.item_id==='medicine_standard'){
+        if(currentProfile.gold<200)return json(route,{message:'金幣不足'},400);
+        currentProfile={...currentProfile,gold:currentProfile.gold-200};
+        const item=currentInventory.find(i=>i.item_id==='medicine_standard');
+        if(item)item.quantity++;else currentInventory.push({user_id:uid,item_id:'medicine_standard',quantity:1});
+        return json(route,{message:'購買成功，花費 200G'});
+      }
+      if(['feed','clean','train'].includes(args.p_action)){
         pets=pets.map(p=>p.monster_id===args.p_data.monster_id?{...p,fullness:args.p_action==='feed'?70:p.fullness,cleanliness:args.p_action==='clean'?100:p.cleanliness,is_sick:args.p_action==='heal'?false:p.is_sick}:p);
         return json(route,{message:'操作成功！'});
       }
@@ -505,4 +521,28 @@ test('zero gold checkout explains deficit without charging',async({page})=>{
  await page.getByRole('button',{name:'✕',exact:true}).click();
  await page.getByRole('button',{name:'商城',exact:true}).click();
  for(const title of ['標準電池','高密度電池','雙效充能模組','標準修復套件','效能增幅器'])await expect(page.getByText(title,{exact:true})).toBeAttached();
+});
+
+test('emergency repair retains HP, blocks repeat and battles, and standard kit completes it',async({page})=>{
+ await setupAuthenticatedGame(page,[{...dead,name:'修復測試機',is_dead:false,is_sick:true,combat_hp:500}],{gold:250});
+ const actions=page.getByTestId('care-actions');
+ const hp=page.getByTestId('combat-readouts');
+ await actions.getByRole('button',{name:'修復',exact:true}).click();
+ const free=page.getByRole('button',{name:'緊急修復',exact:true});
+ await expect(free).toContainText('免費 · 30 分鐘');
+ await free.click();
+ await expect(page.getByRole('status').filter({hasText:'緊急修復中'})).toContainText('耐久不變');
+ await expect(hp).toContainText('500');
+ await expect(actions.getByRole('button',{name:'訓練',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:'競技',exact:true}).click();
+ await expect(page.getByRole('button',{name:'手動戰術對戰'})).toBeDisabled();
+ await page.getByRole('button',{name:'養成',exact:true}).click();
+ await actions.getByRole('button',{name:'修復',exact:true}).click();
+ await expect(free).toBeDisabled();
+ await page.getByRole('button',{name:'標準修復套件',exact:true}).click();
+ await page.getByRole('button',{name:'確認購買 200G'}).click();
+ await page.getByRole('button',{name:'標準修復套件',exact:true}).click();
+ await expect(actions.getByRole('button',{name:'修復',exact:true})).toBeDisabled();
+ await expect(actions.getByRole('button',{name:'訓練',exact:true})).toBeEnabled();
+ await expect(hp).toContainText('500');
 });

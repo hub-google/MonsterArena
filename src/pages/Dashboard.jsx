@@ -40,10 +40,9 @@ export default function Dashboard({
   useEffect(()=>{
     if(!repairUntil)return;
     const id=setInterval(()=>setRepairClock(Date.now()),1000);
-    const timeout=setTimeout(()=>refreshData(['monsters']).catch(console.warn),Math.max(0,new Date(repairUntil).getTime()-Date.now())+250);
-    return ()=>{clearInterval(id);clearTimeout(timeout);};
+    return ()=>clearInterval(id);
   },[repairUntil]);
-  const repairSeconds=repairUntil?Math.max(0,Math.ceil((new Date(repairUntil).getTime()-repairClock)/1000)):0;
+  const repairSeconds=repairUntil?Math.min(1800,Math.max(0,Math.ceil((new Date(repairUntil).getTime()-Math.max(repairClock,Date.now()))/1000))):0;
   const preferredMode=appearanceModes[monster?.monster_id];
   const look=appearance(monster,preferredMode);
   const currentMode=appearanceMode(monster,preferredMode);
@@ -163,7 +162,7 @@ export default function Dashboard({
     <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0,Math.min(100,Math.round(value||0)))} className="play-meter-track"><div className="play-meter-fill" style={{width:Math.max(0,Math.min(100,value||0))+'%',background:low?'#e9b05d':color}}/></div>
   </div>;
   const stats=[['guild','耐久',monster.combat_hp],['battle','攻擊',monster.combat_atk],['guild','防禦',monster.combat_def],['speed','速度',monster.combat_spd]];
-  const ready=monster.life_stage===5&&!monster.is_dead&&getItemQty('ultimate_core')>0&&monster.battles>=50&&monster.wins/monster.battles>=0.7;
+  const ready=monster.life_stage===5&&!monster.is_dead&&!monster.repair_until&&getItemQty('ultimate_core')>0&&monster.battles>=50&&monster.wins/monster.battles>=0.7;
   const factionColor=FACTIONS[mecha.faction-1]?.color||'#64c4d6';
   const closeItems=()=>{setShowFeedMenu(false);setShowHealMenu(false)};
   return <div className="play-home cockpit-home" data-testid="cockpit-home">
@@ -216,14 +215,14 @@ export default function Dashboard({
       <div className="text-sm">{mecha.factionName}・{mecha.roleName}</div><div className="text-sm text-slate-400">{speciesName}・G{monster.generation}・{Math.floor((monster.age_days||0)*10)/10} 天</div>
       {monster.is_rescue&&<div className="text-sm text-cyan-300">免費救援機體，拆解不提供金幣。</div>}
       <div className="cockpit-stats">{stats.map(([icon,label,value])=><div key={label}><GameIcon name={icon}/><span>{label}</span><strong>{Math.round(value||0)}</strong></div>)}</div>
-      {monster.life_stage===5&&<><PlayButton icon="evolve" label="終極升級（需核心、50戰及70%勝率）" caption="終極升級" tone="purple" onClick={()=>{if(getItemQty('ultimate_core')===0){openCheckout('ultimate_core');return;}setShowDetails(false);handleAction(api.evolve,monster.monster_id)}} disabled={loading || monster.is_dead || monster.battles < 50 || monster.wins/monster.battles<0.7} className="w-full"/><p className="text-xs text-slate-400">升級條件：核心、50 場戰鬥、70% 勝率</p></>}
+      {monster.life_stage===5&&<><PlayButton icon="evolve" label="終極升級（需核心、50戰及70%勝率）" caption="終極升級" tone="purple" onClick={()=>{if(getItemQty('ultimate_core')===0){openCheckout('ultimate_core');return;}setShowDetails(false);handleAction(api.evolve,monster.monster_id)}} disabled={loading || monster.is_dead || Boolean(monster.repair_until) || monster.battles < 50 || monster.wins/monster.battles<0.7} className="w-full"/><p className="text-xs text-slate-400">升級條件：核心、50 場戰鬥、70% 勝率</p></>}
      </section>
     </div>}
     {(showFeedMenu||showHealMenu)&&!checkout&&!monster.is_dead&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label={showFeedMenu?'選擇補給':'選擇修復道具'}>
      <section className="cockpit-dialog" data-testid="item-menu">
       <div className="dialog-heading"><h2>{showFeedMenu?'選擇補給':'選擇修復道具'}</h2><button onClick={closeItems} aria-label="取消返回">×</button></div>
       <div className="grid grid-cols-2 gap-2">{(showFeedMenu?foodChoices:healingChoices).map(([id,icon,label,count,tone])=><PlayButton key={id} icon={icon} label={label} caption={id==='heal_basic'?'緊急修復':label} subtext={id==='heal_basic'?monster.repair_until?'修復進行中':'免費 · 30 分鐘':count===0?'庫存 0 · '+ITEM_BY_ID[id].price+'G 購買':typeof count==='number'?'庫存 '+count:count} tone={tone} onClick={()=>count===0?openCheckout(id):doItem(showFeedMenu?api.feed:api.heal,id)} disabled={loading||(showFeedMenu?!care:!canHealMonster(monster))||(id==='heal_basic'&&Boolean(monster.repair_until))}/>)}</div>
-      <p className="text-xs text-slate-400">{showHealMenu?'兩種方式均不扣減永久耐久；標準修復套件可立即完成。':'庫存不足時，直接點選道具即可購買。'}</p>{message&&<ActionFeedback message={message}/>}
+      <p className="text-xs text-slate-400">{showHealMenu?'兩種方式均不扣減永久耐久；標準修復套件可立即完成，庫存不足可直接購買。':'庫存不足時，直接點選道具即可購買。'}</p>{message&&<ActionFeedback message={message}/>}
      </section>
     </div>}
     {checkout&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="購買確認">

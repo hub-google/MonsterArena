@@ -119,6 +119,23 @@ export default function App() {
     return ()=>clearInterval(id);
   },[user?.user_id]);
 
+  const nextRepair=monsters.reduce((earliest,m)=>m.repair_until&&!m.is_dead?Math.min(earliest,new Date(m.repair_until).getTime()):earliest,Infinity);
+  useEffect(()=>{
+    if(!user||!Number.isFinite(nextRepair))return;
+    let timer, disposed=false, busy=false;
+    const complete=async()=>{
+      if(disposed||busy)return;
+      busy=true;
+      try{await loadUserData(['monsters']);}
+      catch{if(!disposed)timer=setTimeout(complete,15000);}
+      finally{busy=false;}
+    };
+    timer=setTimeout(complete,Math.max(0,nextRepair-Date.now())+500);
+    const onVisible=()=>{if(document.visibilityState==='visible'&&Date.now()>=nextRepair){clearTimeout(timer);complete();}};
+    document.addEventListener('visibilitychange',onVisible);
+    return()=>{disposed=true;clearTimeout(timer);document.removeEventListener('visibilitychange',onVisible);};
+  },[user?.user_id,nextRepair]);
+
   useEffect(()=>{
     if(!user || !hasLoadedProfileRef.current)return;
     if(page==='guild')loadUserData(['guilds']).catch(console.warn);
