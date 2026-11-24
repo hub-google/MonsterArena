@@ -1,0 +1,40 @@
+name: Arena｜單次造型驗收
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verify-once.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: 核對公開網頁為已部署的正確版本
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 'https://hub-google.github.io/monster-arena-web/?appearance_verify=149' -o /tmp/arena-live.html
+          echo 'a0ffb459e64230b964704f71a893c3d8d493c3a4780fbb856453df01b2d229a4  /tmp/arena-live.html' | sha256sum -c -
+      - run: npm ci --no-audit --no-fund
+      - run: node --check tests/live-appearance.spec.js
+      - run: npx playwright install chromium --only-shell
+      - name: 實際公開網站機體及圖鑑雙形態驗收
+        env:
+          PLAYWRIGHT_BASE_URL: https://hub-google.github.io/monster-arena-web/
+          ARENA_TEST_SUPABASE_URL: ${{ vars.ARENA_TEST_SUPABASE_URL }}
+        run: npx playwright test tests/smoke.spec.js tests/live-appearance.spec.js --project=chromium
+      - name: 保存真實瀏覽器截圖
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arena-single-appearance-review
+          path: |
+            test-results/ui-visual/
+            test-results/**/error-context.md
+          if-no-files-found: warn
+          retention-days: 7
