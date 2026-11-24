@@ -85,9 +85,12 @@ BEGIN
  IF (r->>'current_hp')::int<>0 OR jsonb_array_length(r->'claims')<>1 THEN RAISE EXCEPTION 'daily raid settlement failed'; END IF;
  PERFORM public.game_action('raid_claim',jsonb_build_object('boss_id',r->>'id'));
  PERFORM public.game_age_monsters();
- IF EXISTS(SELECT 1 FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000012' AND (is_dead IS DISTINCT FROM false OR fullness<>0)) THEN RAISE EXCEPTION 'long absence must not kill unit'; END IF;
 END $$;
 RESET ROLE;
+DO $absence$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000012' AND is_dead IS FALSE AND fullness=0) THEN RAISE EXCEPTION 'long absence must not kill unit'; END IF;
+END $absence$;
 UPDATE public.battle_records SET created_at=clock_timestamp()-interval '10 seconds';
 SET LOCAL ROLE authenticated;
 DO $$
