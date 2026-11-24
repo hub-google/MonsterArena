@@ -345,6 +345,23 @@ test('skin shop, permanent wardrobe, first-step reveal and vehicle restoration',
  await page.getByRole('button',{name:'商城',exact:true}).click();
  await page.getByRole('button',{name:'皮膚 · 10 款'}).click();
  await expect(page.locator('.skin-card')).toHaveCount(10);
+ const skins=await page.locator('.skin-card svg.skin-preview').evaluateAll(async svgs=>Promise.all(svgs.map(async svg=>{
+  const art=svg.querySelector('image');
+  const href=art?.getAttribute('href');
+  if(!href)return null;
+  const img=new Image();img.src=href;await img.decode();
+  const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
+  const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);
+  const pixels=ctx.getImageData(0,0,128,128).data;
+  let opaque=0,transparent=0,partial=0;
+  for(let i=3;i<pixels.length;i+=4){if(pixels[i]===255)opaque++;else if(pixels[i]===0)transparent++;else partial++;}
+  return {href,viewBox:svg.getAttribute('viewBox'),width:img.naturalWidth,height:img.naturalHeight,opaque,transparent,partial,rendering:getComputedStyle(art).imageRendering};
+ })));
+ expect(skins).toHaveLength(10);
+ expect(new Set(skins.map(s=>s.href)).size).toBe(10);
+ expect(skins.some(s=>s.href.endsWith('/skin_flerken.png'))).toBe(true);
+ for(const s of skins){expect(s.viewBox).toBe('0 0 128 128');expect(s.width).toBe(128);expect(s.height).toBe(128);expect(s.opaque).toBeGreaterThan(1000);expect(s.transparent).toBeGreaterThan(1000);expect(s.partial).toBe(0);expect(s.rendering).toBe('pixelated');}
+
  await expect(page.getByRole('button',{name:'購買暗影惡魔 300G'})).toBeDisabled();
  await expect(page.getByRole('button',{name:'購買哈士奇 50G'})).toBeEnabled();
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/skin-shop.png',animations:'disabled'});
@@ -354,6 +371,9 @@ test('skin shop, permanent wardrobe, first-step reveal and vehicle restoration',
  await page.getByRole('button',{name:'皮膚衣櫃'}).click();
  await page.getByRole('button',{name:'穿戴哈士奇'}).click();
  await expect(page.getByTestId('mecha-current-form')).toHaveText('目前形態：哈士奇');
+ await expect(page.getByTestId('mecha-screen').getByRole('img',{name:'哈士奇'})).toHaveAttribute('viewBox','0 0 128 128');
+ await expect(page.getByTestId('mecha-screen').getByRole('img',{name:'哈士奇'}).locator('image')).toHaveAttribute('href',/\/skins\/skin_husky\.png$/);
+
  await page.getByTestId('game-shell').screenshot({path:'test-results/ui-visual/skin-home.png',animations:'disabled'});
  await page.getByRole('button',{name:'競技',exact:true}).click();
  await page.getByRole('button',{name:'挑戰失控巡邏機'}).click();

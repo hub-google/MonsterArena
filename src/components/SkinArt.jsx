@@ -1,24 +1,13 @@
 import React from 'react';
 import {getSkin} from '../utils/skins';
-// Handmade pixel-style vector sprites, no external downloads or stock assets.
-const ink='#172232';
-const P=(points,fill,stroke=ink)=><polygon points={points} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="miter"/>;
-const R=(x,y,w,h,fill)=><rect x={x} y={y} width={w} height={h} fill={fill}/>;
-const eyes=(x=23,y=28,gap=13,c=ink)=><>{R(x,y,5,6,c)}{R(x+gap,y,5,6,c)}{R(x,y,2,2,'#fff')}{R(x+gap,y,2,2,'#fff')}</>;
-function animal(husky=false){
- const c=husky?'#687d98':'#e8a052',l=husky?'#f3f4f6':'#ffcf87',d=husky?'#334459':'#b96237';
- return <>{P('45,35 51,21 58,19 61,25 57,38 49,44',c)}{P('14,33 42,33 51,40 50,53 40,53 38,48 25,48 23,53 13,53 11,42',c)}{P('13,15 23,21 40,21 49,13 51,34 44,43 20,43 12,35',c)}{P('16,18 21,24 15,26',d)}{P('46,17 42,24 49,25',d)}{P('16,31 23,27 31,32 40,27 47,31 44,39 35,43 25,42 18,37',l)}{eyes(21,27,16,husky?'#2d8bca':ink)}{R(29,35,6,3,ink)}{husky?<>{R(27,39,10,3,'#db7982')}{R(30,42,5,4,'#f3969b')}{R(18,46,5,6,l)}{R(40,46,5,6,l)}</>:<>{R(26,22,3,5,d)}{R(34,22,3,5,d)}{R(14,34,5,2,d)}{R(44,34,5,2,d)}{P('26,37 22,44 13,47 13,51 19,53 29,47 31,42 34,43 37,51 44,53 48,49 42,47 38,39','#ed8992','#983c54')}{R(27,40,3,3,'#ffc0bd')}</>}</>;
+
+// Shared 128×128 transparent pixel-art PNGs, used by every cosmetic surface.
+// SVG wrapper preserves existing sizing, accessibility and battle reveal animation.
+export function SkinBody({id}){
+ const s=getSkin(id);
+ return s?<image href={import.meta.env.BASE_URL+'skins/'+s.id+'.png'} x="0" y="0" width="128" height="128" preserveAspectRatio="xMidYMid meet" style={{imageRendering:'pixelated'}}/>:null;
 }
-function dragon(dino=false){
- const c=dino?'#b5c9db':'#e45d54',d=dino?'#506681':'#a93843',a=dino?'#6ce5ff':'#ffd078';
- return <>{dino?P('15,44 4,37 4,31 17,38 26,37',d):<>{P('13,39 4,25 5,15 17,21 22,35',d)}{P('43,37 54,18 62,14 59,32 49,44',d)}</>}{P('16,39 23,32 42,34 51,46 57,43 60,48 49,53 39,49 38,55 29,55 29,48 23,48 22,55 12,55 13,45',c)}{P(dino?'15,15 42,15 53,23 57,30 52,38 35,38 28,34 17,34':'17,14 23,20 38,17 45,24 53,26 55,36 48,41 24,40 16,33',c)}{!dino&&<>{P('18,11 25,18 21,23 15,19',a)}{P('37,11 43,18 40,22 33,19',a)}</>}{R(26,26,6,5,ink)}{R(27,26,2,2,a)}{R(44,32,8,3,a)}{P('26,41 37,41 41,48 29,50',a)}{dino?<>{R(14,45,6,4,a)}{R(36,48,5,4,a)}{R(17,24,4,8,d)}{R(40,34,3,4,'#fff')}{R(47,34,3,4,'#fff')}</>:<>{R(26,44,12,2,d)}{R(29,48,10,2,d)}</>}</>;
+export default function SkinArt({id,size=88}){
+ const s=getSkin(id);
+ return s?<svg width={size} height={size} viewBox="0 0 128 128" shapeRendering="crispEdges" role="img" aria-label={s.name} className="skin-preview"><SkinBody id={id}/></svg>:null;
 }
-function spirit(demon=false,angel=false){
- const c=demon?'#8453b8':angel?'#f4f3fa':'#b8c6f5',d=demon?'#432458':angel?'#bdacdf':'#7479b8',a=demon?'#ee8dff':angel?'#f6ca6b':'#b3e7ff';
- return <>{(angel||demon)&&<>{P('22,37 6,32 2,16 13,22 20,15 25,35',demon?d:'#fff2dc')}{P('42,37 58,32 62,16 51,22 44,15 39,35',demon?d:'#fff2dc')}</>}{angel?<path d="M20 8h24v3H20zM17 11h3v3h-3zM44 11h3v3h-3zM20 14h24v3H20z" fill={a}/>:demon?<>{P('18,24 10,8 23,14 27,24',d)}{P('46,24 54,8 41,14 37,24',d)}</>:null}{P('12,45 15,29 20,19 32,13 44,19 49,29 52,45 58,51 46,50 39,55 31,50 23,55 16,50 7,53',c)}{P('18,29 24,23 40,23 46,29 43,40 21,40',demon?'#23192f':angel?'#f2d5bd':'#25304d')}{eyes(23,28,14,angel?ink:a)}{R(29,42,6,5,a)}{R(20,48,5,2,d)}{R(40,48,5,2,d)}</>;
-}
-function panda(){return <>{P('11,34 21,29 43,29 53,37 52,51 44,55 20,55 11,49','#f3eee4')}{P('10,18 12,11 22,11 26,20','#263141')}{P('38,20 42,11 52,11 54,18','#263141')}{P('13,21 20,15 44,15 51,21 53,33 44,42 20,42 11,33','#f3eee4')}{R(18,25,10,10,'#263141')}{R(36,25,10,10,'#263141')}{eyes(21,27,16,'#0d1621')}{R(29,35,6,3,ink)}{P('11,39 22,38 27,47 20,53 11,51','#263141')}{P('53,39 42,38 37,47 44,53 53,51','#263141')}{R(28,38,3,16,'#6dba78')}{R(32,43,8,3,'#8cdb83')}</>}
-function fox(){return <>{[[-14,-2],[-9,-10],[0,-14],[9,-10],[14,-2],[-18,6],[18,6],[-8,5],[8,5]].map(([x,y],i)=><g key={i} transform={'translate('+x+' '+y+')'}>{P('29,43 19,31 21,19 27,23 34,33 36,43','#f2e7ec')}{P('21,19 21,26 27,28 27,23','#ed797f')}</g>)}{P('19,37 45,37 49,53 37,55 32,50 27,55 15,53','#f6edf0')}{P('13,13 24,22 39,22 51,13 49,34 43,42 21,42 15,34','#f6edf0')}{P('17,19 24,26 18,28','#eb8a91')}{P('47,19 40,26 46,28','#eb8a91')}{R(30,22,4,6,'#d65d6c')}{R(21,30,6,3,'#b8465d')}{R(37,30,6,3,'#b8465d')}{R(29,37,6,3,ink)}{R(26,43,12,3,'#d9a44f')}{R(30,45,4,5,'#f6c75a')}</>}
-function slime(){return <>{P('7,39 11,29 21,25 26,16 36,16 42,25 52,27 58,38 59,47 52,54 12,54 5,47','#49bce9','#1e638a')}{P('12,36 21,29 31,27 43,29 51,37 52,45 43,50 18,50 12,45','#79d9f5','#49bce9')}{R(26,20,7,3,'#e8fbff')}{R(13,35,4,7,'#c9f7ff')}{eyes(23,37,14)}{R(30,45,5,3,'#195578')}{R(19,45,4,2,'#f5a9bb')}{R(41,45,4,2,'#f5a9bb')}</>}
-export function SkinBody({id}){switch(id){case 'skin_flerken':return animal();case 'skin_husky':return animal(true);case 'skin_dragon':return dragon();case 'skin_slime':return slime();case 'skin_ghost':return spirit();case 'skin_panda':return panda();case 'skin_dino':return dragon(true);case 'skin_fox':return fox();case 'skin_angel':return spirit(false,true);case 'skin_demon':return spirit(true);default:return null;}}
-export default function SkinArt({id,size=88}){const s=getSkin(id);return s?<svg width={size} height={size} viewBox="0 0 64 64" shapeRendering="crispEdges" role="img" aria-label={s.name} className="skin-preview"><SkinBody id={id}/></svg>:null;}
