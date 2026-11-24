@@ -76,7 +76,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.79.0
       - run: npx playwright install --with-deps chromium
       - name: 實際寄信與瀏覽器重設（本機隔離資料）
         run: bash scripts/test-password-recovery.sh
