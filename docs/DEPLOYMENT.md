@@ -3,7 +3,7 @@
 ## 環境與流程
 
 - main：GitHub Pages 測試站；唯一工作流 `.github/workflows/deploy.yml`（Arena 01｜網站部署）。推送 main 後以 Node.js 22 安裝相依、Vite 建置、上傳 Pages Artifact、發布。不在工作流執行完整功能測試。
-- release：Cloudflare Pages 正式站，pets.monsterport.com。只在使用者明確要求上正式且確認正式後端相容性後更新。禁止自動同步、禁止建立 gh-pages 分支。
+- release：Cloudflare Pages 正式站，arena.monsterport.com。只在使用者明確要求上正式且確認正式後端相容性後更新。禁止自動同步、禁止建立 gh-pages 分支。
 - 預設測試建置：`VITE_ARENA_V2=true VITE_ARENA_PREVIEW=true`，使用 `arena_preview_*`。如另用獨立測試專案，需同時設定 `ARENA_TEST_SUPABASE_URL` 與 `ARENA_TEST_SUPABASE_PUBLISHABLE_KEY`，不得指向共用正式專案。
 - 不改 DNS、Worker、原始共用資料庫或正式玩家資料。SQL 產生指令只輸出 SQL，不部署。
 
