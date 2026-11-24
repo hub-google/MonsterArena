@@ -122,16 +122,17 @@ export const api = {
     return (data ?? []).sort((a,b) => Number(a.is_dead)-Number(b.is_dead) || b.life_stage-a.life_stage);
   },
   hatchEgg: () => action('hatch'),
-  feed: (monster_id, item_id) => action('feed', { monster_id, item_id }),
+  feed: (monster_id, item_id, buyMissing=false) => action('feed', { monster_id, item_id, ...(GAME_RULES_V2&&buyMissing?{buy_missing:true}:{}) }),
   clean: monster_id => action('clean', { monster_id }),
-  heal: (monster_id, item_id = 'medicine_standard') => action('heal', { monster_id, item_id }),
-  train: (monster_id,stat='atk',boost=false) => action('train', { monster_id, ...(GAME_RULES_V2?{stat,boost}:{}) }),
+  heal: (monster_id, item_id = 'medicine_standard', buyMissing=false) => action('heal', { monster_id, item_id, ...(GAME_RULES_V2&&buyMissing?{buy_missing:true}:{}) }),
+  train: (monster_id,stat='pool',boost=false) => action('train', { monster_id, ...(GAME_RULES_V2?{stat,boost}:{}) }),
   evolve: monster_id => action('evolve', { monster_id }),
   release: monster_id => action('release', { monster_id }),
   toggleLock: monster_id => action('lock', { monster_id }),
   equipChip: (monster_id, item_id, slot) => action('equip', { monster_id, item_id, slot }),
   unequipChip: (monster_id, slot) => action('unequip', { monster_id, slot }),
   breed: (parent1, parent2, useCatalyst=false) => action('breed', { parent1, parent2, useCatalyst }),
+  allocateTraining: (monster_id,target) => action('train', {monster_id,stat:'allocate',target}),
   getInventory: async (uid) => {
     uid = uid ?? await getUid();
     const { data, error } = await gameTable('user_inventory').select('*').eq('user_id', uid).order('item_id');

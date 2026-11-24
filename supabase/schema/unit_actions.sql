@@ -19,6 +19,7 @@ DECLARE
   v_text text;
   v_points int;
   v_allocated int;
+  v_purchased boolean:=false;
 BEGIN
   if p_action = 'skin_equip' then
     if coalesce(v_m.life_stage,1)<2 then raise exception '機械核心尚未孵化'; end if;
@@ -38,7 +39,14 @@ BEGIN
     if v_item is null then raise exception '未選擇道具'; end if;
     if v_item not in ('feed_basic','heal_basic') then
       select * into v_inv from public.user_inventory where user_id=v_uid and item_id=v_item for update;
-      if not found or coalesce(v_inv.quantity,0)<1 then raise exception '道具不足'; end if;
+      if not found or coalesce(v_inv.quantity,0)<1 then
+        if coalesce((p_data->>'buy_missing')::boolean,false) AND
+           ((p_action='feed' AND v_item IN ('meat_basic','meat_premium','energy_drink')) OR (p_action='heal' AND v_item='medicine_standard')) then
+          PERFORM arena_internal.purchase_item(v_uid,v_u,jsonb_build_object('item_id',v_item,'quantity',1));
+          SELECT * INTO v_inv FROM public.user_inventory WHERE user_id=v_uid AND item_id=v_item FOR UPDATE;
+          v_purchased:=true;
+        else raise exception '道具不足'; end if;
+      end if;
     end if;
   end if;
 
@@ -51,6 +59,7 @@ BEGIN
     if v_item<>'feed_basic' then update public.user_inventory set quantity=quantity-1 where inventory_id=v_inv.inventory_id; end if;
     if v_item='energy_drink' then update public.users set stamina=least(max_stamina,stamina+20) where user_id=v_uid; end if;
     v_key:='feed_count';
+    v_result:=jsonb_build_object('message',CASE WHEN v_purchased THEN '購買並補充能源成功' ELSE '補充能源成功' END);
   elsif p_action = 'clean' then
     update public.monsters set cleanliness=100 where monster_id=v_mon_id;
     v_key:='clean_count';
@@ -64,15 +73,30 @@ BEGIN
     else
       update public.monsters set is_sick=false,sick_time_start=null,repair_until=null where monster_id=v_mon_id;
       update public.user_inventory set quantity=quantity-1 where inventory_id=v_inv.inventory_id;
-      v_result:=jsonb_build_object('message','標準修復完成，耐久不變');
+      v_result:=jsonb_build_object('message',CASE WHEN v_purchased THEN '購買並標準修復完成，耐久不變' ELSE '標準修復完成，耐久不變' END);
     end if;
   elsif p_action = 'train' then
+    v_stat:=coalesce(p_data->>'stat','pool');
+    v_allocated:=v_m.training_hp+v_m.training_atk+v_m.training_def+v_m.training_spd+v_m.training_unspent;
+    IF v_stat='allocate' THEN
+      v_stat:=p_data->>'target';
+      IF v_stat IS NULL OR v_stat NOT IN ('hp','atk','def','spd') THEN RAISE EXCEPTION '無效配點項目'; END IF;
+      v_count:=CASE v_stat WHEN 'hp' THEN v_m.training_hp WHEN 'atk' THEN v_m.training_atk WHEN 'def' THEN v_m.training_def ELSE v_m.training_spd END;
+      IF v_m.training_unspent<1 THEN RAISE EXCEPTION '沒有可分配點數'; END IF;
+      IF v_count>=30 THEN RAISE EXCEPTION '單項配點已達上限'; END IF;
+      UPDATE public.monsters SET training_unspent=training_unspent-1,
+        training_hp=training_hp+CASE WHEN v_stat='hp' THEN 1 ELSE 0 END,
+        training_atk=training_atk+CASE WHEN v_stat='atk' THEN 1 ELSE 0 END,
+        training_def=training_def+CASE WHEN v_stat='def' THEN 1 ELSE 0 END,
+        training_spd=training_spd+CASE WHEN v_stat='spd' THEN 1 ELSE 0 END WHERE monster_id=v_mon_id;
+      PERFORM arena_internal.refresh_unit(v_mon_id);
+      RETURN jsonb_build_object('result',jsonb_build_object('message','配點成功'),'quest_key',NULL);
+    END IF;
     if v_u.stamina<10 then raise exception '體力不足，需要 10 點'; end if;
     if v_m.is_sick or coalesce(v_m.fullness,0)<20 then raise exception '怪獸太餓或生病，無法訓練'; end if;
-    v_stat:=coalesce(p_data->>'stat','atk');
-    IF v_stat NOT IN ('hp','atk','def','spd','practice') THEN RAISE EXCEPTION '無效訓練項目'; END IF;
-    v_allocated:=v_m.training_hp+v_m.training_atk+v_m.training_def+v_m.training_spd;
-    v_count:=CASE v_stat WHEN 'hp' THEN v_m.training_hp WHEN 'atk' THEN v_m.training_atk WHEN 'def' THEN v_m.training_def ELSE v_m.training_spd END;
+    IF v_stat NOT IN ('hp','atk','def','spd','pool','practice') THEN RAISE EXCEPTION '無效訓練項目'; END IF;
+    -- Explicit old-client stat choices remain compatible, but share the same total cap.
+    v_count:=CASE v_stat WHEN 'hp' THEN v_m.training_hp WHEN 'atk' THEN v_m.training_atk WHEN 'def' THEN v_m.training_def WHEN 'spd' THEN v_m.training_spd ELSE 0 END;
     v_points:=least(1,60-v_allocated,30-v_count);
     IF v_allocated>=60 AND v_stat='practice' THEN v_points:=0; ELSIF v_points<=0 OR v_stat='practice' THEN RAISE EXCEPTION '訓練配點已達上限'; END IF;
     IF v_stat<>'practice' AND coalesce((p_data->>'boost')::boolean,false) AND v_allocated<59 AND v_count<29 THEN
@@ -81,12 +105,13 @@ BEGIN
       UPDATE public.user_inventory SET quantity=quantity-1 WHERE inventory_id=v_inv.inventory_id; v_points:=2;
     END IF;
     UPDATE public.users SET stamina=stamina-10 WHERE user_id=v_uid;
-    UPDATE public.monsters SET training_hp=training_hp+CASE WHEN v_stat='hp' THEN v_points ELSE 0 END,
+    UPDATE public.monsters SET training_unspent=training_unspent+CASE WHEN v_stat='pool' THEN v_points ELSE 0 END,
+      training_hp=training_hp+CASE WHEN v_stat='hp' THEN v_points ELSE 0 END,
       training_atk=training_atk+CASE WHEN v_stat='atk' THEN v_points ELSE 0 END,
       training_def=training_def+CASE WHEN v_stat='def' THEN v_points ELSE 0 END,
       training_spd=training_spd+CASE WHEN v_stat='spd' THEN v_points ELSE 0 END,fullness=greatest(0,fullness-10),train_count=coalesce(train_count,0)+1 WHERE monster_id=v_mon_id;
     PERFORM arena_internal.refresh_unit(v_mon_id);
-    v_result:=jsonb_build_object('message',CASE WHEN v_points=0 THEN '維持訓練完成' ELSE '訓練完成，配點 +'||v_points END);
+    v_result:=jsonb_build_object('message',CASE WHEN v_points=0 THEN '維持訓練完成' WHEN v_stat='pool' THEN '訓練完成，可分配點數 +'||v_points ELSE '訓練完成，配點 +'||v_points END);
     v_key:='train_count';
   elsif p_action='evolve' then
     if v_m.life_stage<>5 or coalesce(v_m.battles,0)<50 or (coalesce(v_m.wins,0)::numeric/nullif(v_m.battles,0))<0.7 then

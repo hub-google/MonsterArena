@@ -23,7 +23,7 @@ export const canManageMonsterChips = monster => Boolean(monster && !monster.is_d
 // Refresh only the resources a successful server action can change.
 export const ACTION_RESOURCES=Object.freeze({
  hatchEgg:['profile','monsters'],feed:['profile','monsters','inventory'],
- clean:['monsters'],heal:['monsters','inventory'],train:['profile','monsters','inventory'],
+ clean:['monsters'],heal:['monsters','inventory'],train:['profile','monsters','inventory'],allocateTraining:['profile','monsters'],
  evolve:['monsters','inventory'],release:['profile','monsters','inventory'],
  toggleLock:['monsters'],equipChip:['monsters','inventory'],unequipChip:['monsters','inventory'],
  breed:['profile','monsters','inventory'],buyItem:['profile','inventory'],equipSkin:['monsters'],

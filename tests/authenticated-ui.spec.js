@@ -107,6 +107,7 @@ async function setupAuthenticatedGame(page, initialPets=[dead], profileOverrides
         return json(route,{message:'購買成功，花費 200G'});
       }
       if(['feed','clean','train'].includes(args.p_action)){
+        if(args.p_action==='feed'&&args.p_data.item_id==='meat_basic'){const item=currentInventory.find(i=>i.item_id==='meat_basic');if(!item||item.quantity<1)return json(route,{message:'道具不足'},400);item.quantity--;}
         pets=pets.map(p=>p.monster_id===args.p_data.monster_id?{...p,fullness:args.p_action==='feed'?70:p.fullness,cleanliness:args.p_action==='clean'?100:p.cleanliness,is_sick:args.p_action==='heal'?false:p.is_sick}:p);
         return json(route,{message:'操作成功！'});
       }
@@ -507,7 +508,7 @@ test('single feature entrances and independent catalog transformation previews',
  expect(calls).not.toContain('/rest/v1/rpc/game_action');
 });
 
- test('zero stock opens checkout without visiting the store and buying updates stock',async({page})=>{
+ test('zero stock opens checkout and immediately uses the purchased item',async({page})=>{
  const calls=await setupAuthenticatedGame(page,[{...dead,name:'補給測試機',is_dead:false,is_sick:false}],{gold:50});
  await page.getByRole('button',{name:'補充能源'}).click();
  await page.getByRole('button',{name:'標準電池',exact:true}).click();
@@ -515,11 +516,11 @@ test('single feature entrances and independent catalog transformation previews',
  await expect(checkout).toBeVisible();
  await expect(checkout.getByText('10G',{exact:true})).toBeVisible();
  expect(calls.filter(x=>x==='/rest/v1/rpc/game_action')).toHaveLength(0);
- await checkout.getByRole('button',{name:'確認購買 10G'}).click();
+ await checkout.getByRole('button',{name:'購買並使用 10G'}).click();
  await expect(checkout).toHaveCount(0);
- const menu=page.getByTestId('item-menu');
- await expect(menu.getByRole('button',{name:'標準電池',exact:true})).toContainText('庫存 1');
- expect(calls.filter(x=>x==='/rest/v1/rpc/game_action')).toHaveLength(1);
+ await expect(page.getByTestId('item-menu')).toHaveCount(0);
+ await expect(page.getByRole('progressbar',{name:'能源'})).toHaveAttribute('aria-valuenow','70');
+ expect(calls.filter(x=>x==='/rest/v1/rpc/game_action')).toHaveLength(2);
 });
 test('zero gold checkout explains deficit without charging',async({page})=>{
  const calls=await setupAuthenticatedGame(page,[{...dead,name:'補給測試機',is_dead:false,is_sick:false}]);
@@ -527,7 +528,7 @@ test('zero gold checkout explains deficit without charging',async({page})=>{
  await page.getByRole('button',{name:'標準電池',exact:true}).click();
  const checkout=page.getByRole('dialog',{name:'購買確認'});
  await expect(checkout.getByText('金幣不足，還需 10G')).toBeVisible();
- await expect(checkout.getByRole('button',{name:'確認購買 10G'})).toBeDisabled();
+ await expect(checkout.getByRole('button',{name:'購買並使用 10G'})).toBeDisabled();
  await checkout.getByRole('button',{name:'取消',exact:true}).click();
  await expect(page.getByTestId('item-menu')).toBeVisible();
  expect(calls.filter(x=>x==='/rest/v1/rpc/game_action')).toHaveLength(0);
@@ -560,8 +561,7 @@ test('emergency repair retains HP, blocks repeat and battles, and standard kit c
  await actions.getByRole('button',{name:'修復',exact:true}).click();
  await expect(free).toBeDisabled();
  await page.getByRole('button',{name:'標準修復套件',exact:true}).click();
- await page.getByRole('button',{name:'確認購買 200G'}).click();
- await page.getByRole('button',{name:'標準修復套件',exact:true}).click();
+ await page.getByRole('button',{name:'購買並使用 200G'}).click();
  await expect(actions.getByRole('button',{name:'修復',exact:true})).toBeDisabled();
  await expect(actions.getByRole('button',{name:'訓練',exact:true})).toBeEnabled();
  await expect(hp).toContainText('500');

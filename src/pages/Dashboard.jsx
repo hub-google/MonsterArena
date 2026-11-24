@@ -36,6 +36,7 @@ export default function Dashboard({
   const [showDetails,setShowDetails]=useState(false);
   const [showTrain,setShowTrain]=useState(false);
   const [trainBoost,setTrainBoost]=useState(false);
+  const [trainMessage,setTrainMessage]=useState('');
 
   const monster = activeMonster || monsters[0];
   const [repairClock,setRepairClock]=useState(Date.now);
@@ -59,7 +60,7 @@ export default function Dashboard({
     setShowHealMenu(false);
     setShowWardrobe(false);
     setWardrobeError('');
-    setShowDetails(false);setShowTrain(false);setTrainBoost(false);
+    setShowDetails(false);setShowTrain(false);setTrainBoost(false);setTrainMessage('');
     setMessage('');
     setActionEmote(null);setCheckout(null);setCheckoutMessage('');
   }, [monster?.monster_id]);
@@ -149,15 +150,28 @@ export default function Dashboard({
   const choice=id=>{const i=ITEM_BY_ID[id];return [id,i.icon,i.name,getItemQty(id),i.tone];};
   const foodChoices=[['feed_basic','feed','免費基礎充能','免費','green'],...['meat_basic','meat_premium','energy_drink'].map(choice)];
   const healingChoices=[choice('medicine_standard'),['heal_basic','tools','緊急修復','免費','orange']];
-  const openCheckout=id=>{setMessage('');setCheckoutMessage('');setCheckout(ITEM_BY_ID[id]);};
+  const openCheckout=id=>{setMessage('');setCheckoutMessage('');setCheckout({...ITEM_BY_ID[id],use:showFeedMenu?'feed':showHealMenu?'heal':null});};
   const buyMissing=async()=>{
     if(loading||!checkout||Number(user.gold)<checkout.price)return;
     setLoading(true);setCheckoutMessage('');
-    try{await api.buyItem(checkout.id,1);}
-    catch(err){setCheckoutMessage(err.message||'購買失敗');setLoading(false);return;}
-    try{await refreshData(['profile','inventory']);setCheckout(null);setMessage('購買成功，可使用道具');}
-    catch{setCheckout(null);setMessage('購買成功，但庫存更新失敗，請重新整理。');}
-    finally{setLoading(false);}
+    const use=checkout.use;
+    const action=use==='feed'?api.feed:api.heal;
+    let bought=false;
+    try{
+      if(use&&GAME_RULES_V2) await action(monster.monster_id,checkout.id,true);
+      else {
+        await api.buyItem(checkout.id,1);bought=true;
+        if(use)await action(monster.monster_id,checkout.id);
+      }
+      setCheckout(null);
+      if(use){setShowFeedMenu(false);setShowHealMenu(false);setMessage('購買並使用成功！');setActionEmote('happy');setTimeout(()=>setActionEmote(null),3000);}
+      else setMessage('購買成功，可使用道具');
+      const warning=await refreshAfterCommit(refreshData,use?['profile','monsters','inventory']:['profile','inventory']);
+      if(warning)setMessage(warning);
+    }catch(err){
+      if(bought){setCheckout(null);setShowFeedMenu(false);setShowHealMenu(false);setMessage('已購買，但使用未確認：'+(err.message||'請重新整理庫存'));await refreshAfterCommit(refreshData,['profile','monsters','inventory']);}
+      else setCheckoutMessage(err.message||'購買失敗');
+    }finally{setLoading(false);}
   };
   const doItem=(action,id)=>{
     if(id==='heal_basic'&&monster.repair_until)return;
@@ -167,6 +181,15 @@ export default function Dashboard({
     <div className="meter-heading"><GameIcon name={icon}/><span>{label}</span><strong>{Math.round(value||0)}%</strong></div>
     <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0,Math.min(100,Math.round(value||0)))} className="play-meter-track"><div className="play-meter-fill" style={{width:Math.max(0,Math.min(100,value||0))+'%',background:low?'#e9b05d':color}}/></div>
   </div>;
+  const unspent=Number(monster.training_unspent||0);
+  const trainingStats=[['hp','耐久','guild'],['atk','攻擊','battle'],['def','防禦','guild'],['spd','速度','speed']];
+  const allocated=trainingStats.reduce((sum,[k])=>sum+Number(monster['training_'+k]||0),0);
+  const trainingFull=allocated+unspent>=60;
+  const trainAction=async(fn,...args)=>{
+    if(loading)return;setLoading(true);setTrainMessage('');
+    try{const result=await fn(...args);setTrainMessage(result.message||'操作成功');const warning=await refreshAfterCommit(refreshData,resourcesForAction(api,fn));if(warning)setTrainMessage(warning);}
+    catch(err){setTrainMessage(err.message||'操作失敗');}finally{setLoading(false);}
+  };
   const stats=[['guild','耐久',monster.combat_hp],['battle','攻擊',monster.combat_atk],['guild','防禦',monster.combat_def],['speed','速度',monster.combat_spd]];
   const ready=monster.life_stage===5&&!monster.is_dead&&!monster.repair_until&&getItemQty('ultimate_core')>0&&monster.battles>=50&&monster.wins/monster.battles>=0.7;
   const factionColor=FACTIONS[mecha.faction-1]?.color||'#64c4d6';
@@ -210,7 +233,7 @@ export default function Dashboard({
       <PlayButton icon="feed" label="補充能源" tone="green" onClick={()=>{setShowHealMenu(false);setShowFeedMenu(v=>!v)}} disabled={loading||!care} selected={showFeedMenu} className={monster.fullness<30&&care?'play-needed':''}/>
       <PlayButton icon="clean" label="保養" caption="機體保養" tone="blue" onClick={()=>handleAction(api.clean,monster.monster_id)} disabled={loading||!care} className={monster.cleanliness<40&&care?'play-needed':''}/>
       <PlayButton icon="heal" label="修復" caption={monster.repair_until?'修復進行中':'系統修復'} tone="red" onClick={()=>{setShowFeedMenu(false);setShowHealMenu(v=>!v)}} disabled={loading || !canHealMonster(monster)} className={monster.is_sick&&!monster.is_dead?'play-needed':''} selected={showHealMenu}/>
-      <PlayButton icon="train" label="訓練" caption="機體訓練" tone="orange" onClick={()=>GAME_RULES_V2?(setShowTrain(true),setShowFeedMenu(false),setShowHealMenu(false)):handleAction(api.train,monster.monster_id)} disabled={loading||!care||Boolean(monster.repair_until)}/>
+      <PlayButton icon="train" label="訓練" caption="機體訓練" subtext={GAME_RULES_V2&&unspent>0?'可分配 '+unspent+' 點':undefined} tone="orange" onClick={()=>GAME_RULES_V2?(setTrainMessage(''),setShowTrain(true),setShowFeedMenu(false),setShowHealMenu(false)):handleAction(api.train,monster.monster_id)} disabled={loading||!care||Boolean(monster.repair_until)}/>
       <PlayButton icon="transform" label={formLabel} caption={formCaption} tone="purple" onClick={()=>setAppearanceMode(monster.monster_id,nextMode)} disabled={!nextMode||loading} selected={currentMode==='vehicle'}/>
     </div>
     <div className="cockpit-feedback-slot">{monster.repair_until?<span role="status">緊急修復中 · 剩餘 {Math.floor(repairSeconds/60)}:{String(repairSeconds%60).padStart(2,'0')} · 耐久不變</span>:message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極升級條件，請開啟詳情':' '}</span>}</div>
@@ -226,16 +249,19 @@ export default function Dashboard({
     </div>}
     {showTrain&&GAME_RULES_V2&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="選擇訓練項目"><div className="cockpit-dialog">
        <div className="dialog-heading"><h2>機體訓練</h2><button aria-label="關閉訓練" onClick={()=>setShowTrain(false)}>×</button></div>
-       <p className="text-sm">總配點 {['hp','atk','def','spd'].reduce((n,k)=>n+Number(monster['training_'+k]||0),0)}/60，單項上限 30。每次消耗 10 行動電力。</p>
-       <label className="text-sm"><input type="checkbox" checked={trainBoost} disabled={getItemQty('vitamin')<1} onChange={e=>setTrainBoost(e.target.checked)}/> 使用效能增幅器（庫存 {getItemQty('vitamin')}）</label>
-       {['hp','atk','def','spd'].reduce((n,k)=>n+Number(monster['training_'+k]||0),0)>=60&&<PlayButton icon="train" label="維持訓練" subtext="配點已滿，仍可完成每日任務" disabled={loading||user.stamina<10||monster.is_sick||monster.fullness<20} onClick={()=>{setShowTrain(false);handleAction(api.train,monster.monster_id,'practice',false)}}/>}
-       <div className="grid grid-cols-2 gap-2">{[['hp','耐久','guild'],['atk','攻擊','battle'],['def','防禦','guild'],['spd','速度','speed']].map(([k,n,icon])=><PlayButton key={k} icon={icon} label={'訓練'+n} subtext={(monster['training_'+k]||0)+'/30'} disabled={loading||user.stamina<10||monster.is_sick||monster.fullness<20||Number(monster['training_'+k]||0)>=30||['hp','atk','def','spd'].reduce((a,x)=>a+Number(monster['training_'+x]||0),0)>=60} onClick={()=>{setShowTrain(false);handleAction(api.train,monster.monster_id,k,trainBoost)}}/>)}</div>
+       <p className="text-sm">已分配 {allocated}/60 · <strong className="text-amber-300">可分配 {unspent} 點</strong></p>
+       <p className="text-xs text-slate-400">每次訓練消耗 10 行動電力、10 能源。配點不額外消耗資源，單項上限 30。</p>
+       <label className="text-sm"><input type="checkbox" checked={trainBoost&&!trainingFull&&getItemQty('vitamin')>0&&allocated+unspent<59} disabled={loading||getItemQty('vitamin')<1||allocated+unspent>=59} onChange={e=>setTrainBoost(e.target.checked)}/> 使用效能增幅器（庫存 {getItemQty('vitamin')}）</label>
+       <PlayButton icon="train" label={trainingFull?'維持訓練':'開始訓練'} subtext={trainingFull?'總點數已滿，仍可完成每日任務':trainBoost&&getItemQty('vitamin')>0&&allocated+unspent<59?'獲得 2 點':'獲得 1 點'} disabled={loading||user.stamina<10||monster.is_sick||monster.fullness<20} onClick={()=>trainAction(api.train,monster.monster_id,trainingFull?'practice':'pool',!trainingFull&&trainBoost&&getItemQty('vitamin')>0&&allocated+unspent<59)} className="w-full"/>
+       <h3 className="text-sm font-bold">分配屬性點數</h3>
+       <div className="grid grid-cols-2 gap-2">{trainingStats.map(([k,n,icon])=><PlayButton key={k} icon={icon} label={n+' +1'} subtext={(monster['training_'+k]||0)+'/30'} disabled={loading||unspent<1||Number(monster['training_'+k]||0)>=30} onClick={()=>trainAction(api.allocateTraining,monster.monster_id,k)}/>)}</div>
+       {trainMessage&&<ActionFeedback message={trainMessage}/>}
        </div></div>}
     {(showFeedMenu||showHealMenu)&&!checkout&&!monster.is_dead&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label={showFeedMenu?'選擇補給':'選擇修復道具'}>
      <section className="cockpit-dialog" data-testid="item-menu">
       <div className="dialog-heading"><h2>{showFeedMenu?'選擇補給':'選擇修復道具'}</h2><button onClick={closeItems} aria-label="取消返回">×</button></div>
       <div className="grid grid-cols-2 gap-2">{(showFeedMenu?foodChoices:healingChoices).map(([id,icon,label,count,tone])=><PlayButton key={id} icon={icon} label={label} caption={id==='heal_basic'?'緊急修復':label} subtext={id==='heal_basic'?monster.repair_until?'修復進行中':'免費 · 30 分鐘':count===0?'庫存 0 · '+ITEM_BY_ID[id].price+'G 購買':typeof count==='number'?'庫存 '+count:count} tone={tone} onClick={()=>count===0?openCheckout(id):doItem(showFeedMenu?api.feed:api.heal,id)} disabled={loading||(showFeedMenu?!care:!canHealMonster(monster))||(id==='heal_basic'&&Boolean(monster.repair_until))}/>)}</div>
-      <p className="text-xs text-slate-400">{showHealMenu?'兩種方式均不扣減永久耐久；標準修復套件可立即完成，庫存不足可直接購買。':'庫存不足時，直接點選道具即可購買。'}</p>{message&&<ActionFeedback message={message}/>}
+      <p className="text-xs text-slate-400">{showHealMenu?'兩種方式均不扣減永久耐久；標準修復套件可立即完成，庫存不足可購買後立即修復。':'庫存不足時，確認購買後立即使用。'}</p>{message&&<ActionFeedback message={message}/>}
      </section>
     </div>}
     {checkout&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="購買確認">
@@ -246,7 +272,7 @@ export default function Dashboard({
       <div className="grid grid-cols-2 gap-2 text-sm"><span>購買數量</span><strong className="text-right">1</strong><span>應付金額</span><strong className="text-right text-amber-300">{checkout.price}G</strong><span>目前金幣</span><strong className="text-right">{user.gold}G</strong></div>
       {Number(user.gold)<checkout.price&&<p role="status" className="text-rose-300 text-sm">金幣不足，還需 {checkout.price-Number(user.gold)}G</p>}
       {checkoutMessage&&<ActionFeedback message={checkoutMessage}/>}
-      <button type="button" disabled={loading||Number(user.gold)<checkout.price} onClick={buyMissing} className="neon-button neon-button-primary w-full py-3">{loading?'交易處理中…':'確認購買 '+checkout.price+'G'}</button>
+      <button type="button" disabled={loading||Number(user.gold)<checkout.price} onClick={buyMissing} className="neon-button neon-button-primary w-full py-3">{loading?'交易處理中…':(checkout.use?'購買並使用 ':'確認購買 ')+checkout.price+'G'}</button>
       <button type="button" disabled={loading} onClick={()=>setCheckout(null)} className="neon-button w-full py-2">取消</button>
     </section></div>}
     {showWardrobe&&canWearSkin(monster)&&<SkinWardrobe monster={monster} inventory={inventory} loading={loading} error={wardrobeError} onEquip={equipSkin} onClose={()=>setShowWardrobe(false)}/>}
