@@ -78,6 +78,14 @@ SET LOCAL ROLE authenticated;
 DO $$
 DECLARE r jsonb;
 BEGIN
+ BEGIN PERFORM public.game_action('battle','{"monster_id":"00000000-0000-4000-8000-000000000012","encounter":"pvp","opponent_id":"00000000-0000-4000-8000-000000000001"}'); RAISE EXCEPTION 'unbalanced pvp accepted'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%戰力差距%' THEN RAISE; END IF; END;
+END $$;
+RESET ROLE;
+UPDATE public.monsters SET life_stage=4 WHERE monster_id='00000000-0000-4000-8000-000000000011';
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE r jsonb;
+BEGIN
  r:=public.game_action('battle','{"monster_id":"00000000-0000-4000-8000-000000000012","encounter":"pvp","opponent_id":"00000000-0000-4000-8000-000000000001"}');
  IF NOT (r->>'won')::boolean THEN RAISE EXCEPTION 'async pvp winner incorrect'; END IF;
  r:=public.game_action('pvp_list');
@@ -97,7 +105,7 @@ RESET ROLE;
 DO $$
 BEGIN
  IF (SELECT sum(damage) FROM arena_internal.raid_contributions)<>400 THEN RAISE EXCEPTION 'overkill damage counted'; END IF;
- IF (SELECT sum(amount) FROM arena_internal.gold_ledger WHERE action='raid_claim')>5000 THEN RAISE EXCEPTION 'reward pool overflow'; END IF;
+ IF (SELECT sum(amount) FROM arena_internal.gold_ledger WHERE action='raid_claim')>arena_internal.raid_pool(400) THEN RAISE EXCEPTION 'reward pool overflow'; END IF;
  IF (SELECT age_days FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000012')<49.99 THEN RAISE EXCEPTION 'offline age lost'; END IF;
 END $$;
 SET LOCAL ROLE authenticated;
@@ -148,4 +156,38 @@ DO $repair_test$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.monsters m JOIN repair_baseline b USING(monster_id) WHERE NOT m.is_sick AND m.repair_until IS NULL AND m.combat_hp=b.combat_hp) THEN RAISE EXCEPTION 'repair did not complete automatically or damaged HP'; END IF;
 END $repair_test$;
+-- Verify budget, equipped chip arithmetic, capped core inheritance and phase strategy.
+DO $balance$
+DECLARE m public.monsters; f record; g record; x record; y record; q jsonb; aid uuid:='00000000-0000-4000-8000-000000000011'; baseline double precision;
+BEGIN
+ SELECT * INTO m FROM public.monsters WHERE monster_id=aid;
+ SELECT * INTO f FROM arena_internal.unit_stats(m);
+ m.chip_slot_1:='chip_hp'; m.chip_slot_1_val:=200;
+ SELECT * INTO g FROM arena_internal.unit_stats(m);
+ IF g.hp<>floor(f.hp+(SELECT hp FROM arena_internal.base_profiles(m.life_stage) WHERE role=arena_internal.role_id(m.life_stage,m.family,m.type))*.05) THEN RAISE EXCEPTION 'legacy chip potency still affects battle'; END IF;
+ m.chip_slot_1_val:=5;
+ SELECT * INTO x FROM arena_internal.unit_stats(m);
+ IF x.hp<>g.hp THEN RAISE EXCEPTION 'legacy chip stronger than new chip'; END IF;
+ m.chip_slot_1:=null;
+ SELECT * INTO y FROM arena_internal.unit_stats(m);
+ IF y.hp<>f.hp THEN RAISE EXCEPTION 'chip removal did not restore original'; END IF;
+ BEGIN UPDATE public.monsters SET training_hp=31 WHERE monster_id=aid; RAISE EXCEPTION 'training stat cap missing'; EXCEPTION WHEN check_violation THEN NULL; END;
+ BEGIN UPDATE public.monsters SET training_hp=30,training_atk=30,training_def=1 WHERE monster_id=aid; RAISE EXCEPTION 'training total cap missing'; EXCEPTION WHEN check_violation THEN NULL; END;
+ BEGIN UPDATE public.monsters SET core_quality=6 WHERE monster_id=aid; RAISE EXCEPTION 'core quality cap missing'; EXCEPTION WHEN check_violation THEN NULL; END;
+ q:=arena_internal.raid_attempt(240,48,36,36,2,'break');
+ IF (q->>'damage')::int<=(arena_internal.raid_attempt(240,48,36,36,2,'assault')->>'damage')::int OR (q->>'support')::int<=0 THEN RAISE EXCEPTION 'shield break has no value'; END IF;
+ q:=arena_internal.raid_attempt(240,48,36,36,3,'defend');
+ IF (q->>'support')::int<=0 OR (q->>'ownHp')::int<=(arena_internal.raid_attempt(240,48,36,36,3,'assault')->>'ownHp')::int THEN RAISE EXCEPTION 'defense has no value'; END IF;
+END $balance$;
+UPDATE public.monsters SET is_sick=false,repair_until=null,fullness=100,training_hp=29,training_atk=30,training_def=0,training_spd=0 WHERE monster_id='00000000-0000-4000-8000-000000000011';
+UPDATE public.users SET stamina=100,max_stamina=100 WHERE user_id='00000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT public.game_action('train','{"monster_id":"00000000-0000-4000-8000-000000000011","stat":"hp"}');
+DO $balance$ BEGIN
+ BEGIN PERFORM public.game_action('train','{"monster_id":"00000000-0000-4000-8000-000000000011","stat":"def"}'); RAISE EXCEPTION 'training overflow accepted'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE '%配點已達上限%' THEN RAISE; END IF; END;
+ PERFORM public.game_action('train','{"monster_id":"00000000-0000-4000-8000-000000000011","stat":"practice"}');
+END $balance$;
+RESET ROLE;
+DO $balance$ BEGIN IF NOT EXISTS(SELECT 1 FROM public.monsters WHERE monster_id='00000000-0000-4000-8000-000000000011' AND training_hp=30 AND training_atk=30 AND training_def=0 AND training_spd=0) THEN RAISE EXCEPTION 'training distribution failed'; END IF; END $balance$;
 ROLLBACK;

@@ -108,7 +108,7 @@ LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
     ('wild','廢棄機械兵',0,3,2,115::double precision,16::double precision,12::double precision,12::double precision,10),
     ('stage2','失控巡邏機',2,4,3,117,23,18,18,20),
     ('stage3','重裝守衛',2,4,4,156,26,38,18,40),
-    ('stage4','疾風獵手',1,5,5,197,38,22,42,60),
+    ('stage4','疾風獵手',1,7,5,197,38,22,42,60),
     ('stage5','深淵機甲',2,7,6,226,44,35,32,100),
     ('boss','終極機甲首領',1,7,6,300,52,40,35,120)
   ) AS v(id,name,kind,family,stage,hp,atk,def,spd,reward)
@@ -211,11 +211,16 @@ END $$;
 REVOKE ALL ON FUNCTION arena_internal.auto_battle(double precision[],double precision[],int,int,boolean) FROM PUBLIC, anon, authenticated;
 CREATE OR REPLACE FUNCTION arena_internal.refresh_unit(p_id uuid)
 RETURNS void LANGUAGE sql SET search_path TO pg_catalog,pg_temp AS $$
- UPDATE public.monsters m SET combat_hp=f.hp,combat_atk=f.atk,combat_def=f.def,combat_spd=f.spd FROM public.monsters source CROSS JOIN LATERAL arena_internal.unit_stats(source) f WHERE m.monster_id=p_id AND source.monster_id=m.monster_id AND m.life_stage>=2;
+ UPDATE public.monsters m SET combat_hp=f.hp,combat_atk=f.atk,combat_def=f.def,combat_spd=f.spd FROM public.monsters source CROSS JOIN LATERAL arena_internal.unit_stats(source) f WHERE m.monster_id=p_id AND source.monster_id=m.monster_id AND m.life_stage>=2 AND (m.combat_hp,m.combat_atk,m.combat_def,m.combat_spd) IS DISTINCT FROM (f.hp,f.atk,f.def,f.spd);
 $$;
 REVOKE ALL ON FUNCTION arena_internal.refresh_unit(uuid) FROM PUBLIC, anon, authenticated;
 
 -- Co-op: each assault has ten rounds, phase-appropriate tactics and bounded support.
+CREATE OR REPLACE FUNCTION arena_internal.power_rating(hp double precision,atk double precision,def double precision,spd double precision)
+RETURNS double precision LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
+ SELECT hp/5+atk+def*.5+spd*.3;
+$$;
+REVOKE ALL ON FUNCTION arena_internal.power_rating(double precision,double precision,double precision,double precision) FROM PUBLIC, anon, authenticated;
 CREATE OR REPLACE FUNCTION arena_internal.raid_attempt(p_hp double precision,p_atk double precision,p_def double precision,p_spd double precision,p_phase int,p_strategy text)
 RETURNS jsonb LANGUAGE plpgsql IMMUTABLE SET search_path TO pg_catalog,pg_temp AS $$
 DECLARE own_hp double precision:=p_hp; hit int; incoming int; dealt int:=0; support int:=0; turns int:=0; raw int; factor numeric;

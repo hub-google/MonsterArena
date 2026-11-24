@@ -71,6 +71,8 @@ declare
   v_phase int;
   v_raid_result jsonb;
   v_strategy text;
+  v_opponent public.monsters%rowtype;
+  v_opponent_stats record;
 begin
   if v_uid is null then raise exception '請先登入'; end if;
   select * into v_u from public.users where user_id=v_uid for update;
@@ -93,10 +95,10 @@ begin
   if p_action='pvp_list' then
     return jsonb_build_object('season',v_season,'registered',exists(select 1 from arena_internal.pvp_defenders where user_id=v_uid),
       'opponents',coalesce((select jsonb_agg(to_jsonb(q) order by q.points desc,q.user_id) from
-        (select d.user_id,u.username,d.monster_name,d.family,d.stage,d.type,(select m.skin_id from public.monsters m where m.monster_id=d.monster_id and m.user_id=d.user_id) skin_id,d.hp,d.atk,d.def,d.spd,coalesce(s.points,0) points
-         from arena_internal.pvp_defenders d join public.users u using(user_id)
+        (select d.user_id,u.username,m.name monster_name,m.family,m.life_stage stage,m.type,m.skin_id,f.hp,f.atk,f.def,f.spd,coalesce(s.points,0) points
+         from arena_internal.pvp_defenders d join public.users u using(user_id) join public.monsters m on m.monster_id=d.monster_id and m.user_id=d.user_id cross join lateral arena_internal.unit_stats(m) f
          left join arena_internal.pvp_scores s on s.user_id=d.user_id and s.season=v_season
-         where d.user_id<>v_uid order by coalesce(s.points,0) desc,d.user_id limit 30) q),'[]'::jsonb),
+         where d.user_id<>v_uid and not coalesce(m.is_dead,false) and not coalesce(m.is_frozen,false) and (m.repair_until is null or m.repair_until<=now()) and m.life_stage>=2 order by coalesce(s.points,0) desc,d.user_id limit 30) q),'[]'::jsonb),
       'leaderboard',coalesce((select jsonb_agg(to_jsonb(q) order by q.points desc,q.user_id) from
         (select s.user_id,u.username,s.points,s.wins,s.losses from arena_internal.pvp_scores s join public.users u using(user_id)
          where s.season=v_season order by s.points desc,s.user_id limit 30) q),'[]'::jsonb));
@@ -406,13 +408,17 @@ begin
       if v_target is null or v_target=v_uid then raise exception '對手無效'; end if;
       select * into v_defender from arena_internal.pvp_defenders where user_id=v_target;
       if not found then raise exception '對手未登記防守怪獸'; end if;
+      SELECT * INTO v_opponent FROM public.monsters WHERE monster_id=v_defender.monster_id AND user_id=v_target;
+      IF NOT FOUND OR coalesce(v_opponent.is_dead,false) OR coalesce(v_opponent.is_frozen,false) OR v_opponent.life_stage<2 OR v_opponent.repair_until>now() THEN RAISE EXCEPTION '對手機體目前不可出戰'; END IF;
+      SELECT * INTO v_opponent_stats FROM arena_internal.unit_stats(v_opponent);
+      IF abs(v_m.life_stage-v_opponent.life_stage)>1 OR greatest(arena_internal.power_rating(v_fighter.hp,v_fighter.atk,v_fighter.def,v_fighter.spd),arena_internal.power_rating(v_opponent_stats.hp,v_opponent_stats.atk,v_opponent_stats.def,v_opponent_stats.spd)) > 1.45*least(arena_internal.power_rating(v_fighter.hp,v_fighter.atk,v_fighter.def,v_fighter.spd),arena_internal.power_rating(v_opponent_stats.hp,v_opponent_stats.atk,v_opponent_stats.def,v_opponent_stats.spd)) THEN RAISE EXCEPTION '戰力差距過大，請選擇同階或相近戰力的對手'; END IF;
       select count(*) into v_count from arena_internal.pvp_results where attacker_id=v_uid and battle_day=v_date::date;
       if v_count>=5 then raise exception '今日玩家對戰已達 5 場上限'; end if;
       if exists(select 1 from arena_internal.pvp_results where attacker_id=v_uid and defender_id=v_target and battle_day=v_date::date)
         then raise exception '今天已挑戰過這位玩家'; end if;
-      v_enemy_name:=v_defender.monster_name;v_enemy_type:=v_defender.type;v_enemy_family:=v_defender.family;
-      v_enemy_stage:=v_defender.stage;v_enemy_max_hp:=v_defender.hp;v_enemy_atk:=v_defender.atk;
-      v_enemy_def:=v_defender.def;v_enemy_spd:=v_defender.spd;
+      v_enemy_name:=v_opponent.name;v_enemy_type:=v_opponent.type;v_enemy_family:=v_opponent.family;
+      v_enemy_stage:=v_opponent.life_stage;v_enemy_max_hp:=v_opponent_stats.hp;v_enemy_atk:=v_opponent_stats.atk;
+      v_enemy_def:=v_opponent_stats.def;v_enemy_spd:=v_opponent_stats.spd;
     else
       select * into v_enc from arena_internal.encounter(v_encounter);
       if not found then raise exception '無效的對戰類型'; end if;

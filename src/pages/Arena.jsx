@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import BattleReveal from '../components/BattleReveal';
 import TacticalDuel from './TacticalDuel';
-import {FIXED_ENCOUNTERS} from '../utils/tacticalDuel';
+import {FIXED_ENCOUNTERS,canRankedMatch,roleId,affinityAdvantage} from '../utils/tacticalDuel';
 import {appearance,hasDisguise,getSkin} from '../utils/skins';
 import { api, GAME_RULES_V2 } from '../utils/api';
 import {PlayButton,GameIcon} from '../components/PlayButton';
@@ -263,8 +263,8 @@ export default function Arena({
             {pvp?.opponents?.map(o=>(
               <div key={o.user_id} className="glass-card p-3 flex items-center gap-2 justify-between">
                 <MonsterPixelArt family={o.family} stage={o.stage} type={o.type} skin={o.skin_id} className="scale-75"/>
-                <div className="flex-1"><div className="text-sm font-bold">{o.username}｜{getSkin(o.skin_id)?.name||o.monster_name}</div><div className="text-xs text-slate-300">{o.points} 分・耐久 {Math.round(o.hp)}・攻 {Math.round(o.atk)}</div></div>
-                <button disabled={loading} onClick={()=>handleChallenge('pvp',o.user_id)} className="neon-button neon-button-danger px-3 py-2">挑戰</button>
+                <div className="flex-1"><div className="text-sm font-bold">{o.username}｜{getSkin(o.skin_id)?.name||o.monster_name}</div><div className="text-xs text-slate-300">{o.points} 分・耐久 {Math.round(o.hp)}・攻 {Math.round(o.atk)}{getFighter()&& (affinityAdvantage(roleId(getFighter()),roleId({life_stage:o.stage,family:o.family,type:o.type}))?'・克制優勢':affinityAdvantage(roleId({life_stage:o.stage,family:o.family,type:o.type}),roleId(getFighter()))?'・受到克制':'')}</div></div>
+                <button disabled={loading||!canRankedMatch(getFighter(),o)} onClick={()=>handleChallenge('pvp',o.user_id)} className="neon-button neon-button-danger px-3 py-2">{canRankedMatch(getFighter(),o)?'挑戰':'戰力不符'}</button>
               </div>
             ))}
             <div className="glass-card p-3"><h3 className="font-bold text-amber-300">賽季排行榜｜{pvp?.season||'載入中'}</h3>

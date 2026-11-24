@@ -83,6 +83,8 @@ export function roleId(m){
  if(Number(m.life_stage)<3||!Number(m.type))return 0;
  return (({1:0,2:0,4:2,5:2,6:4,7:4,3:6,8:6})[m.family]||0)+(Number(m.type)===1?1:2);
 }
+export function powerRating(s){return s.hp/5+s.atk+s.def*.5+s.spd*.3;}
+export function canRankedMatch(monster,opponent){if(!monster||!opponent||Math.abs(Number(monster.life_stage)-Number(opponent.stage))>1)return false;const a=powerRating(unitStats(monster)),b=powerRating(opponent);return Math.max(a,b)<=1.45*Math.min(a,b);}
 export function affinityAdvantage(a,b){return a>0&&b>0&&Math.floor((b-1)/2)===(Math.floor((a-1)/2)+1)%4;}
 export function unitStats(m){
  const stage=Math.max(2,Math.min(6,Math.floor(Number(m.life_stage)||2))),role=roleId(m),base=STAGE_ROLE_STATS[stage][role]||STAGE_ROLE_STATS[stage][0];
