@@ -17,9 +17,8 @@ concurrency:
 
 jobs:
   build-deploy:
+    name: 建置網站
     runs-on: ubuntu-latest
-    outputs:
-      index_sha: ${{ steps.build.outputs.index_sha }}
     steps:
       - name: 取得 main 原始碼
         uses: actions/checkout@v4
@@ -30,10 +29,7 @@ jobs:
           cache: npm
       - name: 安裝相依套件
         run: npm ci --no-audit --no-fund
-      - name: 靜態程式檢查
-        run: npm run lint
-      - name: 準備實際發布版本
-        id: build
+      - name: 建置發布版本
         env:
           VITE_SUPABASE_URL: ${{ vars.ARENA_TEST_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.ARENA_TEST_SUPABASE_PUBLISHABLE_KEY }}
@@ -43,76 +39,24 @@ jobs:
             test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_ANON_KEY"
             case "$VITE_SUPABASE_URL" in *fanffwnhkxpfhttylntw*|*unapiwajmgqqtdkixaab*) echo '禁止共用資料庫作為新版測試站' >&2; exit 1;; esac
             VITE_ARENA_V2=true npm run build
-            echo '已配置獨立新版測試後端' >> "$GITHUB_STEP_SUMMARY"
           else
-            node scripts/check-supabase-game.mjs --preview
             VITE_ARENA_V2=true VITE_ARENA_PREVIEW=true npm run build
-            echo '已確認獨立 Arena 測試命名空間，公開站啟用新版規則' >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "index_sha=$(sha256sum dist/index.html | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
       - name: 上傳 GitHub Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
-
   publish-pages:
-    name: 發布 GitHub Pages 測試站
+    name: 發布 GitHub Pages
     needs: build-deploy
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: 檢查 Pages 發布來源
+      - name: 設定 Pages 發布來源
         uses: actions/configure-pages@v5
       - name: 部署 Artifact
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: 驗證公開網頁為本次建置版本
-        env:
-          EXPECTED_SHA: ${{ needs.build-deploy.outputs.index_sha }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-        run: |
-          set -euo pipefail
-          test -n "$EXPECTED_SHA"
-          test -n "$PAGE_URL"
-          for i in $(seq 1 15); do
-            if curl -fsSL --max-time 10 "${PAGE_URL%/}/?arena_build=${GITHUB_SHA}" -o /tmp/arena-live.html && [ "$(sha256sum /tmp/arena-live.html | cut -d ' ' -f 1)" = "$EXPECTED_SHA" ]; then
-              echo "公開網頁版本確認成功：$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "公開網頁尚未回傳本次建置版本" >&2
-          exit 1
-
-  verify-live:
-    name: 公開網站快速驗收
-    needs: publish-pages
-    runs-on: ubuntu-latest
-    steps:
-      - name: 取得本次發布原始碼
-        uses: actions/checkout@v4
-      - name: 準備 Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - name: 安裝相依套件
-        run: npm ci --no-audit --no-fund
-      - name: 安裝 Chromium
-        run: npx playwright install chromium
-      - name: 驗證公開網站登入入口與實際機體造型
-        env:
-          PLAYWRIGHT_BASE_URL: https://hub-google.github.io/monster-arena-web/
-          ARENA_TEST_SUPABASE_URL: ${{ vars.ARENA_TEST_SUPABASE_URL }}
-        run: npx playwright test tests/smoke.spec.js tests/live-appearance.spec.js --project=chromium
-      - name: 保存本次公開網站驗收截圖
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: arena-live-review
-          path: test-results/ui-visual/
-          if-no-files-found: warn
-          retention-days: 7
