@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api } from '../utils/api';
 import { resourcesForAction, getHatchState, canCareForMonster, canHealMonster } from '../utils/gameRules';
-import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
+import { STAGE_NAMES, FACTIONS, getMecha } from '../utils/monsterSprites';
 import ShopModal from '../components/ShopModal';
 import QuestModal from '../components/QuestModal';
-import {PlayButton,ActionFeedback} from '../components/PlayButton';
+import {PlayButton,ActionFeedback,GameIcon} from '../components/PlayButton';
 
 
 export default function Dashboard({ 
@@ -36,6 +36,8 @@ export default function Dashboard({
     setShowHealMenu(false);
     setVehicle(false);
     setShowDetails(false);
+    setMessage('');
+    setActionEmote(null);
   }, [monster?.monster_id]);
 
   const handleAction = async (actionFn, ...args) => {
@@ -130,64 +132,73 @@ export default function Dashboard({
     if(id==='heal_basic'&&!window.confirm('免費急救草藥會扣減20%生命，確定使用？'))return;
     setShowFeedMenu(false);setShowHealMenu(false);handleAction(action,monster.monster_id,id);
   };
-  const meter=(icon,label,value,color,low)=> <div className="play-meter" aria-label={label+' '+Math.round(value)+'%'}>
-    <span className="text-2xl" aria-hidden="true">{icon}</span>
-    <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0,Math.min(100,Math.round(value||0)))} className="play-meter-track"><div className="play-meter-fill" style={{width:Math.max(0,Math.min(100,value||0))+'%',background:low?'#f59e0b':color}}/></div>
-    <span className="sr-only">{Math.round(value)}%</span>
+  const meter=(icon,label,value,color,low)=><div className="play-meter">
+    <div className="meter-heading"><GameIcon name={icon}/><span>{label}</span><strong>{Math.round(value||0)}%</strong></div>
+    <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0,Math.min(100,Math.round(value||0)))} className="play-meter-track"><div className="play-meter-fill" style={{width:Math.max(0,Math.min(100,value||0))+'%',background:low?'#e9b05d':color}}/></div>
   </div>;
-  return <div className="play-home flex flex-col gap-3 animate-fade-in pb-3">
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex gap-3 text-sm font-bold tabular-nums">
-       <span className="text-amber-300" aria-label={'金幣 '+user.gold}>🪙 {user.gold}</span>
-       <span className="text-emerald-300" aria-label={'體力 '+user.stamina}>⚡ {user.stamina}</span>
+  const stats=[['heart','生命',monster.combat_hp],['battle','攻擊',monster.combat_atk],['guild','防禦',monster.combat_def],['speed','速度',monster.combat_spd]];
+  const ready=monster.life_stage===5&&!monster.is_dead&&getItemQty('ultimate_core')>0&&monster.battles>=50&&monster.wins/monster.battles>=0.7;
+  const factionColor=FACTIONS[mecha.faction-1]?.color||'#64c4d6';
+  const closeItems=()=>{setShowFeedMenu(false);setShowHealMenu(false)};
+  return <div className="play-home cockpit-home" data-testid="cockpit-home">
+    <div className="cockpit-toolbar">
+      <div className="cockpit-resources">
+       <span aria-label={'金幣 '+user.gold}><GameIcon name="coin"/><strong>{user.gold}</strong></span>
+       <span aria-label={'體力 '+user.stamina}><GameIcon name="bolt"/><strong>{user.stamina}</strong></span>
       </div>
-      <div className="flex gap-2">
-       <PlayButton icon="shop" label="商城" tone="orange" onClick={()=>setShowShop(true)} className="play-small"/>
-       <PlayButton icon="quest" label="任務" tone="purple" onClick={()=>setShowQuests(true)} className="play-small"/>
-       <PlayButton icon="info" label="機體詳細資料" selected={showDetails} onClick={()=>setShowDetails(v=>!v)} className="play-small"/>
+      <div className="cockpit-tools">
+       <PlayButton icon="shop" label="商城" onClick={()=>setShowShop(true)} className="play-small"/>
+       <PlayButton icon="quest" label="任務" onClick={()=>setShowQuests(true)} className="play-small"/>
+       <PlayButton icon="info" label="機體詳細資料" caption="詳情" selected={showDetails} onClick={()=>setShowDetails(v=>!v)} className="play-small"/>
       </div>
     </div>
-    <section className="play-pet-screen">
-      <div className="flex items-center gap-2 justify-between">
+    <section className="play-pet-screen cockpit-hero" style={{'--faction':factionColor}}>
+      <div className="cockpit-identity">
         <button aria-label="上一隻機甲" title="上一隻機甲" className="play-arrow" disabled={monsters.length<2} onClick={()=>choosePet(-1)}>‹</button>
         <div className="min-w-0 text-center">
-          <h2 className="truncate font-bold text-white text-base">{displayName}</h2>
-          <div className="flex justify-center gap-1 mt-1" aria-label={STAGE_NAMES[monster.life_stage]}>{Array.from({length:6},(_,i)=><span key={i} className={'h-1.5 w-3 rounded-full '+(i<monster.life_stage?'bg-cyan-300':'bg-slate-700')}/>)}</div>
+          <div className="cockpit-name"><h2 title={displayName}>{displayName}</h2><button className="cockpit-edit" aria-label="改名" title="改名" disabled={loading} onClick={handleRename}><GameIcon name="edit"/></button></div>
+          <div className="cockpit-species"><span>{mecha.factionName}・{mecha.roleName}</span><span>G{monster.generation} {STAGE_NAMES[monster.life_stage]}</span></div>
         </div>
         <button aria-label="下一隻機甲" title="下一隻機甲" className="play-arrow" disabled={monsters.length<2} onClick={()=>choosePet(1)}>›</button>
       </div>
-      <div data-testid="mecha-screen" className="w-full max-w-[280px] mx-auto px-2">
+      <div data-testid="mecha-screen" className="cockpit-art">
         <MonsterPixelArt family={monster.family} stage={monster.life_stage} type={monster.type}
           isDead={monster.is_dead} isSick={monster.is_sick} isPoop={monster.cleanliness<40}
           isHappy={actionEmote==='happy'} isHungry={monster.fullness<30} displaySize={220} vehicle={vehicle&&canTransform}/>
       </div>
-      <span data-testid="mecha-current-form" className="sr-only">目前形態：{vehicle&&canTransform?mecha.vehicle:'機器人'}</span>
-      {monster.is_dead?<div role="status" aria-label="此怪獸已死亡，無法照顧或出戰" className="text-center text-3xl" title="此怪獸已死亡，無法照顧或出戰">💀</div>:
-      <div className="grid grid-cols-2 gap-3 px-1">{meter('🔋','能源',monster.fullness,'#34d399',monster.fullness<30)}{meter('🧼','機體維護',monster.cleanliness,'#38bdf8',monster.cleanliness<40)}</div>}
+      <div className="cockpit-meta"><span data-testid="mecha-current-form">目前形態：{vehicle&&canTransform?mecha.vehicle:'機器人'}</span><span>{Math.max(index,0)+1}/{monsters.length}</span></div>
     </section>
-    {showDetails&&<section className="glass-card p-3 text-sm space-y-2" data-testid="mecha-details">
-     <div className="flex items-center justify-between"><span>{mecha.factionName}・{mecha.roleName}</span><PlayButton icon="✏️" label="改名" onClick={handleRename} className="play-small"/></div>
-     <div className="text-xs text-slate-400">{speciesName}・G{monster.generation}・{Math.floor(monster.age_days*10)/10} 天</div>
-     {monster.is_rescue&&<div className="text-xs text-cyan-300">免費救援機體，放生不提供金幣。</div>}
-     <div className="grid grid-cols-4 gap-1 text-center">{[['❤️','生命',monster.combat_hp],['⚔️','攻擊',monster.combat_atk],['🛡️','防禦',monster.combat_def],['⚡','速度',monster.combat_spd]].map(([icon,label,value])=><div key={label} aria-label={label+' '+Math.round(value)}>{icon}<div className="font-bold">{Math.round(value)}</div></div>)}</div>
-     <div className="text-xs text-slate-400">🏆 {monster.wins||0}/{monster.battles||0}</div>
-     {monster.life_stage===5&&<PlayButton icon="⬆️" label="究極進化（需核心、50戰及70%勝率）" short="進化" tone="purple" onClick={()=>handleAction(api.evolve,monster.monster_id)} disabled={loading || monster.is_dead || getItemQty('ultimate_core') === 0 || monster.battles < 50 || monster.wins/monster.battles<0.7} className="w-full"/>}
-    </section>}
-    <div className="grid grid-cols-3 gap-2" data-testid="care-actions">
-      <PlayButton icon="feed" label="補充能源" short="餵" tone="green" onClick={()=>{setShowHealMenu(false);setShowFeedMenu(v=>!v)}} disabled={loading||!care} selected={showFeedMenu} className={monster.fullness<30&&care?'play-needed':''}/>
-      <PlayButton icon="clean" label="打掃" short="洗" tone="blue" onClick={()=>handleAction(api.clean,monster.monster_id)} disabled={loading||!care} className={monster.cleanliness<40&&care?'play-needed':''}/>
-      <PlayButton icon="heal" label="治療" short="醫" tone="red" onClick={()=>{setShowFeedMenu(false);setShowHealMenu(v=>!v)}} disabled={loading || !canHealMonster(monster)} selected={showHealMenu} className={monster.is_sick&&!monster.is_dead?'play-needed':''}/>
-      <PlayButton icon="train" label="訓練" short="練" tone="orange" onClick={()=>handleAction(api.train,monster.monster_id)} disabled={loading||!care}/>
-      <PlayButton icon="battle" label="開始戰鬥" short="打" tone="red" onClick={()=>setPage('arena')} disabled={loading||!canBattle}/>
-      <PlayButton icon={vehicle?'🤖':'🚙'} label={vehicle?'切換機器人':'變形：'+(mecha.vehicle||'載具')} short="變" tone="purple" onClick={()=>setVehicle(v=>!v)} disabled={!canTransform||loading} selected={vehicle}/>
+    <section className="cockpit-readouts">
+      {monster.is_dead?<div role="status" aria-label="此怪獸已死亡，無法照顧或出戰" className="cockpit-dead"><GameIcon name="alert"/>核心失效，請切換其他機體</div>:<div className="cockpit-meters">{meter('feed','能源',monster.fullness,'#79cda6',monster.fullness<30)}{meter('clean','機體維護',monster.cleanliness,'#68c5dc',monster.cleanliness<40)}</div>}
+      <div className="cockpit-stats" data-testid="combat-readouts">{stats.map(([icon,label,value])=><div key={label}><GameIcon name={icon}/><span>{label}</span><strong>{Math.round(value||0)}</strong></div>)}</div>
+      <div className="cockpit-record"><span><GameIcon name="clock"/>養成 {Math.floor((monster.age_days||0)*10)/10} 天</span><span><GameIcon name="trophy"/>勝場 {monster.wins||0}/{monster.battles||0}</span>{monster.is_rescue&&<span>救援機體</span>}</div>
+    </section>
+    <div className="cockpit-actions" data-testid="care-actions">
+      <PlayButton icon="feed" label="補充能源" tone="green" onClick={()=>{setShowHealMenu(false);setShowFeedMenu(v=>!v)}} disabled={loading||!care} selected={showFeedMenu} className={monster.fullness<30&&care?'play-needed':''}/>
+      <PlayButton icon="clean" label="打掃" caption="清潔保養" tone="blue" onClick={()=>handleAction(api.clean,monster.monster_id)} disabled={loading||!care} className={monster.cleanliness<40&&care?'play-needed':''}/>
+      <PlayButton icon="heal" label="治療" caption="修復治療" tone="red" onClick={()=>{setShowFeedMenu(false);setShowHealMenu(v=>!v)}} disabled={loading || !canHealMonster(monster)} className={monster.is_sick&&!monster.is_dead?'play-needed':''} selected={showHealMenu}/>
+      <PlayButton icon="train" label="訓練" caption="機體訓練" tone="orange" onClick={()=>handleAction(api.train,monster.monster_id)} disabled={loading||!care}/>
+      <PlayButton icon="battle" label="開始戰鬥" tone="blue" onClick={()=>setPage('arena')} disabled={loading||!canBattle} className="cockpit-primary"/>
+      <PlayButton icon="transform" label={vehicle?'切換機器人':'變形：'+(mecha.vehicle||'載具')} caption={vehicle?'切換機器人':'機體變形'} tone="purple" onClick={()=>setVehicle(v=>!v)} disabled={!canTransform||loading} selected={vehicle}/>
     </div>
-    {(showFeedMenu||showHealMenu)&&!monster.is_dead&&<section className="glass-card p-3 grid grid-cols-2 gap-2" data-testid="item-menu">
-     {(showFeedMenu?foodChoices:healingChoices).map(([id,icon,label,count,tone])=><PlayButton key={id} icon={icon} label={label} short={typeof count==='number'?'×'+count:count} tone={tone} onClick={()=>doItem(showFeedMenu?api.feed:api.heal,id)} disabled={loading||count===0||(showFeedMenu?!care:!canHealMonster(monster))}/>)}
-     <PlayButton icon="shop" label="購買道具" short="買" onClick={()=>setShowShop(true)} tone="orange"/>
-     <PlayButton icon="back" label="取消返回" short="返回" onClick={()=>{setShowFeedMenu(false);setShowHealMenu(false)}}/>
-    </section>}
-    {monster.life_stage===5&&!showDetails&&monster.battles>=50&&monster.wins/monster.battles>=0.7&&getItemQty('ultimate_core')>0&&!monster.is_dead&&<PlayButton icon="⬆️" label="查看進化" short="進化" tone="purple" onClick={()=>setShowDetails(true)}/>}
-    <ActionFeedback message={message}/>
+    <div className="cockpit-feedback-slot">{message?<ActionFeedback message={message}/>:<span>{loading?'處理中…':ready?'已達成終極進化條件':' '}</span>}{ready&&<button className="cockpit-link" onClick={()=>setShowDetails(true)}><GameIcon name="evolve"/>進化</button>}</div>
+    {showDetails&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label="機體詳細資料">
+     <section className="cockpit-dialog" data-testid="mecha-details">
+      <div className="dialog-heading"><h2>機體詳細資料</h2><button onClick={()=>setShowDetails(false)} aria-label="關閉詳細資料">×</button></div>
+      <div className="text-sm">{mecha.factionName}・{mecha.roleName}</div><div className="text-sm text-slate-400">{speciesName}・G{monster.generation}・{Math.floor((monster.age_days||0)*10)/10} 天</div>
+      {monster.is_rescue&&<div className="text-sm text-cyan-300">免費救援機體，放生不提供金幣。</div>}
+      <div className="cockpit-stats">{stats.map(([icon,label,value])=><div key={label}><GameIcon name={icon}/><span>{label}</span><strong>{Math.round(value||0)}</strong></div>)}</div>
+      <PlayButton icon="edit" label="改名" onClick={handleRename} className="play-compact w-full"/>
+      {monster.life_stage===5&&<><PlayButton icon="evolve" label="究極進化（需核心、50戰及70%勝率）" caption="終極進化" tone="purple" onClick={()=>{setShowDetails(false);handleAction(api.evolve,monster.monster_id)}} disabled={loading || monster.is_dead || getItemQty('ultimate_core') === 0 || monster.battles < 50 || monster.wins/monster.battles<0.7} className="w-full"/><p className="text-xs text-slate-400">進化條件：核心、50 場戰鬥、70% 勝率</p></>}
+     </section>
+    </div>}
+    {(showFeedMenu||showHealMenu)&&!monster.is_dead&&<div className="cockpit-overlay" role="dialog" aria-modal="true" aria-label={showFeedMenu?'選擇補給':'選擇修復道具'}>
+     <section className="cockpit-dialog" data-testid="item-menu">
+      <div className="dialog-heading"><h2>{showFeedMenu?'選擇補給':'選擇修復道具'}</h2><button onClick={closeItems} aria-label="取消返回">×</button></div>
+      <div className="grid grid-cols-2 gap-2">{(showFeedMenu?foodChoices:healingChoices).map(([id,icon,label,count,tone])=><PlayButton key={id} icon={icon} label={label} caption={id==='heal_basic'?'急救草藥':label} subtext={id==='heal_basic'?'免費 · 生命 -20%':typeof count==='number'?'庫存 '+count:count} tone={tone} onClick={()=>doItem(showFeedMenu?api.feed:api.heal,id)} disabled={loading||count===0||(showFeedMenu?!care:!canHealMonster(monster))}/>)}</div>
+      <PlayButton icon="shop" label="購買道具" onClick={()=>{closeItems();setShowShop(true)}} tone="blue" className="w-full play-compact"/>
+     </section>
+    </div>}
     {showShop&&<ShopModal user={user} onClose={()=>setShowShop(false)} refreshData={refreshData}/>}
     {showQuests&&<QuestModal user={user} onClose={()=>setShowQuests(false)} refreshData={refreshData}/>}
   </div>;

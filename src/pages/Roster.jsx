@@ -21,6 +21,7 @@ export default function Roster({
   
   // Tab within roster: 'list', 'chips', 'breed', 'shop'
   const [subTab, setSubTab] = useState('list');
+  const [petPage,setPetPage]=useState(0);
 
   // Breeding selections
   const [parent1, setParent1] = useState('');
@@ -33,6 +34,8 @@ export default function Roster({
 
   const selectedMonster = monsters.find(m => m.monster_id === selectedMonsterId) || monsters[0];
   const hatchState = getHatchState(user, monsters);
+  const petPages=Math.max(1,Math.ceil(monsters.length/6));
+  const currentPetPage=Math.min(petPage,petPages-1);
 
   const handleAction = async (actionFn, ...args) => {
     setLoading(true);
@@ -109,16 +112,17 @@ export default function Roster({
       <div className="flex-1 overflow-y-auto">
         
         {subTab==='list'&&<div className="flex flex-col gap-3">
-          {monsters.length<50&&<PlayButton icon="hatch" label={hatchState.label} short={hatchState.isRescue?'免費':'100 🪙'} tone="green" onClick={handleHatch} disabled={loading||!hatchState.available} className="w-full play-compact"/>}
+          {monsters.length<50&&<PlayButton icon="hatch" label={hatchState.label} caption={hatchState.isRescue?'免費領取救援核心':'啟動新機械核心'} subtext={hatchState.isRescue?'':'100 金幣'} tone="green" onClick={handleHatch} disabled={loading||!hatchState.available} className="w-full play-compact"/>}
           <div className="grid grid-cols-3 gap-2" data-testid="pet-picker">
-           {monsters.map(m=><button key={m.monster_id} type="button" aria-label={'選擇 '+m.name} aria-pressed={selectedMonster?.monster_id===m.monster_id} onClick={()=>handleSetSelection(m.monster_id)} className={'play-encounter min-w-0 p-1 '+(selectedMonster?.monster_id===m.monster_id?'border-cyan-400':'border-slate-700')}>
+           {monsters.slice(currentPetPage*6,currentPetPage*6+6).map(m=><button key={m.monster_id} type="button" aria-label={'選擇 '+m.name} aria-pressed={selectedMonster?.monster_id===m.monster_id} onClick={()=>handleSetSelection(m.monster_id)} className={'play-encounter min-w-0 p-1 '+(selectedMonster?.monster_id===m.monster_id?'border-cyan-400':'border-slate-700')}>
              <MonsterPixelArt family={m.family} stage={m.life_stage} type={m.type} isDead={m.is_dead} displaySize={88}/>
              <span className="truncate w-full text-xs">{m.name}</span>{m.is_locked&&<span aria-label="已鎖定">🔒</span>}
            </button>)}
           </div>
+          {petPages>1&&<div className="page-controls"><button className="play-arrow" aria-label="上一頁機體" disabled={!currentPetPage} onClick={()=>setPetPage(currentPetPage-1)}>‹</button><span>{currentPetPage+1} / {petPages}</span><button className="play-arrow" aria-label="下一頁機體" disabled={currentPetPage>=petPages-1} onClick={()=>setPetPage(currentPetPage+1)}>›</button></div>}
           {selectedMonster&&<>
-           <PlayButton icon="home" label="回家照顧選定機體" short="回家" tone="blue" onClick={()=>{handleSetSelection(selectedMonster.monster_id);setPage('dashboard')}} className="w-full play-compact"/>
-           <details className="glass-card p-3"><summary className="cursor-pointer text-sm">ℹ️ {selectedMonster.name}</summary>
+           <PlayButton icon="home" label="回家照顧選定機體" caption="回家照顧" tone="blue" onClick={()=>{handleSetSelection(selectedMonster.monster_id);setPage('dashboard')}} className="w-full play-compact"/>
+           <details className="glass-card p-3"><summary className="cursor-pointer text-sm">機體管理 · {selectedMonster.name}</summary>
             <div className="text-xs text-slate-400 my-2">{getMecha(selectedMonster.family,selectedMonster.life_stage,selectedMonster.type).name}・G{selectedMonster.generation}</div>
             {selectedMonster.is_rescue&&<div className="text-xs text-cyan-300">免費救援機體（放生無金幣獎勵）</div>}
             <div className="grid grid-cols-4 gap-2 my-3">{[['❤️',selectedMonster.combat_hp],['⚔️',selectedMonster.combat_atk],['🛡️',selectedMonster.combat_def],['⚡',selectedMonster.combat_spd]].map(([icon,val])=><div key={icon} className="text-center">{icon}<div>{Math.round(val)}</div></div>)}</div>

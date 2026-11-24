@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MonsterPixelArt from '../components/MonsterPixelArt';
 import { api, GAME_RULES_V2 } from '../utils/api';
-import {PlayButton} from '../components/PlayButton';
+import {PlayButton,GameIcon} from '../components/PlayButton';
 
 import { STAGE_NAMES, getMecha } from '../utils/monsterSprites';
 
@@ -150,7 +150,7 @@ export default function Arena({
         <div className="absolute inset-0 bg-red-900/10 pointer-events-none animate-pulse rounded-2xl"></div>
         
         <div className="glass-card p-4 text-center border-red-500/30">
-          <div role="status" aria-label={isBattleOver?(battleState.serverWon?'勝利':'失敗'):'戰鬥中'} className="text-5xl">{isBattleOver?(battleState.serverWon?'🏆':'💔'):'⚔️'}</div>{isBattleOver&&battleState.reward>0&&<div className="text-amber-300">🪙 +{battleState.reward}</div>}
+          <div role="status" aria-label={isBattleOver?(battleState.serverWon?'勝利':'失敗'):'戰鬥中'} className="flex flex-col items-center gap-2 text-xl font-bold"><GameIcon name={isBattleOver?(battleState.serverWon?'trophy':'heart'):'battle'} className="battle-result-icon"/>{isBattleOver?(battleState.serverWon?'戰鬥勝利':'戰鬥失敗'):'戰鬥進行中'}</div>{isBattleOver&&battleState.reward>0&&<div className="text-amber-300">🪙 +{battleState.reward}</div>}
         </div>
 
         <div className="glass-card p-3 flex flex-col gap-3">
@@ -215,7 +215,7 @@ export default function Arena({
             </div>
           </div>
           
-          <button type="button" className="self-end text-xs text-slate-400 p-2" aria-label="戰鬥紀錄" aria-expanded={showLogs} onClick={()=>setShowLogs(v=>!v)}>📜 {showLogs?'▴':'▾'}</button>
+          <button type="button" className="self-end text-xs text-slate-400 p-2" aria-label="戰鬥紀錄" aria-expanded={showLogs} onClick={()=>setShowLogs(v=>!v)}>戰鬥紀錄 {showLogs?'▴':'▾'}</button>
           {showLogs&&<div className="bg-slate-950/80 border border-slate-700 rounded-xl p-3 h-40 overflow-y-auto text-xs leading-relaxed flex flex-col gap-2 select-text shadow-inner">
             {battleState.logs.map((log, idx) => (
               <div key={idx} className="border-b border-slate-800 pb-1 text-slate-300">
@@ -235,7 +235,7 @@ export default function Arena({
               mA_HP:prev.finalOwnHp,mB_HP:prev.finalEnemyHp,
               eventIndex:prev.events?.length||0,
               logs:[...prev.logs,`🏆 戰鬥結束！${prev.serverWon ? prev.mA.name : prev.mB.name} 獲勝！`]
-            }))} className="w-full neon-button neon-button-primary py-4 text-3xl">⏩</button>
+            }))} className="w-full neon-button neon-button-primary py-3 text-sm">⏩ 跳過戰鬥動畫</button>
           )}
         </div>
       </div>
@@ -272,7 +272,7 @@ export default function Arena({
 
         {subTab==='players'&&GAME_RULES_V2&&(
           <div className="flex flex-col gap-3">
-            <details className="text-xs text-slate-300"><summary>ℹ️</summary>固定敵人強度，各關每日首勝有金幣獎勵。</details>
+            <details className="text-xs text-slate-300"><summary>挑戰說明</summary>固定敵人強度，各關每日首勝有金幣獎勵。</details>
             {[
               ['wild','野生訓練怪獸',45,5,2,4,10],
               ['stage2','岩甲守衛',120,15,12,8,30],
@@ -295,7 +295,7 @@ export default function Arena({
              <button key={encounter} type="button" aria-label={'挑戰'+label} disabled={loading||!getFighter()} onClick={()=>handleChallenge(encounter)} className={'play-encounter '+(encounter==='boss'?'border-purple-500/60':'border-emerald-500/60')}>
                <span className="text-xl" aria-hidden="true">{stars}</span>
                <MonsterPixelArt family={family} stage={stage} type={type} displaySize={136}/>
-               <span aria-hidden="true" className="text-3xl">⚔️</span><span className="text-xs">{short}</span>
+               <span className="text-sm font-semibold">{label}</span><span className="text-xs text-slate-400">{short==='首領'?'高難度':'普通難度'}</span><span className="encounter-cta"><GameIcon name="battle"/>開始挑戰</span>
              </button>)}
           </div>
         )}
