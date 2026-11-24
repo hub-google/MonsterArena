@@ -60,23 +60,3 @@ jobs:
       - name: 部署 Artifact
         id: deployment
         uses: actions/deploy-pages@v4
-
-  cleanup-retired:
-    name: 一次性清除舊流程執行紀錄
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - name: 清除已停用的 Pages 與測試流程紀錄
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          for workflow in 311786142 429233706; do
-            gh api --paginate "repos/$GH_REPO/actions/workflows/$workflow/runs?per_page=100" --jq '.workflow_runs[] | select(.status == "completed") | .id' > "/tmp/arena-$workflow-runs"
-            while IFS= read -r id; do
-              gh api --method DELETE "repos/$GH_REPO/actions/runs/$id"
-              echo "已清除 $id"
-            done < "/tmp/arena-$workflow-runs"
-          done
