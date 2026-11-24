@@ -125,7 +125,7 @@ export const api = {
   feed: (monster_id, item_id, buyMissing=false) => action('feed', { monster_id, item_id, ...(GAME_RULES_V2&&buyMissing?{buy_missing:true}:{}) }),
   clean: monster_id => action('clean', { monster_id }),
   heal: (monster_id, item_id = 'medicine_standard', buyMissing=false) => action('heal', { monster_id, item_id, ...(GAME_RULES_V2&&buyMissing?{buy_missing:true}:{}) }),
-  train: (monster_id,stat='pool',boost=false) => action('train', { monster_id, ...(GAME_RULES_V2?{stat,boost}:{}) }),
+  train: (monster_id,stat='pool',boost=false,buyMissing=false) => action('train', { monster_id, ...(GAME_RULES_V2?{stat,boost,...(buyMissing?{buy_missing:true}:{})}:{}) }),
   evolve: monster_id => action('evolve', { monster_id }),
   release: monster_id => action('release', { monster_id }),
   toggleLock: monster_id => action('lock', { monster_id }),

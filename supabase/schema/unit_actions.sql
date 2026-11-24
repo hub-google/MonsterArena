@@ -99,9 +99,18 @@ BEGIN
     v_count:=CASE v_stat WHEN 'hp' THEN v_m.training_hp WHEN 'atk' THEN v_m.training_atk WHEN 'def' THEN v_m.training_def WHEN 'spd' THEN v_m.training_spd ELSE 0 END;
     v_points:=least(1,60-v_allocated,30-v_count);
     IF v_allocated>=60 AND v_stat='practice' THEN v_points:=0; ELSIF v_points<=0 OR v_stat='practice' THEN RAISE EXCEPTION '訓練配點已達上限'; END IF;
+    IF coalesce((p_data->>'buy_missing')::boolean,false) AND (v_stat<>'pool' OR NOT coalesce((p_data->>'boost')::boolean,false) OR v_allocated>=59) THEN
+      RAISE EXCEPTION '無法購買並使用效能增幅器';
+    END IF;
     IF v_stat<>'practice' AND coalesce((p_data->>'boost')::boolean,false) AND v_allocated<59 AND v_count<29 THEN
       SELECT * INTO v_inv FROM public.user_inventory WHERE user_id=v_uid AND item_id='vitamin' AND quantity>0 FOR UPDATE;
-      IF NOT FOUND THEN RAISE EXCEPTION '效能增幅器不足'; END IF;
+      IF NOT FOUND THEN
+        IF coalesce((p_data->>'buy_missing')::boolean,false) THEN
+          PERFORM arena_internal.purchase_item(v_uid,v_u,jsonb_build_object('item_id','vitamin','quantity',1));
+          SELECT * INTO STRICT v_inv FROM public.user_inventory WHERE user_id=v_uid AND item_id='vitamin' AND quantity>0 FOR UPDATE;
+          v_purchased:=true;
+        ELSE RAISE EXCEPTION '效能增幅器不足'; END IF;
+      END IF;
       UPDATE public.user_inventory SET quantity=quantity-1 WHERE inventory_id=v_inv.inventory_id; v_points:=2;
     END IF;
     UPDATE public.users SET stamina=stamina-10 WHERE user_id=v_uid;
@@ -111,7 +120,7 @@ BEGIN
       training_def=training_def+CASE WHEN v_stat='def' THEN v_points ELSE 0 END,
       training_spd=training_spd+CASE WHEN v_stat='spd' THEN v_points ELSE 0 END,fullness=greatest(0,fullness-10),train_count=coalesce(train_count,0)+1 WHERE monster_id=v_mon_id;
     PERFORM arena_internal.refresh_unit(v_mon_id);
-    v_result:=jsonb_build_object('message',CASE WHEN v_points=0 THEN '維持訓練完成' WHEN v_stat='pool' THEN '訓練完成，可分配點數 +'||v_points ELSE '訓練完成，配點 +'||v_points END);
+    v_result:=jsonb_build_object('message',CASE WHEN v_points=0 THEN '維持訓練完成' WHEN v_stat='pool' THEN (CASE WHEN v_purchased THEN '購買並增幅訓練完成，可分配點數 +' WHEN v_points=2 THEN '增幅訓練完成，可分配點數 +' ELSE '訓練完成，可分配點數 +' END)||v_points ELSE '訓練完成，配點 +'||v_points END);
     v_key:='train_count';
   elsif p_action='evolve' then
     if v_m.life_stage<>5 or coalesce(v_m.battles,0)<50 or (coalesce(v_m.wins,0)::numeric/nullif(v_m.battles,0))<0.7 then
