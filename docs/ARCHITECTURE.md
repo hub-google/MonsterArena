@@ -1,5 +1,12 @@
 # 程式與資料庫架構
 
+## 工具設定
+
+- `config/`：集中管理 Oxlint、PostCSS、Tailwind 與 Playwright 設定。
+- `vite.config.js` 保留根目錄供 Vite 預設載入，並明確指定 `config/` 的 PostCSS 搜尋路徑。
+- Tailwind v4 使用現有 CSS-first 設定；移動舊版 JS 主題檔不額外啟用它，避免改變現行樣式。
+- `npm run lint` 與 `npm run test:e2e` 明確指定設定檔，測試與結果目錄保持原位。
+
 ## 前端責任分工
 
 - `src/App.jsx`：登入 session、各資料資源載入／刷新、交易恢復及頁面導覽。

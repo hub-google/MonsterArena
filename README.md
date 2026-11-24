@@ -25,11 +25,13 @@ npm run lint
 npm run check:contract
 npm run test:unit
 npm run build
+npm run test:e2e
 ```
 
 ## 專案目錄
 
 ```text
+config/               Lint、PostCSS、Tailwind、Playwright 設定
 src/                  前端程式
   pages/              各功能頁面
   components/         共用畫面元件（care、battle、social）
@@ -47,6 +49,8 @@ tests/                單元、瀏覽器與 SQL 測試
 docs/                 技術及遊戲設計文件
 .github/workflows/    GitHub Pages 部署
 ```
+
+根目錄僅保留 Git、Vite 入口、HTML、套件管理與開發說明等必要檔案。其餘工具設定集中在 `config/`。
 
 ## 文件索引
 
