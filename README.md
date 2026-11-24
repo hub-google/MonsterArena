@@ -3,7 +3,7 @@
 怪獸養成、競技場、好友、公會與世界王。正式資料沿用 **Supabase Game**（專案 `fanffwnhkxpfhttylntw`），不使用 Firebase 或 Cloudflare Worker 作為遊戲後端。
 
 - **測試版 `main`**：https://hub-google.github.io/monster-arena-web/
-- **正式站（本次不部署）**：https://pets.monsterport.com/
+- **正式站 `release`**：https://pets.monsterport.com/
 - **原始碼**：https://github.com/hub-google/monster-arena-web
 
 ## 唯一現行 SQL 程式碼
@@ -72,7 +72,7 @@ npm run dev
 
 `main` CI 另會檢查 Supabase Auth 健康、啟動瀏覽器並執行公開登入／註冊畫面 smoke test，全部通過後才更新 GitHub Pages。另以隔離 PostgreSQL 容器、兩組測試身分實測 V2 SQL 權限及交易。新版另外建置 V2 前端，瀏覽器使用隔離 PostgreSQL 實際 RPC 交易驗收訓練、商城、首領結算、屬性配對與世界王；登入傳輸仍為測試身分。真正 Supabase Auth 多帳號仍須線上驗收。發布前必須取得新版命名空間 health 回應，不能默默回退成舊版。若選擇其他獨立測試專案，再設定 repository variables `ARENA_TEST_SUPABASE_URL` 與 `ARENA_TEST_SUPABASE_PUBLISHABLE_KEY`。
 
-**部署隔離：**依 2026-11-24 指示，Repository 僅保留 `main`；GitHub Pages 改採 Artifact 部署，不再建立 `gh-pages`。不部署 Cloudflare 正式站、不變更 DNS/Worker 或原始共用 Supabase 資料；只維護 Arena 專屬 preview 命名空間。詳細安全說明見 `docs/SECURITY.md`。
+**部署隔離：**Repository 保留 `main`（GitHub Pages 測試站，Artifact 部署）與 `release`（Cloudflare Pages 正式站）。2026-11-24 恢復 `release` 至上次正式部署的 d98e6ec，不將測試版自動同步至正式版。只有使用者明確要求上正式時才推進 `release`；發布前須確認正式後端相容性及資料隔離。不建立 `gh-pages`，不擅自變更 DNS/Worker 或原始共用 Supabase 資料；main 只維護 Arena 專屬 preview 命名空間。詳細安全說明見 `docs/SECURITY.md`。
 
 ## 原始碼優先的修復規範
 
