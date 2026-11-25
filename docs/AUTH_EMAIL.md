@@ -20,3 +20,7 @@
 ## 正式套用檢查（2026-11-25）
 
 正式 Auth 與 GitHub 網站發布為兩項不同作業。`node scripts/configure-hosted-recovery.mjs` 可使用已授權的 `SUPABASE_ACCESS_TOKEN` 套用並讀回檢查品牌主旨、HTML 與兩站回跳網址；不輸出憑證，不修改未驗證寄件地址，亦不改寫其他 Auth 設定。一次性 [Actions 檢查](https://github.com/hub-google/MonsterArena/actions/runs/45532231321/job/138930119744) 明確回報 repo 未配置該 secret，未成功呼叫管理 API；一次性 job 已移除，不新增常駐工作流。正式寄件者需已驗證的自訂 SMTP，正式信件收送及重設仍須驗收，不能視為已完成。
+
+## Hosted Auth 品牌設定成功（2026-11-25 10:46 台灣時間）
+
+使用同一組織既有、已授權的 LINE repository Management API 設定作業；[執行成功及讀回驗證](https://github.com/hub-google/LINE/actions/runs/45535267639/job/138940203312)。Arena 測試站及正式站 URL 條件對應品牌主旨及 HTML，其他來源保留原模板，僅新增 GitHub Pages 回跳白名單；未改 Site URL 或 SMTP。Game 尚無自訂 SMTP，寄件者未品牌化，線上實際送達與重設流程尚未驗收。一次性工作移除，不複製任何憑證至 Arena。此次只更新 main 的紀錄，不部署 release。
