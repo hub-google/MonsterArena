@@ -17,3 +17,12 @@
 ## 版本與範圍
 
 main 為 GitHub Pages 測試站；release 為 `arena.monsterport.com`。此輪只更動 main 文件；未發佈 release。既有網站部署 workflow 維持原本單一部署流程。Auth 的品牌模板屬於共用 Game 專案設定，不隨 main/release 分支切換。
+
+## Cloudflare 寄件網域建置（2026-11-25）
+
+- 已使用已連線的 Cloudflare 帳號，建立免費的專用寄件網域 `auth.monsterport.com`，並透過 Email Sending DNS Fix 建立 6 筆必要記錄。再以 DNS Status API 驗證結果 `ready`、`errors=[]`；未變更 `arena.monsterport.com` 網站 CNAME。
+- 對應寄件地址可規劃為 `no-reply@auth.monsterport.com`。這是經驗證的域名基礎建設，**尚非已啟用的 Supabase SMTP 或 Auth Send Email Hook**。
+- Cloudflare 帳號 API 目前明確回傳 `recipient_mode=verified_only`、quota 為 null；目前 Workers Free 僅能寄給該帳號已驗證的目的地址，**無法對所有玩家發送忘記密碼信**。
+- 官方資料：<https://developers.cloudflare.com/email-service/>、<https://developers.cloudflare.com/changelog/post/2026-11-24-email-sending-workers-free/>。要發送給任意收件者須先升級 Cloudflare Workers Paid（目前最低 **US$5/月**，按用量另計），這是新增付費訂閱，未經使用者核准不得代為啟用。也可以改用既有可用的其他第三方 SMTP，前提是有已授權的寄件供應商及憑證。
+- 即使升級，也**不得**直接將共用 Game Supabase Auth 的全域 SMTP 寄件者改成 Arena，否則其他共用 Auth 應用的寄件顯示名稱也會被覆蓋；必須先驗證多品牌分流（例如 Supabase Send Email Hook 搭配可對所有使用者送達的寄件服務），再切換共用寄件路由。任何切換都不得中斷排隊怪獸及其他既有註冊／重設信功能。
+- 完成標準：對非管理員、非已驗證目的信箱，使用 GitHub Pages 忘記密碼真實送信，驗證 From、主旨、HTML、回跳及舊密碼失效／新密碼可登入（最後一項只能使用隔離測試帳號，不得改真實使用者密碼）。目前尚未達標。
