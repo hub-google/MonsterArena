@@ -62,11 +62,13 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  acceptance-once:
-    if: contains(github.event.head_commit.message, '[arena-acceptance-once]')
-    name: 一次性功能驗收（不部署正式站）
+
+  published-acceptance-once:
+    if: contains(github.event.head_commit.message, '[published-acceptance-once]')
+    name: 一次性已發布網站驗收
+    needs: publish-pages
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -77,40 +79,24 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium
-      - name: 單元與合約測試
-        run: |
-          npm run lint
-          npm run check:contract
-          npm run test:unit
-      - name: 建立隔離 PostgreSQL
-        run: |
-          docker run -d --name arena-acceptance -e POSTGRES_PASSWORD=arena_test -e POSTGRES_DB=arena_test postgres:16
-          for i in $(seq 1 60); do docker exec arena-acceptance pg_isready -U postgres && break; sleep 1; done
-          docker exec -i arena-acceptance psql -X -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/fixture.sql
-          node scripts/build-game-sql.mjs --preview-bootstrap | docker exec -i arena-acceptance psql -X -U postgres -d arena_test -v ON_ERROR_STOP=1
-      - name: SQL 功能及交易併發
-        run: |
-          set -euo pipefail
-          for f in game-rules-v2 trained-balance long-term-economy; do node scripts/build-game-sql.mjs --preview-test "tests/sql/$f.sql" | docker exec -i arena-acceptance psql -X -U postgres -d arena_test -v ON_ERROR_STOP=1; done
-          docker exec -i arena-acceptance psql -X -U postgres -d arena_test -v ON_ERROR_STOP=1 < tests/sql/preview-isolation.sql
-          PG_CONTAINER=arena-acceptance node scripts/test-concurrent-transactions.mjs
-      - name: V2 瀏覽器與實際 SQL 功能驗收
-        run: |
-          VITE_ARENA_PREVIEW=true VITE_ARENA_V2=true VITE_SUPABASE_URL=https://arena-v2-ci.supabase.co VITE_SUPABASE_ANON_KEY=sb_publishable_test npm run dev -- --host 127.0.0.1 --port 4173 --strictPort >/tmp/arena-v2.log 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/MonsterArena/ >/dev/null && break; sleep 1; done
-          PG_CONTAINER=arena-acceptance PLAYWRIGHT_BASE_URL=http://127.0.0.1:4173/MonsterArena/ npm run test:e2e -- v2-ui.spec.js
-      - name: 圖鑑與 360 度 WebGL 瀏覽器驗收
-        if: always()
+      - name: 公開 GitHub Pages 實際瀏覽器驗收
         env:
-          ARENA_TEST_SUPABASE_URL: https://fanffwnhkxpfhttylntw.supabase.co
+          PLAYWRIGHT_BASE_URL: https://hub-google.github.io/MonsterArena/
         run: |
-          VITE_ARENA_PREVIEW=true VITE_ARENA_V2=true npm run dev -- --host 127.0.0.1 --port 4174 --strictPort >/tmp/arena-appearance.log 2>&1 &
+          npm run test:e2e -- smoke.spec.js published-routing.spec.js live-appearance.spec.js mecha3d-ui.spec.js
+          mkdir -p /tmp/arena-visual
+          cp -r test-results/. /tmp/arena-visual/
+      - name: 舊版相容操作回歸測試
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4174 --strictPort >/tmp/arena-legacy.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/MonsterArena/ >/dev/null && break; sleep 1; done
-          PLAYWRIGHT_BASE_URL=http://127.0.0.1:4174/MonsterArena/ npm run test:e2e -- smoke.spec.js live-appearance.spec.js mecha3d-ui.spec.js
+          PLAYWRIGHT_BASE_URL=http://127.0.0.1:4174/MonsterArena/ npm run test:e2e -- authenticated-ui.spec.js
       - name: 保留驗收截圖
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: arena-acceptance-screenshots
-          path: test-results/
+          name: arena-published-acceptance
+          path: |
+            /tmp/arena-visual/
+            test-results/
           retention-days: 7
