@@ -28,7 +28,7 @@ export default function Mecha3D({family,stage,type,vehicle=false,displaySize=104
    }catch(error){setReady(false);}
   }
   el.addEventListener('webglcontextlost',lost);el.addEventListener('webglcontextrestored',restored);setup();
-  return()=>{active=false;cancelAnimationFrame(raf);el.removeEventListener('webglcontextlost',lost);el.removeEventListener('webglcontextrestored',restored);if(renderer)renderer.dispose()};
+  return()=>{active=false;cancelAnimationFrame(raf);el.removeEventListener('webglcontextlost',lost);el.removeEventListener('webglcontextrestored',restored);if(renderer)renderer.dispose();queueMicrotask(()=>{if(!el.isConnected)el.getContext('webgl')?.getExtension('WEBGL_lose_context')?.loseContext();})};
  },[model.key,vehicle]);
  return <div className="mecha3d" style={{maxWidth:displaySize}} data-testid={'3d-'+model.key} data-rendered={ready?'true':'false'}>
    <canvas ref={canvas} width={128} height={128} role="img" aria-label={model.name+(vehicle?' 載具':' 機體')+'立體預覽'} style={{visibility:ready?'visible':'hidden'}}/>
