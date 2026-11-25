@@ -23,5 +23,8 @@ if(mode==='--preview-test'){
  process.stdout.write([previewBootstrapSql(fixture),namespaceSql(canonical),previewHealthSql].join('\n\n')+'\n');
 }else if(mode==='--preview'){
  process.stdout.write(namespaceSql(canonical)+'\n'+previewHealthSql+'\n');
+}else if(mode==='--live'){
+ const liveSql=sql=>namespaceSql(sql).replace(/\barena_preview_/g,'arena_live_');
+ process.stdout.write(liveSql(canonical)+'\n'+previewHealthSql.replace(/arena_preview/g,'arena_live')+'\n');
 }else if(!mode)process.stdout.write(canonical+'\n');
 else throw Error('Unknown SQL output mode');

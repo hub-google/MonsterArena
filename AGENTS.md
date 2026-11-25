@@ -22,7 +22,7 @@
 
 - 同一功能只保留一個主要入口；競技集中戰鬥、社交集中好友與世界聊天、養成集中照顧與改名、商城集中購物。圖鑑每張可變形卡片提供獨立預覽，不修改玩家資料。
 
-- main 的 V2 僅部署 `arena_preview_*` 隔離資料表／RPC、`arena_preview_internal` 私有 schema；不得替換原始 Game 表或 RPC，不變更共用 API 設定。使用 `npm run db:sql -- --preview` 從同一 canonical source 生成，bootstrap 僅第一次執行。正式站資料與測試快照不得自動互相覆寫。
+- main 的 V2 僅部署 `arena_preview_*` 隔離資料表／RPC、`arena_preview_internal` 私有 schema；不得替換原始 Game 表或 RPC，不變更共用 API 設定。使用 `npm run db:sql -- --preview` 從同一 canonical source 生成，bootstrap 僅第一次執行。release 的 V2 使用 `arena_live_*` 隔離資料表／RPC、`arena_live_internal` 私有 schema；使用 `npm run db:sql -- --live` 產生後續正式遷移，禁止再次執行首次 bootstrap。正式站資料與測試快照不得自動互相覆寫。
 
 - 不得僅因種族與職業相同就合併不同進化階段的機體造型。暴龍戰炫王僅對應鋼鐵族重砲型終極機；超限機保留原機器人及重型坦克。驗收使用不同 stage 的實際瀏覽器圖片，不以舊版光柵雜湊取代已上架圖片。
 

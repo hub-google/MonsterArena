@@ -74,7 +74,7 @@ export const accountApi = {
   getMe: async () => {
     const { data, error } = await gameRpc('game_ensure_profile');
     throwIfError(error);
-    if(GAME_RULES_V2){const caps=await action('capabilities');if(caps.combatBalance!==3)throw new Error('測試後端未部署目前戰鬥平衡版本');}
+    if(GAME_RULES_V2){const caps=await action('capabilities');if(caps.combatBalance!==3)throw new Error('遊戲後端尚未更新至目前戰鬥平衡版本');}
     const giftResult = await gameRpc('game_claim_gifts');
     if(giftResult.error)console.warn('Gift claim unavailable; re-reading current player balance',giftResult.error.message);
     if (giftResult.error || giftResult.data > 0) {

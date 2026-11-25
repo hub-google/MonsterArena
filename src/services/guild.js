@@ -1,4 +1,4 @@
-import {ARENA_PREVIEW,gameTable,gameRpc,getUid,throwIfError} from './backend.js';
+import {gameResource,gameTable,gameRpc,getUid,throwIfError} from './backend.js';
 import {action} from './transactions.js';
 
 export const guildApi = {
@@ -6,7 +6,7 @@ export const guildApi = {
     uid = uid ?? await getUid();
     const [guildResult, memberResult] = await Promise.all([
       gameTable('guilds').select('*').order('created_at', { ascending: false }).limit(100),
-      gameTable('guild_members').select(ARENA_PREVIEW?'*,guilds:arena_preview_guilds(*)':'*,guilds(*)').eq('user_id', uid).maybeSingle()
+      gameTable('guild_members').select(`*,guilds:${gameResource('guilds')}(*)`).eq('user_id', uid).maybeSingle()
     ]);
     throwIfError(guildResult.error);throwIfError(memberResult.error);
     const guilds = guildResult.data ?? [];
