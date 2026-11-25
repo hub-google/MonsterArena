@@ -33,3 +33,10 @@ Playwright 需先安裝相應瀏覽器；真實登入或線上驗收需按各測
 4. 記錄測試成功、失敗或未執行項目。部署成功不代表 authenticated E2E 或正式資料庫權限已驗收。
 
 詳見 [開發規範](../AGENTS.md) 與 [安全規範](SECURITY.md)。
+
+## 2026-11-25 main 驗收（release 不更新）
+
+- [隔離完整驗收](https://github.com/hub-google/MonsterArena/actions/runs/45533937320)：lint、合約檢查、52/52 單元測試、SQL 規則／訓練平衡／90 日經濟／資料隔離、併發交易、V2 瀏覽器連接真實隔離 PostgreSQL，以及 40 機體＋24 變形 WebGL 測試均成功。
+- [實際 GitHub Pages 回歸驗收](https://github.com/hub-google/MonsterArena/actions/runs/45534364267)：公開網址 4/4 瀏覽器測試（登入頁、圖鑑、全部 64 立體型態、公會關聯及 preview RPC／表隔離）及舊版相容 15/15 瀏覽器測試通過。驗收用假登入與攔截 API、隔離 SQL，不使用真實玩家帳號；截圖 artifact 供人工複核。360° 模型是獨立立體幾何，並非原客製 2D 原畫完全相同的立體重建。
+- 線上 preview 的 PVP 結算、訓練、庫存、造型、世界王查詢及防重複扣款以回滾交易驗證成功，未改正式資料；13 張表 RLS 啟用。
+- 一次性驗收工作均移除，維持單一網站部署流程；此次只發布 main。Hosted Auth 品牌信件仍受限於管理 API 憑證／已驗證 SMTP，詳見 AUTH_EMAIL.md；不宣稱真實 Hosted 收信已完成。
