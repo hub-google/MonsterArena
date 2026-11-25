@@ -18,11 +18,25 @@
 
 main 為 GitHub Pages 測試站；release 為 `arena.monsterport.com`。此輪只更動 main 文件；未發佈 release。既有網站部署 workflow 維持原本單一部署流程。Auth 的品牌模板屬於共用 Game 專案設定，不隨 main/release 分支切換。
 
-## Cloudflare 寄件網域建置（2026-11-25）
+## MonsterPort 統一寄件者／SMTP 狀態（2026-11-25）
 
-- 已使用已連線的 Cloudflare 帳號，建立免費的專用寄件網域 `auth.monsterport.com`，並透過 Email Sending DNS Fix 建立 6 筆必要記錄。再以 DNS Status API 驗證結果 `ready`、`errors=[]`；未變更 `arena.monsterport.com` 網站 CNAME。
-- 對應寄件地址可規劃為 `no-reply@auth.monsterport.com`。這是經驗證的域名基礎建設，**尚非已啟用的 Supabase SMTP 或 Auth Send Email Hook**。
-- Cloudflare 帳號 API 目前明確回傳 `recipient_mode=verified_only`、quota 為 null；目前 Workers Free 僅能寄給該帳號已驗證的目的地址，**無法對所有玩家發送忘記密碼信**。
-- 官方資料：<https://developers.cloudflare.com/email-service/>、<https://developers.cloudflare.com/changelog/post/2026-11-24-email-sending-workers-free/>。要發送給任意收件者須先升級 Cloudflare Workers Paid（目前最低 **US$5/月**，按用量另計），這是新增付費訂閱，未經使用者核准不得代為啟用。也可以改用既有可用的其他第三方 SMTP，前提是有已授權的寄件供應商及憑證。
-- 即使升級，也**不得**直接將共用 Game Supabase Auth 的全域 SMTP 寄件者改成 Arena，否則其他共用 Auth 應用的寄件顯示名稱也會被覆蓋；必須先驗證多品牌分流（例如 Supabase Send Email Hook 搭配可對所有使用者送達的寄件服務），再切換共用寄件路由。任何切換都不得中斷排隊怪獸及其他既有註冊／重設信功能。
-- 完成標準：對非管理員、非已驗證目的信箱，使用 GitHub Pages 忘記密碼真實送信，驗證 From、主旨、HTML、回跳及舊密碼失效／新密碼可登入（最後一項只能使用隔離測試帳號，不得改真實使用者密碼）。目前尚未達標。
+目標：`From: MonsterPort <no-reply@auth.monsterport.com>`（需經第三方寄件服務正式驗證）。排隊怪獸、Arena 的**信件主旨與 HTML 仍各自獨立**。兩站目前各自使用 Supabase 預設郵件服務，實收寄件者仍為 `Supabase Auth`。
+
+### 已查證
+
+- [兩個 Supabase 專案的即時稽核成功](https://github.com/hub-google/LINE/actions/runs/45537559247)：`unapiwajmgqqtdkixaab`（排隊怪獸）與 `fanffwnhkxpfhttylntw`（Monster Arena）均 **無自訂 SMTP host／user，無 Send Email Hook**，且 LINE repository 沒有已授權的 `RESEND_API_KEY`、`BREVO_API_KEY`、`SENDGRID_API_KEY`、`POSTMARK_SERVER_TOKEN`、`SMTP_HOST`／`SMTP_USER`／`SMTP_PASS` 或 MonsterPort 專用 SMTP Secret。
+- 因此不能只修改 Supabase 信件模板，讓收件匣 From 顯示 `MonsterPort`。Supabase 官方要求自訂 SMTP；必須先由供應商驗證 `monsterport.com` 下的寄件域名，提供 SMTP host、port、user、password。參考 <https://supabase.com/docs/guides/auth/auth-smtp>。
+- 先前為研究 Cloudflare 所新建的 `auth.monsterport.com` Email Sending 服務已**撤銷並清除其 DNS**；沒有切換到 Cloudflare、沒有新增付費方案，也沒有修改正式網站。
+- Supabase 管理授權可讀取兩個 Auth 設定及套用信件主旨／HTML，但針對 Game 專案單獨更動 `smtp_sender_name` 曾回傳 **401**（<https://github.com/hub-google/LINE/actions/runs/45535697300>），需要具備 Auth SMTP 設定修改權限的授權。
+- **不能宣稱寄件者品牌化已完成**，也不能在沒有 SMTP 寄件商帳號、已驗證網域和管理權限時改寫現有寄信機制，否則會中斷用戶忘記密碼及註冊。
+
+### 已完成的可重用設定程式
+
+<https://github.com/hub-google/LINE/blob/main/.github/scripts/configure-monsterport-smtp.mjs>
+
+- `--check`：以已授權的 GitHub Secret 唯讀檢查兩個 Supabase Auth 專案，不動線上設定。
+- `--apply`：**僅當**已有已驗證的 SMTP 帳號、`MONSTERPORT_SMTP_DOMAIN_VERIFIED=true`，及以下保存在 GitHub Secrets 的環境變數才會寫入：`MONSTERPORT_SMTP_HOST`、`MONSTERPORT_SMTP_PORT`、`MONSTERPORT_SMTP_USER`、`MONSTERPORT_SMTP_PASS`、`MONSTERPORT_SMTP_FROM`、`SUPABASE_ACCESS_TOKEN`。
+- 先讀取並預檢兩個專案，拒絕覆蓋其他 SMTP 供應商；只更新兩專案的 SMTP 與 `smtp_sender_name=MonsterPort`，逐一讀回驗證，並檢查 site_url、redirect allowlist、原有品牌主旨／HTML、認證安全設定沒有變動。**不會自動執行**。
+- 憑證不得存放 Git 倉庫。待憑證及權限都具備，依序執行配置，再用非正式使用者驗收真正寄送及 Gmail From 顯示，才算完成。
+
+目前忘記密碼正常寄送、主旨與信件品牌設計已驗收成功（詳見上節）。`main` 為 GitHub Pages 測試站；`release` 沒有發布。
