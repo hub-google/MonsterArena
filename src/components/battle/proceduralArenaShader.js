@@ -1,4 +1,4 @@
-// Procedural industrial ruins: analytic geometry, layered stone and metal materials,
+// Orbital electronic combat arena: machined alloys and a procedural astronomical sky,
 // ambient occlusion, soft shadows, atmospheric perspective and animated reactor light.
 // No textures, models or external rendering dependencies.
 export const vertexSource='attribute vec2 position; void main(){gl_Position=vec4(position,0.,1.);}';
@@ -24,40 +24,34 @@ float cyl(vec3 p,float r,float h){vec2 d=abs(vec2(length(p.xz),p.y))-vec2(r,h);r
 vec2 add(vec2 a,float d,float m){return d<a.x?vec2(d,m):a;}
 float line(float x,float w){return 1.-smoothstep(w,w*2.,abs(x));}
 vec2 scene(vec3 p){
- vec2 s=vec2(p.y+.18,1.);
- float rad=length(p.xz);
- s=add(s,cyl(p-vec3(0.,-.04,0.),4.7,.26),2.);
- s=add(s,max(abs(rad-4.67)-.06,abs(p.y-.17)-.065),4.);
- s=add(s,max(abs(rad-4.47)-.035,abs(p.y-.225)-.014),5.);
- // Tower ribs, inset panels, feet, caps and suspension pipes.
- float cell=floor((p.z+2.5)/5.);
- vec3 q=vec3(abs(p.x)-6.3,p.y,mod(p.z+2.5,5.)-2.5);
- float h=5.6+2.6*hash(vec2(cell,2.));
- s=add(s,boxSDF(q-vec3(0.,h*.5,0.),vec3(.77,h*.5,1.12))-.10,3.);
- s=add(s,boxSDF(q-vec3(-.88,h*.47,0.),vec3(.13,h*.37,.73))-.025,6.);
- s=add(s,boxSDF(q-vec3(-1.02,h*.47,0.),vec3(.035,h*.32,.045)),5.);
- s=add(s,boxSDF(q-vec3(0.,.42,0.),vec3(1.3,.42,1.55))-.09,3.);
- s=add(s,boxSDF(q-vec3(0.,h-.3,0.),vec3(1.10,.30,1.38))-.06,6.);
- float stripe=mod(p.y+.35,1.2)-.6;
- s=add(s,boxSDF(vec3(q.x,stripe,q.z),vec3(.97,.05,1.26)),6.);
- vec3 pipe=vec3(abs(p.x)-5.1,p.y-3.8,mod(p.z+2.5,5.)-2.5);
- s=add(s,length(pipe.xy)-.11,6.);
- s=add(s,length(vec2(pipe.x-.25,pipe.y+.33))-.07,6.);
- // Eroded basalt canyon walls with large scale real relief.
- float cliff=abs(p.x)-8.6-.8*sin(p.z*.52)-.28*sin(p.z*1.7+p.y*.9)-.19*sin(p.y*2.4-p.z*.72);
- s=add(s,max(-cliff,p.y-10.5),7.);
- // Broken buttresses interrupt the silhouette.
- float zcell=floor((p.z+3.)/6.);
- vec3 b=vec3(abs(p.x)-7.5,p.y,mod(p.z+3.,6.)-3.);
- float bh=2.5+2.*hash(vec2(zcell,5.));
- s=add(s,boxSDF(b-vec3(0.,bh*.5,0.),vec3(.85,bh*.5,.55))-.25,7.);
- // Rear containment gateway, stepped tiers and suspended reactor.
- vec3 g=p-vec3(0.,0.,-12.);
- s=add(s,boxSDF(vec3(abs(g.x)-3.6,g.y-3.8,g.z),vec3(.6,3.8,.6))-.12,3.);
- s=add(s,boxSDF(g-vec3(0.,7.2,0.),vec3(4.2,.45,.7))-.10,6.);
- s=add(s,max(abs(length(g.xy-vec2(0.,3.8))-2.55)-.27,abs(g.z)-.34),6.);
- s=add(s,max(abs(length(g.xy-vec2(0.,3.8))-2.32)-.065,abs(g.z+.38)-.04),5.);
- s=add(s,length(g-vec3(0.,3.8,0.))-1.22,8.);
+ float radius=length(p.xz);
+ vec2 s=vec2(100.,0.);
+ // Floating layered alloy deck with inset emitters and segmented armor.
+ s=add(s,cyl(p-vec3(0.,-.38,0.),6.7,.38),1.);
+ s=add(s,cyl(p-vec3(0.,.05,0.),5.5,.16),2.);
+ s=add(s,max(abs(radius-5.44)-.075,abs(p.y-.22)-.055),5.);
+ s=add(s,max(abs(radius-6.35)-.13,abs(p.y+.02)-.055),5.);
+ s=add(s,cyl(p-vec3(0.,-.82,0.),5.9,.19),6.);
+ float a=atan(p.z,p.x),sector=6.2831853/12.;
+ float local=mod(a+sector*.5,sector)-sector*.5;
+ vec3 q=vec3(radius*sin(local),p.y,radius*cos(local)-6.22);
+ s=add(s,boxSDF(q-vec3(0.,.12,0.),vec3(.65,.16,.38))-.07,6.);
+ s=add(s,boxSDF(q-vec3(0.,.30,-.1),vec3(.48,.035,.18)),5.);
+ // Low docking pylons on the flanks keep the stellar horizon open.
+ vec3 d=vec3(abs(p.x)-6.0,p.y,p.z+2.3);
+ s=add(s,boxSDF(d-vec3(0.,.65,0.),vec3(.52,.65,.8))-.12,3.);
+ s=add(s,boxSDF(d-vec3(0.,1.40,0.),vec3(.35,.14,.68))-.05,6.);
+ s=add(s,boxSDF(d-vec3(-.55,.85,0.),vec3(.055,.35,.47)),5.);
+ // Two precision orbital hoops behind the deck; open at the top to reveal space.
+ vec3 g=p-vec3(0.,1.2,-7.1);
+ float ring=length(g.xy);
+ float cut=max(g.y-3.1,-g.y-4.0);
+ s=add(s,max(max(abs(ring-6.6)-.22,abs(g.z)-.19),cut),6.);
+ s=add(s,max(max(abs(ring-6.32)-.055,abs(g.z+.16)-.045),cut),5.);
+ // Holographic electronic display pods on the sides.
+ vec3 pod=vec3(abs(p.x)-4.7,p.y-1.55,p.z+5.2);
+ s=add(s,boxSDF(pod,vec3(.92,.48,.10))-.07,6.);
+ s=add(s,boxSDF(pod-vec3(0.,0.,.14),vec3(.82,.39,.025)),9.);
  return s;
 }
 vec3 normalAt(vec3 p){vec2 e=vec2(.012,0.);return normalize(vec3(scene(p+e.xyy).x-scene(p-e.xyy).x,scene(p+e.yxy).x-scene(p-e.yxy).x,scene(p+e.yyx).x-scene(p-e.yyx).x));}
@@ -72,14 +66,14 @@ vec3 surface(vec3 p,vec3 n,float id,vec3 accent,out float rough,out vec3 emit){
   float seam=min(min(uv.x,1.-uv.x),min(uv.y,1.-uv.y));
   float edge=smoothstep(.018,.065,seam);
   float scratch=pow(noise(vec3(p.x*3.,p.z*68.,p.y)),12.);
-  c=mix(vec3(.035,.044,.052),vec3(.23,.28,.30)*(.65+.45*hash(cell)),edge)*(.72+.53*grain);
-  c+=scratch*.16;rough=.29+.35*grain;
+  c=mix(vec3(.035,.044,.052),vec3(.26,.36,.48)*(.65+.45*hash(cell)),edge)*(.72+.53*grain);
+  c+=scratch*.025;rough=.29+.35*grain;
   if(id>1.5){
    float r=length(p.xz),angle=atan(p.z,p.x);
-   float rings=line(r-3.93,.025)+line(r-1.65,.025)+line(r-4.12,.012);
+   float rings=line(r-4.72,.025)+line(r-1.65,.025)+line(r-5.03,.012);
    float segmented=step(.19,fract(angle*7.64));
-   float ticks=line(r-4.29,.045)*step(.82,fract(angle*15.28));
-   float spokes=line(sin(angle*8.),.032)*smoothstep(2.4,3.0,r)*step(r,4.3);
+   float ticks=line(r-5.18,.045)*step(.82,fract(angle*15.28));
+   float spokes=line(sin(angle*8.),.032)*smoothstep(2.4,3.0,r)*step(r,5.1);
    emit=accent*(rings*.85*segmented+ticks*.5+spokes*.2);
   }
  }else if(id<4.5||abs(id-6.)<.1){
@@ -87,37 +81,89 @@ vec3 surface(vec3 p,vec3 n,float id,vec3 accent,out float rough,out vec3 emit){
   vec2 g=abs(fract(panel)-.5);
   float seam=smoothstep(.45,.49,max(g.x,g.y));
   float bolts=1.-smoothstep(.04,.10,length(abs(g)-vec2(.38)));
-  float rust=smoothstep(.48,.76,macro)*(.55+.45*grain);
-  c=mix(vec3(.12,.17,.19),vec3(.34,.37,.36),grain);
-  c=mix(c,vec3(.28,.12,.048),rust*.63);c*=1.-seam*.58;c+=bolts*.15;
-  rough=.38+grain*.27;
+  float brushed=noise(vec3(p.x*36.,p.y*3.,p.z*36.));
+  float ceramic=step(.48,hash(floor(panel)));
+  c=mix(vec3(.075,.13,.21),vec3(.42,.53,.65),ceramic);
+  c*=.88+.15*brushed;c*=1.-seam*.62;c+=bolts*.11;
+  rough=.19+.22*grain;
  }else if(id<5.5){c=accent*.35;emit=accent*(1.4+.24*sin(time*2.+p.z));rough=.23;}
  else if(id<7.5){
-  float strata=sin(p.y*12.+fbm(p*1.7)*8.)*.5+.5;
-  c=mix(vec3(.047,.059,.064),vec3(.29,.32,.30),grain*.75+strata*.25);
-  float moss=smoothstep(.50,.77,macro)*max(.15,n.y);
-  c=mix(c,vec3(.13,.20,.11),moss*.7);rough=.91;
+  c=vec3(.12,.19,.28);rough=.35;
  }else{
-  float veins=pow(.5+.5*sin(19.*fbm(p*3.+vec3(0.,time*.07,0.))),8.);
-  c=accent*.16;emit=accent*(.55+veins*2.7);rough=.18;
+  vec2 uv=vec2(abs(p.x)-4.7,p.y-1.55);
+  vec2 g=abs(fract(uv*vec2(20.,18.))-.5);
+  float dots=1.-smoothstep(.28,.48,max(g.x,g.y));
+  float bar=step(.30,fract(uv.x*3.))*step(abs(uv.y),.14);
+  float scan=.8+.2*sin(uv.y*100.-time*3.);
+  c=vec3(.012,.028,.055);emit=accent*dots*scan*(.15+bar*1.0);rough=.19;
  }
+
  return c*(.94+.12*fine);
+}
+
+// Astronomical background: star clusters, dust filaments, a spherical gas giant
+// with procedural atmospheric bands, terminator and a tilted ring system.
+vec3 cosmos(vec3 rd,vec3 accent){
+ vec3 c=vec3(.009,.016,.045);
+ float cloud=fbm(rd*4.5+vec3(1.2,-1.5,3.4));
+ float fil=fbm(rd*13.+vec3(2.,1.,5.));
+ float band=exp(-pow((rd.y+.15*rd.x-.06)*3.6,2.));
+ float neb=pow(clamp(cloud*1.45-.24,0.,1.),2.)*band;
+ c+=mix(vec3(.045,.034,.15),vec3(.07,.20,.34),fil)*neb*2.8;
+ c+=vec3(.20,.08,.23)*pow(max(0.,fil-.36),2.)*band;
+ for(int i=0;i<3;i++){
+  float fi=float(i);
+  vec3 q=rd*(92.+fi*107.);
+  vec3 cell=floor(q),f=fract(q)-.5;
+  float star=step(.971+fi*.006,hash3(cell+fi*2.))*exp(-dot(f,f)*(32.+fi*12.));
+  c+=star*mix(vec3(.5,.7,1.),vec3(1.,.87,.68),hash3(cell+6.))*(1.2-fi*.22);
+ }
+ vec3 pc=normalize(vec3(.43,.16,-1.));
+ vec3 rel=rd-pc;float dist=length(rel);
+ float pr=.245;
+ vec3 axis=normalize(vec3(.18,.87,.46));
+ float denom=dot(rd,axis);
+ if(abs(denom)>.001){
+  float k=dot(pc,axis)/denom;
+  vec3 ringPoint=rd*k-pc;
+  float rr=length(ringPoint);
+  if(k>0.&&rr>pr*1.23&&rr<pr*2.24&&(dist>pr||k<dot(rd,pc))){
+   float rings=.44+.30*sin(rr*340.)+.18*sin(rr*770.);
+   float gaps=smoothstep(.005,.02,abs(rr-pr*1.72));
+   c=mix(c,vec3(.46,.60,.83)*rings,gaps*.48);
+  }
+ }
+ if(dist<pr){
+  vec3 v=rel/pr;
+  vec3 n=normalize(v-pc*sqrt(max(0.,1.-dot(v,v))));
+  float lat=dot(n,axis);
+  float clouds=fbm(n*9.+vec3(2.,0.,1.));
+  float bands=.5+.5*sin(lat*34.+clouds*3.8);
+  vec3 gas=mix(vec3(.12,.25,.49),vec3(.68,.80,.96),bands*.68+clouds*.22);
+  float lit=max(0.,dot(n,normalize(vec3(-.65,.65,.48))));
+  float rim=pow(clamp(dist/pr,0.,1.),9.);
+  c=gas*(.10+.95*lit)+vec3(.19,.49,.95)*rim*.47;
+ }else c+=vec3(.15,.35,.8)*exp(-(dist-pr)*75.)*.23;
+ // A sparse distant moon.
+ float moon=length(rd-normalize(vec3(-.58,.25,-1.)));
+ if(moon<.061)c=mix(vec3(.09,.13,.25),vec3(.52,.65,.81),sqrt(max(0.,1.-pow(moon/.061,2.))));
+ return c;
 }
 void main(){
  vec2 uv=(gl_FragCoord.xy*2.-resolution)/resolution.y;
  vec3 accent=mix(vec3(.10,.72,.95),vec3(1.,.31,.095),boss);
  vec3 fog=mix(vec3(.046,.11,.15),vec3(.14,.072,.053),boss);
- vec3 ro=vec3(0.,3.35,10.7),target=vec3(0.,2.1,-7.);
+ vec3 ro=vec3(0.,3.15,10.5),target=vec3(0.,1.5,-5.);
  vec3 f=normalize(target-ro),r=normalize(cross(f,vec3(0.,1.,0.))),u=cross(r,f);
  vec3 rd=normalize(f*1.55+r*uv.x+u*uv.y);
  float d=0.,id=0.;
  for(int i=0;i<88;i++){vec2 hit=scene(ro+rd*d);if(hit.x<max(.009,d*.0007)){id=hit.y;break;}d+=max(.015,hit.x*.66);if(d>55.)break;}
- vec3 col=fog*(.65+.65*max(rd.y,0.));
+ vec3 col=cosmos(rd,accent);
  vec3 light=normalize(vec3(-.46,.82,.32));
  if(id>0.){
   vec3 p=ro+rd*d,n=normalAt(p);
   // Fine material normal detail, without adding costly geometry to each ray step.
-  float bump=id>6.5&&id<7.5?.26:.10;
+  float bump=.035;
   vec3 bn=vec3(noise(p*22.+vec3(.25,0.,0.))-noise(p*22.-vec3(.25,0.,0.)),noise(p*22.+vec3(0.,.25,0.))-noise(p*22.-vec3(0.,.25,0.)),noise(p*22.+vec3(0.,0.,.25))-noise(p*22.-vec3(0.,0.,.25)));
   vec3 sn=normalize(n+bn*bump);
   float rough;vec3 emission;vec3 base=surface(p,n,id,accent,rough,emission);
@@ -126,16 +172,16 @@ void main(){
   vec3 h=normalize(light-rd);
   float spec=pow(max(dot(sn,h),0.),mix(90.,9.,rough))*(1.-rough*.75);
   vec3 ambient=mix(vec3(.15,.21,.25),vec3(.42,.51,.53),sn.y*.5+.5);
-  float reactor=1./(1.+.12*dot(p-vec3(0.,3.8,-12.),p-vec3(0.,3.8,-12.)));
+  float reactor=1./(1.+.12*dot(p-vec3(0.,.1,-3.),p-vec3(0.,3.8,-12.)));
   float edgeLight=exp(-abs(length(p.xz)-4.5)*2.2)*exp(-max(p.y,0.)*.85);
-  col=base*(ambient*oc+vec3(1.0,.88,.69)*diffuse*sh*.95)+spec*sh*vec3(.66,.81,.88);
-  col+=accent*(reactor*.42+edgeLight*.15)*oc+emission;
-  float haze=1.-exp(-d*.043);
-  col=mix(col,fog*1.2,haze);
+  col=base*(ambient*oc+vec3(.83,.93,1.)*diffuse*sh*1.2)+spec*sh*vec3(.66,.81,.88);
+  col+=accent*(reactor*.25+edgeLight*.22)*oc+emission;
+  float haze=1.-exp(-d*.012);
+  col=mix(col,vec3(.025,.055,.10),haze);
  }
  // Atmospheric shafts and depth-varying drifting dust, kept behind combat UI.
  float shaft=pow(max(0.,sin(uv.x*4.8+uv.y*2.1+.8)),12.);
- col+=vec3(.52,.68,.73)*shaft*.055*max(0.,uv.y+.55);
+ col+=vec3(.24,.44,.8)*shaft*.015*max(0.,uv.y+.55);
  for(int i=0;i<3;i++){
   float fi=float(i);vec2 q=uv*(18.+fi*15.)+vec2(fi*18.+time*(.12+fi*.03),-time*(.17+fi*.04));
   vec2 cell=floor(q);vec2 off=vec2(hash(cell),hash(cell+13.7))*.6+.2;

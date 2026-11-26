@@ -37,7 +37,7 @@ test('published procedural battle arena renders and responds to player actions',
  await page.addInitScript(()=>{
   const shaderSource=WebGLRenderingContext.prototype.shaderSource;
   WebGLRenderingContext.prototype.shaderSource=function(shader,source){
-   if(source.includes('float fbm(')&&source.includes('float ao('))this.canvas.dataset.qaDetailed='true';
+   if(source.includes('vec3 cosmos(')&&source.includes('Floating layered alloy deck'))this.canvas.dataset.qaDetailed='true';
    return shaderSource.call(this,shader,source);
   };
   const draw=WebGLRenderingContext.prototype.drawArrays;
