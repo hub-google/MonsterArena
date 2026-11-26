@@ -6,7 +6,7 @@ export default function ProceduralArena({boss=false}){
  const ref=useRef(null);
  useEffect(()=>{
   const canvas=ref.current;
-  const gl=canvas.getContext('webgl',{alpha:false,antialias:false,depth:false,powerPreference:'low-power'});
+  const gl=canvas.getContext('webgl',{alpha:false,antialias:false,depth:false,powerPreference:'high-performance'});
   if(!gl)return;
   let frame=0,program,buffer,observer,disposed=false;
   const shaders=[];
@@ -41,7 +41,7 @@ export default function ProceduralArena({boss=false}){
   }
   function tick(now){
    if(disposed)return;
-   if(!document.hidden&&!media.matches&&now-last>=33)render(now);
+   if(!document.hidden&&!media.matches&&now-last>=66)render(now);
    frame=requestAnimationFrame(tick);
   }
   function resize(){if(!disposed&&!document.hidden)render(performance.now());}
