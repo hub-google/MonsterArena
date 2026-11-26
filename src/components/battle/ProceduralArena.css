@@ -1,9 +1,9 @@
 .ma-procedural-stage{position:relative;isolation:isolate;background:#102633;min-width:0}
 .ma-procedural-stage> :not(.ma-arena-backdrop){position:relative;z-index:1}
 .ma-procedural-stage>.tactical-vs{position:absolute}
-.ma-arena-backdrop{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;border-radius:inherit;background:radial-gradient(ellipse at 50% 70%,#194653 0%,#122a39 48%,#08141f 100%)}
+.ma-arena-backdrop{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;border-radius:inherit;background:radial-gradient(circle at 78% 25%,#638bc966 0 11%,transparent 12%),radial-gradient(ellipse at 55% 30%,#29244d 0%,#101d3b 48%,#050a1c 100%)}
 .ma-arena-backdrop:before{content:"";position:absolute;inset:42% -30% -55%;background:repeating-linear-gradient(90deg,transparent 0 44px,#43c9ee22 45px 46px),repeating-linear-gradient(0deg,transparent 0 25px,#43c9ee22 26px 27px);transform:perspective(140px) rotateX(32deg);transform-origin:center top}
-.ma-arena-boss{background:radial-gradient(ellipse at 50% 70%,#542c32 0%,#301b2a 55%,#16131e 100%)}
+.ma-arena-boss{background:radial-gradient(circle at 78% 25%,#92658088 0 11%,transparent 12%),radial-gradient(ellipse at 50% 70%,#542c32 0%,#301b3a 55%,#0b0a20 100%)}
 .ma-arena-backdrop canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;display:block}
 .ma-arena-backdrop canvas[data-ready=true]{opacity:1}
 .ma-arena-backdrop:after{content:"";position:absolute;inset:0;background:linear-gradient(#06121d66,transparent 30%,transparent 66%,#06121d99);pointer-events:none}
