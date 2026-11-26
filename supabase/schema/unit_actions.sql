@@ -52,12 +52,12 @@ BEGIN
 
   if p_action = 'feed' then
     if v_item not in ('feed_basic','meat_basic','meat_premium','energy_drink') then raise exception '不支援的食物'; end if;
-    v_bonus := case v_item when 'feed_basic' then 10 when 'meat_basic' then 20 when 'meat_premium' then 60 else 30 end;
+    v_bonus := case v_item when 'feed_basic' then 10 when 'meat_basic' then 20 when 'meat_premium' then 60 else 100 end;
     update public.monsters set fullness=least(100,coalesce(fullness,0)+v_bonus),
       cleanliness=case when v_item='feed_basic' then greatest(0,cleanliness-30) else cleanliness end,
       starve_time_start=null where monster_id=v_mon_id;
     if v_item<>'feed_basic' then update public.user_inventory set quantity=quantity-1 where inventory_id=v_inv.inventory_id; end if;
-    if v_item='energy_drink' then update public.users set stamina=least(max_stamina,stamina+20) where user_id=v_uid; end if;
+    if v_item='energy_drink' then update public.users set stamina=max_stamina where user_id=v_uid; end if;
     v_key:='feed_count';
     v_result:=jsonb_build_object('message',CASE WHEN v_purchased THEN '購買並補充能源成功' ELSE '補充能源成功' END);
   elsif p_action = 'clean' then

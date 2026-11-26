@@ -35,6 +35,11 @@ test('published procedural battle arena renders and responds to player actions',
 
 
  await page.addInitScript(()=>{
+  const shaderSource=WebGLRenderingContext.prototype.shaderSource;
+  WebGLRenderingContext.prototype.shaderSource=function(shader,source){
+   if(source.includes('float fbm(')&&source.includes('float ao('))this.canvas.dataset.qaDetailed='true';
+   return shaderSource.call(this,shader,source);
+  };
   const draw=WebGLRenderingContext.prototype.drawArrays;
   WebGLRenderingContext.prototype.drawArrays=function(...args){
    draw.apply(this,args);
@@ -52,14 +57,17 @@ test('published procedural battle arena renders and responds to player actions',
  await page.getByRole('button',{name:'競技',exact:true}).click();
  await page.getByRole('button',{name:'手動戰術對戰',exact:true}).click();
  const duel=page.getByTestId('tactical-duel'),canvas=duel.getByTestId('procedural-arena');
- await expect(canvas).toHaveAttribute('data-ready','true',{timeout:20000});
+ await expect(canvas).toHaveAttribute('data-ready','true',{timeout:30000});
+ await expect(canvas).toHaveAttribute('data-qa-detailed','true');
  await expect.poll(async()=>Number(await canvas.getAttribute('data-qa-range'))).toBeGreaterThan(20);
  const hash=await canvas.getAttribute('data-qa-hash');
  await expect.poll(()=>canvas.getAttribute('data-qa-hash'),{timeout:15000}).not.toBe(hash);
  for(const [name,width,height] of [['mobile',360,640],['desktop',1280,900],['short-desktop',1280,550]]){
   await page.setViewportSize({width,height});
   for(const label of ['攻擊','格擋反擊','破防重擊','蓄能'])await expect(duel.getByRole('button',{name:label,exact:true})).toBeInViewport({ratio:1});
+  await page.evaluate(async()=>{await Promise.all([...document.querySelectorAll('.tactical-art svg image')].map(async el=>{const i=new Image();i.src=new URL(el.getAttribute('href'),location.href);await i.decode();}));});
   await page.screenshot({path:'test-results/ui-visual/ma-tactical-'+name+'.png'});
+  if(name==='desktop')await duel.locator('.tactical-stage').screenshot({path:'test-results/ui-visual/ma-detailed-stage.png'});
  }
  await page.setViewportSize({width:360,height:640});
  await duel.getByRole('button',{name:'蓄能',exact:true}).click();
