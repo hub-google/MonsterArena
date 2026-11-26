@@ -16,7 +16,7 @@ export default function BattleScreen({battleState,setBattleState,showLogs,setSho
 
         <div className="glass-card p-3 flex flex-col gap-3">
           <div className="flex justify-between items-center px-2 ma-procedural-stage rounded-xl overflow-hidden">
-            <ProceduralArena boss={battleState.mB?.life_stage===6}/>
+            <ProceduralArena key={battleState.battleId} boss={battleState.mB?.life_stage===6}/>
             
             {/* Player A */}
             <div className="flex flex-col items-center gap-2 w-1/3">

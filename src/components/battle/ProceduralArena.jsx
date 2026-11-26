@@ -1,9 +1,10 @@
-import React,{useEffect,useRef} from 'react';
-import {vertexSource,fragmentSource,arenaResolution} from './proceduralArenaShader.js';
+import React,{useEffect,useRef,useState} from 'react';
+import {vertexSource,fragmentSource,arenaResolution,ARENA_VARIANTS,nextArena} from './proceduralArenaShader.js';
 import './ProceduralArena.css';
 
 export default function ProceduralArena({boss=false}){
  const ref=useRef(null);
+ const [variant]=useState(nextArena);
  useEffect(()=>{
   const canvas=ref.current;
   const gl=canvas.getContext('webgl',{alpha:false,antialias:false,depth:false,powerPreference:'high-performance'});
@@ -30,6 +31,7 @@ export default function ProceduralArena({boss=false}){
   }catch(error){release();console.warn('Procedural arena unavailable:',error);return;}
   const resolution=gl.getUniformLocation(program,'resolution'),time=gl.getUniformLocation(program,'time'),theme=gl.getUniformLocation(program,'boss');
   gl.uniform1f(theme,boss?1:0);
+  gl.uniform1f(gl.getUniformLocation(program,'arenaVariant'),variant);
   let last=-Infinity;
   function render(now){
    if(disposed||gl.isContextLost())return;
@@ -54,6 +56,6 @@ export default function ProceduralArena({boss=false}){
   media.addEventListener('change',resize);
   resize();frame=requestAnimationFrame(tick);
   return()=>{disposed=true;cancelAnimationFrame(frame);observer.disconnect();media.removeEventListener('change',resize);canvas.removeEventListener('webglcontextlost',lost);canvas.removeEventListener('webglcontextrestored',restored);delete canvas.dataset.ready;release();};
- },[boss]);
- return <div className={'ma-arena-backdrop'+(boss?' ma-arena-boss':'')} aria-hidden="true"><canvas ref={ref} data-testid="procedural-arena"/></div>;
+ },[boss,variant]);
+ return <div className={'ma-arena-backdrop'+(boss?' ma-arena-boss':'')} data-arena-variant={ARENA_VARIANTS[variant]} aria-hidden="true"><canvas ref={ref} data-testid="procedural-arena"/></div>;
 }

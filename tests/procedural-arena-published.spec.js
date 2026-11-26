@@ -37,7 +37,7 @@ test('published procedural battle arena renders and responds to player actions',
  await page.addInitScript(()=>{
   const shaderSource=WebGLRenderingContext.prototype.shaderSource;
   WebGLRenderingContext.prototype.shaderSource=function(shader,source){
-   if(source.includes('vec3 cosmos(')&&source.includes('Floating layered alloy deck'))this.canvas.dataset.qaDetailed='true';
+   if(source.includes('uniform float arenaVariant;')&&source.includes('Endless data-space'))this.canvas.dataset.qaDetailed='true';
    return shaderSource.call(this,shader,source);
   };
   const draw=WebGLRenderingContext.prototype.drawArrays;
@@ -60,6 +60,8 @@ test('published procedural battle arena renders and responds to player actions',
  await expect(canvas).toHaveAttribute('data-ready','true',{timeout:30000});
  await expect(canvas).toHaveAttribute('data-qa-detailed','true');
  await expect.poll(async()=>Number(await canvas.getAttribute('data-qa-range'))).toBeGreaterThan(20);
+ const firstVariant=await duel.locator('.ma-arena-backdrop').getAttribute('data-arena-variant');
+ expect(['orbital','nebula','jumpgate','cybergrid']).toContain(firstVariant);
  const hash=await canvas.getAttribute('data-qa-hash');
  await expect.poll(()=>canvas.getAttribute('data-qa-hash'),{timeout:15000}).not.toBe(hash);
  for(const [name,width,height] of [['mobile',360,640],['desktop',1280,900],['short-desktop',1280,550]]){
@@ -72,6 +74,21 @@ test('published procedural battle arena renders and responds to player actions',
  await page.setViewportSize({width:360,height:640});
  await duel.getByRole('button',{name:'蓄能',exact:true}).click();
  await expect(duel.locator('.tactical-round')).toHaveText('2/16');
+ await expect(duel.locator('.ma-arena-backdrop')).toHaveAttribute('data-arena-variant',firstVariant);
+ const seen=new Set();
+ for(let i=0;i<4;i++){
+  if(i){await duel.getByRole('button',{name:'離開戰術對戰'}).click();await page.getByRole('button',{name:'手動戰術對戰',exact:true}).click();}
+  await expect(canvas).toHaveAttribute('data-ready','true',{timeout:30000});
+  await expect(canvas).toHaveAttribute('data-qa-detailed','true');
+  const name=await duel.locator('.ma-arena-backdrop').getAttribute('data-arena-variant');
+  expect(seen.has(name)).toBe(false);seen.add(name);
+  await page.setViewportSize({width:1280,height:900});
+  await page.evaluate(async()=>{await Promise.all([...document.querySelectorAll('.tactical-art svg image')].map(async el=>{const i=new Image();i.src=new URL(el.getAttribute('href'),location.href);await i.decode();}));});
+  await duel.locator('.tactical-stage').screenshot({path:'test-results/ui-visual/arena-'+name+'.png'});
+  await page.setViewportSize({width:360,height:640});
+  await page.screenshot({path:'test-results/ui-visual/mobile-'+name+'.png'});
+ }
+ expect([...seen].sort()).toEqual(['cybergrid','jumpgate','nebula','orbital']);
  await duel.getByRole('button',{name:'離開戰術對戰'}).click();
  await page.getByRole('button',{name:'挑戰廢棄機械兵',exact:true}).click();
  await expect(page.getByTestId('procedural-arena')).toHaveAttribute('data-ready','true',{timeout:15000});

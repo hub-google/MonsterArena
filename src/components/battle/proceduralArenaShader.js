@@ -11,6 +11,7 @@ precision mediump float;
 uniform vec2 resolution;
 uniform float time;
 uniform float boss;
+uniform float arenaVariant;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
 float noise(vec3 p){
@@ -26,6 +27,17 @@ float line(float x,float w){return 1.-smoothstep(w,w*2.,abs(x));}
 vec2 scene(vec3 p){
  float radius=length(p.xz);
  vec2 s=vec2(100.,0.);
+ if(arenaVariant>2.5){
+  // Electronic simulation: hexagonal floating deck and tall data pylons.
+  vec2 q=abs(p.xz);float hex=max(q.x*.866025+q.y*.5,q.y);
+  s=add(s,max(hex-6.2,abs(p.y+.24)-.24),1.);
+  s=add(s,max(hex-5.65,abs(p.y-.10)-.12),2.);
+  s=add(s,max(abs(hex-5.63)-.055,abs(p.y-.23)-.035),5.);
+  vec3 tower=vec3(abs(p.x)-5.8,p.y-2.4,mod(p.z+8.,4.)-2.);
+  s=add(s,boxSDF(tower,vec3(.45,2.4,.5))-.04,6.);
+  s=add(s,boxSDF(tower-vec3(-.46,0.,0.),vec3(.045,2.1,.19)),5.);
+  return s;
+ }
  // Floating layered alloy deck with inset emitters and segmented armor.
  s=add(s,cyl(p-vec3(0.,-.38,0.),6.7,.38),1.);
  s=add(s,cyl(p-vec3(0.,.05,0.),5.5,.16),2.);
@@ -42,6 +54,21 @@ vec2 scene(vec3 p){
  s=add(s,boxSDF(d-vec3(0.,.65,0.),vec3(.52,.65,.8))-.12,3.);
  s=add(s,boxSDF(d-vec3(0.,1.40,0.),vec3(.35,.14,.68))-.05,6.);
  s=add(s,boxSDF(d-vec3(-.55,.85,0.),vec3(.055,.35,.47)),5.);
+ if(arenaVariant>.5&&arenaVariant<1.5){
+  // Nebula station: tall paired thruster housings, layered metal arches.
+  vec3 t=vec3(abs(p.x)-5.4,p.y-2.,p.z+5.6);
+  s=add(s,boxSDF(t,vec3(.62,2.0,.58))-.12,6.);
+  s=add(s,boxSDF(t-vec3(-.64,0.,0.),vec3(.045,1.65,.22)),5.);
+ }
+ if(arenaVariant>1.5&&arenaVariant<2.5){
+  // Jump gate: full circular segmented energy accelerator, suspended behind deck.
+  vec3 v=p-vec3(0.,4.2,-9.);
+  float rr=length(v.xy);
+  s=add(s,max(abs(rr-3.9)-.28,abs(v.z)-.23),6.);
+  s=add(s,max(abs(rr-3.57)-.09,abs(v.z+.1)-.07),5.);
+  float a2=atan(v.y,v.x);
+  s=add(s,max(max(abs(rr-4.25)-.13,abs(v.z)-.32),abs(sin(a2*12.))-.26),3.);
+ }
  // Two precision orbital hoops behind the deck; open at the top to reveal space.
  vec3 g=p-vec3(0.,1.2,-7.1);
  float ring=length(g.xy);
@@ -105,12 +132,41 @@ vec3 surface(vec3 p,vec3 n,float id,vec3 accent,out float rough,out vec3 emit){
 // with procedural atmospheric bands, terminator and a tilted ring system.
 vec3 cosmos(vec3 rd,vec3 accent){
  vec3 c=vec3(.009,.016,.045);
+ if(arenaVariant>2.5){
+  // Endless data-space: perspective grid, drifting packet columns and circuit nodes.
+  vec2 uv=rd.xy/max(.12,-rd.z);
+  float depth=1./max(.12,abs(rd.y+.06));
+  vec2 plane=vec2(rd.x*depth,rd.z*depth);
+  vec2 gr=abs(fract(plane*1.7)-.5);
+  float grid=(1.-smoothstep(.43,.49,min(gr.x,gr.y)))*.025;
+  float edges=smoothstep(.465,.495,max(gr.x,gr.y));
+  float fade=exp(-depth*.07);
+  float columns=step(.87,hash(vec2(floor(uv.x*38.),1.)));
+  float packet=step(.72,fract(uv.y*15.+time*.65+hash(vec2(floor(uv.x*38.),3.))));
+  float nodes=pow(max(0.,sin(uv.x*43.+sin(uv.y*23.))),22.)*pow(max(0.,sin(uv.y*37.)),16.);
+  return vec3(.008,.022,.043)+accent*(edges*fade*.30+grid+columns*packet*.10+nodes*.22);
+ }
  float cloud=fbm(rd*4.5+vec3(1.2,-1.5,3.4));
  float fil=fbm(rd*13.+vec3(2.,1.,5.));
  float band=exp(-pow((rd.y+.15*rd.x-.06)*3.6,2.));
  float neb=pow(clamp(cloud*1.45-.24,0.,1.),2.)*band;
  c+=mix(vec3(.045,.034,.15),vec3(.07,.20,.34),fil)*neb*2.8;
  c+=vec3(.20,.08,.23)*pow(max(0.,fil-.36),2.)*band;
+ if(arenaVariant>.5&&arenaVariant<1.5){
+  // Violet and rose nebula with turbulent dust lanes and a bright ionized core.
+  float spiral=fbm(rd*7.+vec3(8.,3.,-5.));
+  float plume=exp(-pow((rd.y-rd.x*.36+.10+spiral*.22)*4.8,2.));
+  c+=mix(vec3(.15,.025,.32),vec3(.78,.13,.32),fil)*plume*(.35+spiral)*1.5;
+  c*=.6+.65*cloud;
+ }
+ if(arenaVariant>1.5&&arenaVariant<2.5){
+  // Hyperspace tunnel: radially stretched stars, concentric shock fronts.
+  vec2 z=rd.xy-vec2(0.,.12);float rad=length(z);float an=atan(z.y,z.x);
+  float streak=pow(max(0.,sin(an*94.+sin(an*31.)*3.)),18.);
+  float pulse=pow(.5+.5*sin(rad*61.-time*3.),8.);
+  c+=accent*(streak*exp(-rad*2.)*.45+pulse*exp(-rad*4.)*.21);
+  c+=vec3(.24,.42,.85)*exp(-rad*rad*32.)*.48;
+ }
  for(int i=0;i<3;i++){
   float fi=float(i);
   vec3 q=rd*(92.+fi*107.);
@@ -118,16 +174,17 @@ vec3 cosmos(vec3 rd,vec3 accent){
   float star=step(.971+fi*.006,hash3(cell+fi*2.))*exp(-dot(f,f)*(32.+fi*12.));
   c+=star*mix(vec3(.5,.7,1.),vec3(1.,.87,.68),hash3(cell+6.))*(1.2-fi*.22);
  }
- vec3 pc=normalize(vec3(.43,.16,-1.));
+ if(arenaVariant>1.5)return c;
+ vec3 pc=normalize(arenaVariant>.5?vec3(-.54,.20,-1.):vec3(.43,.16,-1.));
  vec3 rel=rd-pc;float dist=length(rel);
- float pr=.245;
+ float pr=arenaVariant>.5?.13:.245;
  vec3 axis=normalize(vec3(.18,.87,.46));
  float denom=dot(rd,axis);
  if(abs(denom)>.001){
   float k=dot(pc,axis)/denom;
   vec3 ringPoint=rd*k-pc;
   float rr=length(ringPoint);
-  if(k>0.&&rr>pr*1.23&&rr<pr*2.24&&(dist>pr||k<dot(rd,pc))){
+  if(arenaVariant<.5&&k>0.&&rr>pr*1.23&&rr<pr*2.24&&(dist>pr||k<dot(rd,pc))){
    float rings=.44+.30*sin(rr*340.)+.18*sin(rr*770.);
    float gaps=smoothstep(.005,.02,abs(rr-pr*1.72));
    c=mix(c,vec3(.46,.60,.83)*rings,gaps*.48);
@@ -151,7 +208,8 @@ vec3 cosmos(vec3 rd,vec3 accent){
 }
 void main(){
  vec2 uv=(gl_FragCoord.xy*2.-resolution)/resolution.y;
- vec3 accent=mix(vec3(.10,.72,.95),vec3(1.,.31,.095),boss);
+ vec3 tint=arenaVariant<.5?vec3(.10,.72,.95):arenaVariant<1.5?vec3(.67,.23,1.):arenaVariant<2.5?vec3(.26,.49,1.):vec3(.05,1.,.62);
+ vec3 accent=mix(tint,vec3(1.,.31,.095),boss*.78);
  vec3 fog=mix(vec3(.046,.11,.15),vec3(.14,.072,.053),boss);
  vec3 ro=vec3(0.,3.15,10.5),target=vec3(0.,1.5,-5.);
  vec3 f=normalize(target-ro),r=normalize(cross(f,vec3(0.,1.,0.))),u=cross(r,f);
@@ -172,7 +230,7 @@ void main(){
   vec3 h=normalize(light-rd);
   float spec=pow(max(dot(sn,h),0.),mix(90.,9.,rough))*(1.-rough*.75);
   vec3 ambient=mix(vec3(.15,.21,.25),vec3(.42,.51,.53),sn.y*.5+.5);
-  float reactor=1./(1.+.12*dot(p-vec3(0.,.1,-3.),p-vec3(0.,3.8,-12.)));
+  float reactor=1./(1.+.12*dot(p-vec3(0.,.1,-3.),p-vec3(0.,.1,-3.)));
   float edgeLight=exp(-abs(length(p.xz)-4.5)*2.2)*exp(-max(p.y,0.)*.85);
   col=base*(ambient*oc+vec3(.83,.93,1.)*diffuse*sh*1.2)+spec*sh*vec3(.66,.81,.88);
   col+=accent*(reactor*.25+edgeLight*.22)*oc+emission;
@@ -198,3 +256,18 @@ export function arenaResolution(width,height,dpr=1){
  const scale=Math.min(Math.max(1,dpr),2,1200/w,720/h);
  return [Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale))];
 }
+
+export const ARENA_VARIANTS=Object.freeze(['orbital','nebula','jumpgate','cybergrid']);
+// Shuffle without replacement, including no immediate repeat across bag boundaries.
+export function createArenaPicker(random=Math.random){
+ let bag=[],last=-1;
+ return ()=>{
+  if(!bag.length){
+   bag=ARENA_VARIANTS.map((_,i)=>i);
+   for(let i=bag.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]];}
+   if(bag.at(-1)===last)[bag[0],bag[bag.length-1]]=[bag[bag.length-1],bag[0]];
+  }
+  last=bag.pop();return last;
+ };
+}
+export const nextArena=createArenaPicker();

@@ -10,6 +10,7 @@ import './TacticalDuel.css';
 const opponent={name:'戰術訓練機',family:3,life_stage:5,type:2};
 const gradeNames={perfect:'完美',good:'普通',miss:'失誤'};
 export default function TacticalDuel({monster,mode,onExit,boss=false,onSettle}){
+ const [arenaMatch,setArenaMatch]=useState(0);
  const [duel,setDuel]=useState(()=>boss?initialBossDuel(monster):initialDuel());
  const actions=boss?BOSS_ACTIONS:ACTIONS;
  const maxRounds=boss?BOSS_MAX_ROUNDS:MAX_ROUNDS;
@@ -70,6 +71,7 @@ export default function TacticalDuel({monster,mode,onExit,boss=false,onSettle}){
  }
  function tap(){if(pendingRef.current)finish(timingGrade((performance.now()-started.current)/duration));}
  function restart(){
+  setArenaMatch(n=>n+1);
   if(clock.current!==null)cancelAnimationFrame(clock.current);
   clock.current=null;pendingRef.current=null;locked.current=false;
   setPending(null);setProgress(0);setSettlement(null);settlementId.current=null;setDuel(boss?initialBossDuel(monster):initialDuel());setLook(appearance(monster,mode));setRevealing(hasDisguise(monster,mode));
@@ -79,7 +81,7 @@ export default function TacticalDuel({monster,mode,onExit,boss=false,onSettle}){
  return <section className="tactical-duel" data-testid="tactical-duel" aria-label="手動戰術對戰">
   <header className="tactical-top"><button type="button" onClick={onExit} disabled={cannotLeave} aria-label="離開戰術對戰"><GameIcon name="back"/></button><div><h2>{boss?'終極機甲首領':'戰術競技場'}</h2><span>{boss?(onSettle?'戰術攻略 · 完成後結算':'首領攻略練習 · 不計金幣及排名'):'公平練習 · 不計金幣及排名'}</span></div><span className="tactical-round">{Math.min(duel.round,maxRounds)}/{maxRounds}</span></header>
   <div className="tactical-stage ma-procedural-stage">
-   <ProceduralArena boss={boss}/>
+   <ProceduralArena key={arenaMatch} boss={boss}/>
    {[monster,foe].map((m,i)=><div key={i} className={'tactical-fighter fighter-'+i}>
     <strong>{displayMonsterName(m)}</strong>
     <div className="tactical-art"><BattleReveal monster={m} look={i===0?look:{}} revealing={i===0&&revealing} restored={Boolean(duel.result)} dead={duel.hp[i]===0} size={150}/></div>
