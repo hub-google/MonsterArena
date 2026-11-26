@@ -3,7 +3,7 @@ export const SHOP_ITEMS=Object.freeze([["meat_basic","標準電池","feed","補�
 export const ITEM_BY_ID=Object.freeze(Object.fromEntries(SHOP_ITEMS.map(item=>[item.id,item])));
 const V2_PRICES={meat_premium:25,energy_drink:50,medicine_standard:80,vitamin:30,breed_catalyst:300};
 export const BALANCED_SHOP_ITEMS=Object.freeze(SHOP_ITEMS.map(item=>Object.freeze({...item,price:V2_PRICES[item.id]??item.price,
- description:item.id==='vitamin'?'訓練時選擇使用：一次增加 2 配點':item.id.startsWith('chip_')?'安裝增加該能力基準 5%；拆除需提取器':item.description})));
+ description:item.id==='energy_drink'?'能源與行動電力立即補滿':item.id==='vitamin'?'訓練時選擇使用：一次增加 2 配點':item.id.startsWith('chip_')?'安裝增加該能力基準 5%；拆除需提取器':item.description})));
 export const BALANCED_ITEM_BY_ID=Object.freeze(Object.fromEntries(BALANCED_SHOP_ITEMS.map(item=>[item.id,item])));
 
 const LEGACY_MESSAGES=[["怪獸太餓或生病","機體能源不足或系統故障"],["怪獸沒有生病","機體沒有系統故障"],["已死亡的怪獸","核心失效的機體"],["機械核心尚未孵化","機械核心尚未啟動"],["放生後將無法孵蛋；請保留最後一隻怪獸","拆解後將無法啟動新核心；請保留最後一具機體"],["雙親必須是自己存活的成熟期怪獸","兩具來源機體必須屬於自己、核心正常且達戰鬥機階段"],["請選擇不同的雙親","請選擇兩具不同機體"],["不支援的食物","不支援的能源補給品"],["不支援的藥物","不支援的修復道具"],["凍結中的怪獸","停機中的機體"],["凍結的怪獸","停機中的機體"],["究極進化需要完全體","終極升級需要超限機"],["免費急救草藥","緊急修復"],["基礎飼料","基礎充能"],["基本肉","標準電池"],["頂級肉","高密度電池"],["能量飲","雙效充能模組"],["特效藥","標準修復套件"],["維他命","效能增幅器"],["繁衍催化劑","核心融合增幅器"],["究極進化核心","終極升級核心"],["餵食","補充能源"],["飽食度","能源"],["飽食","能源"],["生病","系統故障"],["死亡","核心失效"],["孵化","啟動"],["雙親","來源機體"],["飼料","充能模組"],["藥物","修復道具"],["治療","修復"],["打掃","保養"],["怪獸","機體"],["生命","耐久"],["體力","行動電力"],["繁衍","融合"],["放生","拆解"],["鑲嵌","安裝"],["世界王","巨型機甲首領"]];
