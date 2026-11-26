@@ -73,6 +73,13 @@ test('published procedural battle arena renders and responds to player actions',
  await page.getByRole('button',{name:'挑戰終極機甲首領',exact:true}).click();
  await expect(duel.getByTestId('procedural-arena')).toHaveAttribute('data-ready','true');
  await expect(duel.locator('.ma-arena-boss')).toBeVisible();
+ const bossArt=duel.locator('.fighter-1 svg[role="img"] image');
+ await expect(bossArt).toHaveCount(1);
+ const href=await bossArt.getAttribute('href');
+ const dimensions=await page.evaluate(async href=>{const img=new Image();img.src=new URL(href,location.href);await img.decode();return [img.naturalWidth,img.naturalHeight]},href);
+ expect(dimensions).toEqual([128,128]);
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.waitForTimeout(300);
  await page.screenshot({path:'test-results/ui-visual/ma-boss-mobile.png'});
  await duel.getByRole('button',{name:'普通攻擊',exact:true}).click();
  await expect(duel.locator('.tactical-round')).toHaveText('2/20');
