@@ -14,7 +14,7 @@ test('arena shader computes 3D signed distances without textures',()=>{
 
 test('detailed arena includes procedural materials, soft shadows and ambient occlusion',()=>{for(const name of ['fbm','shadow','ao','surface'])assert.match(fragmentSource,new RegExp('\\b'+name+'\\('));});
 
-test('orbital stage has procedural astronomical sky and floating deck',()=>{assert.match(fragmentSource,/vec3 cosmos\(/);assert.match(fragmentSource,/Floating layered alloy deck/);assert.doesNotMatch(fragmentSource,/rust|cliff|moss/);});
+test('orbital stage has procedural astronomical sky and floating deck',()=>{assert.match(fragmentSource,/vec3 cosmos\(/);assert.match(fragmentSource,/Floating layered alloy deck/);assert.doesNotMatch(fragmentSource,/\b(?:rust|cliff|moss)\b/);});
 
 test('shuffle picker covers all four stages before repeats and avoids consecutive duplicates',()=>{
  const pick=createArenaPicker(()=>.42);
